@@ -345,6 +345,7 @@
   #r-finances:checked ~ .panels #panel-finances,
   #r-arena:checked ~ .panels #panel-arena,
   #r-roster:checked ~ .panels #panel-roster,
+  #r-staff:checked ~ .panels #panel-staff,
   #r-byposition:checked ~ .panels #panel-byposition,
   #r-training:checked ~ .panels #panel-training,
   #r-schedule:checked ~ .panels #panel-schedule,
@@ -356,6 +357,7 @@
   #r-finances:checked ~ .tabs-nav label[for="r-finances"],
   #r-arena:checked ~ .tabs-nav label[for="r-arena"],
   #r-roster:checked ~ .tabs-nav label[for="r-roster"],
+  #r-staff:checked ~ .tabs-nav label[for="r-staff"],
   #r-byposition:checked ~ .tabs-nav label[for="r-byposition"],
   #r-training:checked ~ .tabs-nav label[for="r-training"],
   #r-schedule:checked ~ .tabs-nav label[for="r-schedule"],
@@ -367,6 +369,7 @@
   #r-finances:focus-visible ~ .tabs-nav label[for="r-finances"],
   #r-arena:focus-visible ~ .tabs-nav label[for="r-arena"],
   #r-roster:focus-visible ~ .tabs-nav label[for="r-roster"],
+  #r-staff:focus-visible ~ .tabs-nav label[for="r-staff"],
   #r-byposition:focus-visible ~ .tabs-nav label[for="r-byposition"],
   #r-training:focus-visible ~ .tabs-nav label[for="r-training"],
   #r-schedule:focus-visible ~ .tabs-nav label[for="r-schedule"],
@@ -439,6 +442,7 @@
     <input type="radio" name="ss-tabs" id="r-finances" class="tab-radio">
     <input type="radio" name="ss-tabs" id="r-arena" class="tab-radio">
     <input type="radio" name="ss-tabs" id="r-roster" class="tab-radio">
+    <input type="radio" name="ss-tabs" id="r-staff" class="tab-radio">
     <input type="radio" name="ss-tabs" id="r-byposition" class="tab-radio">
     <input type="radio" name="ss-tabs" id="r-training" class="tab-radio">
     <input type="radio" name="ss-tabs" id="r-schedule" class="tab-radio">
@@ -452,7 +456,8 @@
       <label class="tab-btn" for="r-finances">Finances</label>
       <label class="tab-btn" for="r-arena">Arena &amp; Attendance</label>
       <span class="tab-divider"></span>
-      <label class="tab-btn" for="r-roster">Roster &amp; Staff</label>
+      <label class="tab-btn" for="r-roster">Roster</label>
+      <label class="tab-btn" for="r-staff">Staff</label>
       <label class="tab-btn" for="r-byposition">Roster by Position</label>
       <label class="tab-btn" for="r-training">Training Strategy</label>
       <span class="tab-divider"></span>
@@ -585,7 +590,7 @@
 
   </div>
 
-  <!-- ================= PANEL: ROSTER & STAFF ================= -->
+  <!-- ================= PANEL: ROSTER ================= -->
   <div class="tab-panel" id="panel-roster">
 
     <section class="block" style="margin-top:20px;">
@@ -600,33 +605,12 @@
 
     <section class="block">
       <div class="block-head">
-        <h2>Training candidates</h2>
-        <span class="tag tag-calc">Calculated · updates instantly</span>
-      </div>
-      <details class="note"><summary>How this works</summary>
-        <p class="block-note">Check any player to mark them a training candidate - that's saved in this browser only (not synced anywhere, not part of the daily snapshot), so it's private to whoever's viewing and sticks around on this device across reloads. Minutes/threshold/status for every player use whichever training type and position combo are currently selected in the Training minutes calculator (Training Strategy tab) - change that selection there and this table updates too, they share the same live combo rather than each needing their own.</p>
-      </details>
-      <div id="roster-candidates"><p class="block-note">Loading live data…</p></div>
-    </section>
-
-    <section class="block">
-      <div class="block-head">
-        <h2>Staff, training &amp; scouting</h2>
-        <span class="auto-badge">Auto-updated daily</span>
-      </div>
-      <!-- AUTO:STAFF -->
-      <p class="block-note">Loading live data…</p>
-      <!-- /AUTO:STAFF -->
-      <details class="note"><summary>Training focus, scouting</summary>
-        <p class="block-note" style="margin-top:14px;"><span class="tag tag-official">Official · training.aspx</span>&nbsp; Training is set to <b style="color:var(--ink)">Rebounding, C/PF</b> — an individual skill focus for Centers and Power Forwards, not Team Training. training.aspx has no API endpoint, so this line is carried over from the last screenshot check, not live.</p>
-      </details>
-    </section>
-
-    <section class="block">
-      <div class="block-head">
         <h2>Skill ratings (as shown in-game)</h2>
         <span class="auto-badge">Auto-updated daily</span>
       </div>
+      <details class="note"><summary>About the Train?/Minutes/Status columns</summary>
+        <p class="block-note">Check any player to mark them a training candidate - that's saved in this browser only (not synced anywhere, not part of the daily snapshot), so it's private to whoever's viewing and sticks around on this device across reloads. Minutes/threshold/status for every player use whichever training type and position combo are currently selected in the training minutes calculator (Training Strategy tab) - change that selection there and this table updates too, they share the same live combo rather than each needing their own.</p>
+      </details>
       <!-- AUTO:ROSTER_SKILLS -->
       <p class="block-note">Loading live data…</p>
       <!-- /AUTO:ROSTER_SKILLS -->
@@ -643,6 +627,24 @@
       <!-- AUTO:MINUTES_VS_MONEY -->
       <p class="block-note">Loading live data…</p>
       <!-- /AUTO:MINUTES_VS_MONEY -->
+    </section>
+
+  </div>
+
+  <!-- ================= PANEL: STAFF ================= -->
+  <div class="tab-panel" id="panel-staff">
+
+    <section class="block" style="margin-top:20px;">
+      <div class="block-head">
+        <h2>Staff, training &amp; scouting</h2>
+        <span class="auto-badge">Auto-updated daily</span>
+      </div>
+      <!-- AUTO:STAFF -->
+      <p class="block-note">Loading live data…</p>
+      <!-- /AUTO:STAFF -->
+      <details class="note"><summary>Training focus, scouting</summary>
+        <p class="block-note" style="margin-top:14px;"><span class="tag tag-official">Official · training.aspx</span>&nbsp; Training is set to <b style="color:var(--ink)">Rebounding, C/PF</b> — an individual skill focus for Centers and Power Forwards, not Team Training. training.aspx has no API endpoint, so this line is carried over from the last screenshot check, not live.</p>
+      </details>
     </section>
 
   </div>
@@ -980,17 +982,20 @@
       document.getElementById("tc-combo").value = defaultCombo;
     }
     ssbbRenderTrainingCalc();
-    ssbbRenderRosterCandidates();
+    ssbbApplyTrainingColumns();
   }
 
-  // ---- Roster & Staff tab: "Training candidates" checkbox column ----
+  // ---- Roster tab: Train?/Minutes/Status columns on the skill table ----
   // Which players are checked lives only in this browser's localStorage -
   // there's nowhere on a static GitHub Pages site to write that back to
   // report.db, so it's a per-viewer, per-device preference, not shared or
   // part of the daily snapshot. Minutes/threshold/status for every roster
   // player (not just checked ones - useful context either way) come from
   // whatever combo is currently selected in #tc-type/#tc-combo above, the
-  // same calculator dropdowns, not a separate selector of their own.
+  // same calculator dropdowns, not a separate selector of their own. These
+  // three columns are injected into the server-rendered skill table (via
+  // each row's data-playerid) rather than built as their own table, so
+  // there's one roster table, not two.
   var CANDIDATES_KEY = "ssbb-training-candidates";
 
   function ssbbGetCandidates() {
@@ -999,9 +1004,10 @@
       if (raw) return new Set(JSON.parse(raw));
     } catch (e) {}
     // First-ever visit on this browser: default-check whoever was already
-    // in the hand-curated cohort (see "Training candidates & skills"
-    // below), so this opens matching what's already shown there instead of
-    // empty. Persisted immediately so this default only gets computed once.
+    // in the hand-curated cohort (see "Training candidates & skills" in
+    // the Training Strategy tab), so this opens matching what's already
+    // shown there instead of empty. Persisted immediately so this default
+    // only gets computed once.
     var data = window.SSBB_DATA;
     var defaults = new Set(
       ((data && data.training_cards) || []).filter(function (c) { return c.on_roster; }).map(function (c) { return c.playerid; })
@@ -1014,19 +1020,28 @@
     try { localStorage.setItem(CANDIDATES_KEY, JSON.stringify(Array.from(set))); } catch (e) {}
   }
 
-  function ssbbRenderRosterCandidates() {
+  function ssbbApplyTrainingColumns() {
     var data = window.SSBB_DATA;
-    var container = document.getElementById("roster-candidates");
-    if (!data || !container) return;
+    if (!data) return;
     var comboSel = document.getElementById("tc-combo");
     if (!comboSel || !comboSel.value) return;
     var opt = ssbbParseTrainingOption(comboSel.value);
     var posMinutes = data.position_minutes || {};
-    var rows = (data.roster_skills && data.roster_skills.rows) || [];
+    var rowsByPid = {};
+    ((data.roster_skills && data.roster_skills.rows) || []).forEach(function (r) { rowsByPid[r.playerid] = r; });
     var candidates = ssbbGetCandidates();
 
-    var body = rows.map(function (r) {
-      var pm = posMinutes[r.playerid] || {};
+    document.querySelectorAll("tr[data-playerid]").forEach(function (tr) {
+      var pid = tr.getAttribute("data-playerid");
+      var r = rowsByPid[pid];
+      var trainCell = tr.querySelector(".js-train-cell");
+      var minutesCell = tr.querySelector(".js-minutes-cell");
+      var statusCell = tr.querySelector(".js-status-cell");
+      if (!r || !trainCell || !minutesCell || !statusCell) return;
+
+      trainCell.innerHTML = '<input type="checkbox" class="candidate-checkbox" data-playerid="' + ssbbEsc(pid) + '"' + (candidates.has(pid) ? " checked" : "") + ">";
+
+      var pm = posMinutes[pid] || {};
       var minutes = 0;
       for (var i = 0; i < opt.positions.length; i++) minutes += Math.round(pm[opt.positions[i]] || 0);
       var threshold = ssbbTrainingThreshold(r.age);
@@ -1038,19 +1053,9 @@
         else if (gap <= 10) { status = "Short by " + gap; color = "--warning"; }
         else { status = "Well short"; color = "--negative"; }
       }
-      var minCell = threshold == null ? "—" : (minutes + " / " + threshold + " min");
-      var checked = candidates.has(r.playerid) ? " checked" : "";
-      return '<tr><td><input type="checkbox" class="candidate-checkbox" data-playerid="' + ssbbEsc(r.playerid) + '"' + checked + "></td>"
-        + "<td class=\"name-cell\">" + ssbbEsc(r.name) + "</td><td>" + ssbbEsc(r.position) + "</td>"
-        + "<td class=\"num\">" + ssbbEsc(r.age) + "</td><td class=\"num\">" + minCell + "</td>"
-        + "<td><span class=\"tag\" style=\"background:var(" + color + "-soft); color:var(" + color + ");\">" + status + "</span></td></tr>";
-    }).join("");
-
-    container.innerHTML =
-      '<div class="tbl-scroll"><table><thead><tr><th>Train?</th><th>Player</th><th>Pos</th><th class="num">Age</th>'
-      + '<th class="num">Minutes / threshold</th><th>Status</th></tr></thead><tbody>' + body + "</tbody></table></div>"
-      + '<p class="block-note" style="margin-top:10px;">Minutes/threshold above use <b style="color:var(--ink)">' + ssbbEsc(opt.label)
-      + "</b>, the combo currently selected in the training minutes calculator (Training Strategy tab).</p>";
+      minutesCell.textContent = threshold == null ? "—" : (minutes + " / " + threshold + " min");
+      statusCell.innerHTML = '<span class="tag" style="background:var(' + color + '-soft); color:var(' + color + ');">' + status + "</span>";
+    });
   }
 
   document.addEventListener("change", function (e) {
@@ -1058,10 +1063,10 @@
     if (e.target.id === "tc-type") {
       ssbbPopulateComboDropdown(e.target.value);
       ssbbRenderTrainingCalc();
-      ssbbRenderRosterCandidates();
+      ssbbApplyTrainingColumns();
     } else if (e.target.id === "tc-combo") {
       ssbbRenderTrainingCalc();
-      ssbbRenderRosterCandidates();
+      ssbbApplyTrainingColumns();
     } else if (e.target.className === "candidate-checkbox") {
       var candidates = ssbbGetCandidates();
       var pid = e.target.getAttribute("data-playerid");

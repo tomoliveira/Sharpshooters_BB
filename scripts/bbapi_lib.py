@@ -1182,12 +1182,21 @@ def auto_roster_skills_html(data):
                 pop = f' <span style="color:var(--positive)">{esc(cell["pop"])}</span>' if cell.get("pop") else ""
                 grp_class = " grp-start" if (gi and ti == 0) else ""
                 cells += f'<td class="num{grp_class}">{label}{pop}</td>'
-        body += (f'<tr><td class="name-cell">{esc(r["name"])}</td><td>{esc(r["position"])}</td>'
-                 f'<td class="num">{esc(r["age"])}</td><td class="num">{potential_label(r["potential"])}</td>{cells}</tr>')
+        # Train?/Minutes/Status are placeholders, deliberately left for the
+        # page's own JS to fill in after load - see ssbbApplyTrainingColumns
+        # in docs/sharpshooters/index.html. This table is otherwise plain
+        # server-rendered HTML with no knowledge of which training combo is
+        # currently selected (that's a client-only, interactive choice), so
+        # data-playerid is what lets the JS find the right row without
+        # re-deriving or duplicating any of the skill-rendering logic above.
+        body += (f'<tr data-playerid="{esc(r["playerid"])}"><td class="name-cell">{esc(r["name"])}</td><td>{esc(r["position"])}</td>'
+                 f'<td class="num">{esc(r["age"])}</td><td class="num">{potential_label(r["potential"])}</td>{cells}'
+                 f'<td class="js-train-cell">—</td><td class="num js-minutes-cell">—</td><td class="js-status-cell">—</td></tr>')
     table = (
         '<div class="tbl-scroll"><table class="freeze-first-col" style="min-width:1200px;">'
         '<thead>'
-        f'<tr><th rowspan="2">Player</th><th rowspan="2">Pos</th><th rowspan="2" class="num">Age</th><th rowspan="2" class="num">Potential</th>{group_header_cells}</tr>'
+        f'<tr><th rowspan="2">Player</th><th rowspan="2">Pos</th><th rowspan="2" class="num">Age</th><th rowspan="2" class="num">Potential</th>{group_header_cells}'
+        '<th rowspan="2">Train?</th><th rowspan="2" class="num">Minutes / threshold</th><th rowspan="2">Status</th></tr>'
         f'<tr>{skill_header_cells}</tr>'
         '</thead>'
         f'<tbody>{body}</tbody></table></div>'
@@ -1195,7 +1204,8 @@ def auto_roster_skills_html(data):
     gap_note = (
         '<p class="block-note" style="margin-top:10px;"><span class="tag tag-official">Official · Game Manual, rules.aspx?nav=Nomenclature + contentbox.css</span> '
         'Word labels (on hover) are the manual\'s verbatim 1&ndash;20 adjective scale; colors are the exact hex values from the game\'s own stylesheet (.lev1&ndash;.lev20). '
-        'Dark-mode colors are lightness-boosted for legibility, since the game has no dark theme of its own to match.</p>'
+        'Dark-mode colors are lightness-boosted for legibility, since the game has no dark theme of its own to match. '
+        '<span class="tag tag-calc">Calculated</span> The trailing Train?/Minutes/Status columns are filled in live by this page\'s own script from whichever training combo is currently selected above (see the training minutes calculator, Training Strategy tab) - not part of the daily snapshot.</p>'
     )
     return (
         '<p class="block-note">Same 12 skills, word scale, and color coding the game itself shows on a player card, pulled live from the official API for the full roster — grouped OSP/ISP/Other and shown as numbers only (hover a value for its word) to keep the table scannable.</p>'
