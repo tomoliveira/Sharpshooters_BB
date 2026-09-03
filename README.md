@@ -19,12 +19,17 @@ Live BuzzerBeater team report for the Sharpshooters, built from three pieces:
 
 ## One-time setup
 
-### 1. Add BuzzerBeater credentials as repo secrets
+### 1. Add BuzzerBeater credentials as secrets
 
-Settings → Secrets and variables → Actions → New repository secret:
-
-- `BB_LOGIN`
-- `BB_CODE`
+`BB_LOGIN` / `BB_CODE` currently live as environment secrets under
+`github-pages` (Settings → Environments → github-pages → Add secret) — the
+environment GitHub auto-creates for Pages deploys. The `update-sharpshooters`
+job in `.github/workflows/daily-update.yml` declares `environment:
+github-pages` so it can read them; a job targeting an environment sees both
+that environment's secrets and plain repo-level ones (Settings → Secrets
+and variables → Actions), with the environment's value winning on a name
+collision — so either location works, and you can drop the `environment:`
+line if you'd rather keep everything at the repo level instead.
 
 (These match `teams/sharpshooters.json`'s `bb_login_env`/`bb_code_env`. For
 a second team, add a new team config with different env var names and a
