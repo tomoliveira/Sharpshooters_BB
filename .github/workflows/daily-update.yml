@@ -10,6 +10,11 @@ on:
 jobs:
   update-sharpshooters:
     runs-on: ubuntu-latest
+    # BB_LOGIN/BB_CODE are stored as environment secrets under "github-pages"
+    # (the environment GitHub auto-created for Pages deploys) rather than as
+    # plain repo secrets - this job has to target that same environment to
+    # read them. "master" is an allowed deployment branch for it.
+    environment: github-pages
     permissions:
       contents: write
     steps:
