@@ -1,0 +1,13 @@
+{
+  "team_key": "sharpshooters",
+  "current_training_focus": "Rebounding, C / PF",
+  "training_focus_positions": ["PF", "C"],
+  "training_cohort": {
+    "56146672": "Lauro Mendonça",
+    "56146678": "Élder Landim",
+    "56146681": "Fiorindo Valença",
+    "55910729": "Gunnar Støen"
+  },
+  "bb_login_env": "BB_LOGIN",
+  "bb_code_env": "BB_CODE"
+}

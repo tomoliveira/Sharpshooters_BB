@@ -1,0 +1,17 @@
+{
+  "name": "sharpshooters-bb-mcp",
+  "version": "1.0.0",
+  "description": "MCP server exposing BuzzerBeater team report data from Sharpshooters_BB's report.db (a SQLite file updated daily by GitHub Actions and served over GitHub Pages).",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "sharpshooters-bb-mcp": "index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.5.0",
+    "sql.js": "^1.10.3"
+  }
+}
