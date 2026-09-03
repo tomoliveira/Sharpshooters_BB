@@ -487,46 +487,69 @@ def update_investment_ledger(ledger, economy_root, roster_root, arena_root, run_
             if last is None or last["seats"] != snap["seats"] or last["prices"] != snap["prices"]:
                 ledger["arena_snapshots"].append(snap)
 
-    run_dt = _parse_date(run_date)
     for pid, snap in name_by_id.items():
         entry = ledger["player_snapshots"].setdefault(pid, {})
         if "baseline" not in entry:
             entry["baseline"] = {**snap, "date": run_date}
         entry["latest"] = {**snap, "date": run_date}
 
-    # Salary accrual toward TCO: backfill from the earliest known purchase date
-    # (whether that transaction was captured this run or a prior one), then
-    # accrue day-by-day for every currently-rostered player on each run.
-    earliest_buy = {}
-    for t in ledger["player_transactions"]:
-        if t["amount"] < 0:
-            earliest_buy[t["playerid"]] = min(earliest_buy.get(t["playerid"], t["date"]), t["date"])
-
-    for pid in name_by_id:
-        entry = ledger["player_snapshots"][pid]
-        salary = float(name_by_id.get(pid, {}).get("salary") or 0)
-        if "cumulative_salary_paid" not in entry:
-            buy_date = earliest_buy.get(pid)
-            buy_dt = _parse_date(buy_date) if buy_date else None
-            days = max((run_dt - buy_dt).days, 0) if (buy_dt and run_dt) else 0
-            entry["cumulative_salary_paid"] = salary * days / 7
-            entry["salary_accrual_date"] = run_date
-            continue
-        last_dt = _parse_date(entry.get("salary_accrual_date", run_date))
-        days = max((run_dt - last_dt).days, 0) if (last_dt and run_dt) else 0
-        if days > 0:
-            entry["cumulative_salary_paid"] += salary * days / 7
-            entry["salary_accrual_date"] = run_date
+    record_weekly_salary_payments(ledger, name_by_id)
 
     return ledger
 
-def build_investments_summary(ledger, run_date):
+def most_recent_monday_reset(now_utc):
+    """The economy week - and, per Tom, the actual salary payment - resets
+    Monday, at the same 05:00:01 UTC time observed for other weekly resets
+    in this report (see most_recent_training_week_start's Friday reset)."""
+    days_since_monday = now_utc.weekday()  # Mon=0 ... Sun=6
+    candidate = now_utc.replace(hour=5, minute=0, second=1, microsecond=0) - timedelta(days=days_since_monday)
+    if candidate > now_utc:
+        candidate -= timedelta(days=7)
+    return candidate
+
+def record_weekly_salary_payments(ledger, name_by_id):
+    """Salaries are paid once a week, on the Monday reset - not continuously
+    day by day. Each player gets one ledger["player_snapshots"][pid]
+    ["salary_payments"] entry per Monday since their acquisition date (the
+    matching buy/drafted transaction in ledger["player_transactions"]),
+    recorded at THAT week's observed salary - so a later raise or
+    skill-driven salary change doesn't retroactively change what earlier
+    weeks are recorded as having cost, unlike a single running total
+    recomputed from today's salary would. A week this job didn't run for
+    gets backfilled using the salary observed on the run that catches up,
+    same limitation any accrual scheme has for a week never actually
+    observed - including everything before this ledger started tracking,
+    where the acquisition date itself may already be an estimate (see the
+    "(estimated)" rows in the investments table)."""
+    current_monday = most_recent_monday_reset(datetime.now(timezone.utc)).strftime("%Y-%m-%d")
+    for pid, snap in name_by_id.items():
+        entry = ledger["player_snapshots"].setdefault(pid, {})
+        payments = entry.setdefault("salary_payments", [])
+        paid = {p["date"] for p in payments}
+        if current_monday in paid:
+            continue
+        txn = next((t for t in ledger["player_transactions"]
+                    if t["playerid"] == pid and (t["amount"] < 0 or t.get("acquisition") == "drafted")), None)
+        acquired_dt = _parse_date(txn["date"]) if txn else _parse_date(entry.get("baseline", {}).get("date"))
+        current_monday_dt = _parse_date(current_monday)
+        if acquired_dt is None or current_monday_dt is None:
+            continue
+        offset = (7 - acquired_dt.weekday()) % 7  # days from acquisition to the next Monday (0 if already Monday)
+        monday = acquired_dt + timedelta(days=offset)
+        salary = float(snap.get("salary") or 0)
+        while monday <= current_monday_dt:
+            mstr = monday.strftime("%Y-%m-%d")
+            if mstr not in paid:
+                payments.append({"date": mstr, "amount": salary})
+                paid.add(mstr)
+            monday += timedelta(days=7)
+
+def build_investments_summary(ledger):
     buys = [t for t in ledger["player_transactions"] if t["amount"] < 0 or t.get("acquisition") == "drafted"]
     sells = [t for t in ledger["player_transactions"] if t["amount"] > 0]
     total_buys = sum(-t["amount"] for t in buys)
     total_sells = sum(t["amount"] for t in sells)
     total_capex = sum(-c["amount"] for c in ledger["capex"])
-    run_dt = _parse_date(run_date)
     rows = []
     for t in sorted(buys, key=lambda t: -(-t["amount"])):
         pid = t["playerid"]
@@ -534,15 +557,15 @@ def build_investments_summary(ledger, run_date):
         baseline, latest = snap.get("baseline"), snap.get("latest")
         sale = next((s for s in sells if s["playerid"] == pid), None)
         price = -t["amount"] or 0.0  # avoid "-0" from a $0 drafted-player row
-        salary_paid = snap.get("cumulative_salary_paid", 0.0)
+        payments = snap.get("salary_payments", [])
+        salary_paid = sum(p["amount"] for p in payments)
         tco = price + salary_paid
-        # Weeks owned, floored at 1 so a same-day acquisition doesn't blow up
-        # the rate. "Acquired" date is t["date"] - the real purchase date for
-        # a transfer, or the date this ledger first saw a drafted/homegrown
-        # player (its earliest available proxy - see the acquisition-date
-        # caveat rendered per row below).
-        acquired_dt = _parse_date(t["date"])
-        weeks_owned = max((run_dt - acquired_dt).days / 7, 1) if (run_dt and acquired_dt) else 1
+        # TCO/week: weeks owned = actual Monday salary payments recorded so
+        # far (floored at 1), not a fractional day count - matches how
+        # salary is really paid (see record_weekly_salary_payments), so a
+        # player acquired mid-week doesn't get an inflated rate before their
+        # first payday has even happened.
+        weeks_owned = max(len(payments), 1)
         tco_per_week = tco / weeks_owned
         skill_now = latest.get("skill_sum") if latest else None
         tco_per_skill = (tco / skill_now) if skill_now else None
@@ -608,7 +631,7 @@ def extract_data(conn, team_key, teaminfo, roster, economy, schedule, standings,
     ledger = load_investment_ledger(conn, team_key)
     ledger = update_investment_ledger(ledger, economy, roster, arena, data["now"][:10], our_team_id)
     save_investment_ledger(conn, team_key, ledger)
-    data["investments"] = build_investments_summary(ledger, data["now"][:10])
+    data["investments"] = build_investments_summary(ledger)
     data["investments"]["arena"] = build_arena_investment_summary(ledger)
     current_roster_ids = {p.get("id") for p in roster.findall(".//player") if p.get("id")}
     for row in data["investments"]["rows"]:
@@ -1058,9 +1081,9 @@ def auto_investments_html(data):
             '<th class="num">Skill total now (TSP proxy)</th>'
             '<th class="num">TCO / skill pt</th><th class="num">Sale price</th><th>Status</th></tr></thead>'
             f'<tbody>{body}</tbody></table></div>'
-            '<p class="block-note" style="margin-top:10px;"><span class="tag tag-calc">Calculated</span> TCO = price paid + salary paid while owned '
-            '(accrued daily from the official API salary field since the purchase date, or from first-tracked date for players already on roster before tracking began). '
-            'TCO/week divides that by weeks owned (floored at 1 week, using the same acquisition date as the "Acquired" column) - a run-rate figure comparable across players regardless of how long each has been tracked. '
+            '<p class="block-note" style="margin-top:10px;"><span class="tag tag-calc">Calculated</span> TCO = price paid + salary paid while owned. '
+            'Salary is paid weekly, not continuously - one payment per Monday reset since acquisition, each recorded at that week\'s own salary (from the official API), so a later raise or skill-driven salary change doesn\'t retroactively change what earlier weeks cost. '
+            'TCO/week divides TCO by the number of weekly payments recorded so far (floored at 1) - a run-rate figure comparable across players regardless of how long each has been tracked. '
             '<span class="tag tag-rec">[Inference]</span> "Skill total" is a self-computed sum of the 12 rated skills from the official API, standing in for Buzzer Manager\'s '
             'proprietary TSP figure. Treat skill total as a progress signal, not a market valuation. '
             '<span class="tag tag-rec">[Inference]</span> Rows marked "(estimated)" are drafted/home-grown players with no purchase to date from - salary-paid and TCO accrue from a manually-supplied acquisition date where one is known '
