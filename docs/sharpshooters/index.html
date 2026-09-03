@@ -600,6 +600,17 @@
 
     <section class="block">
       <div class="block-head">
+        <h2>Training candidates</h2>
+        <span class="tag tag-calc">Calculated · updates instantly</span>
+      </div>
+      <details class="note"><summary>How this works</summary>
+        <p class="block-note">Check any player to mark them a training candidate - that's saved in this browser only (not synced anywhere, not part of the daily snapshot), so it's private to whoever's viewing and sticks around on this device across reloads. Minutes/threshold/status for every player use whichever training type and position combo are currently selected in the Training minutes calculator (Training Strategy tab) - change that selection there and this table updates too, they share the same live combo rather than each needing their own.</p>
+      </details>
+      <div id="roster-candidates"><p class="block-note">Loading live data…</p></div>
+    </section>
+
+    <section class="block">
+      <div class="block-head">
         <h2>Staff, training &amp; scouting</h2>
         <span class="auto-badge">Auto-updated daily</span>
       </div>
@@ -969,12 +980,94 @@
       document.getElementById("tc-combo").value = defaultCombo;
     }
     ssbbRenderTrainingCalc();
+    ssbbRenderRosterCandidates();
+  }
+
+  // ---- Roster & Staff tab: "Training candidates" checkbox column ----
+  // Which players are checked lives only in this browser's localStorage -
+  // there's nowhere on a static GitHub Pages site to write that back to
+  // report.db, so it's a per-viewer, per-device preference, not shared or
+  // part of the daily snapshot. Minutes/threshold/status for every roster
+  // player (not just checked ones - useful context either way) come from
+  // whatever combo is currently selected in #tc-type/#tc-combo above, the
+  // same calculator dropdowns, not a separate selector of their own.
+  var CANDIDATES_KEY = "ssbb-training-candidates";
+
+  function ssbbGetCandidates() {
+    try {
+      var raw = localStorage.getItem(CANDIDATES_KEY);
+      if (raw) return new Set(JSON.parse(raw));
+    } catch (e) {}
+    // First-ever visit on this browser: default-check whoever was already
+    // in the hand-curated cohort (see "Training candidates & skills"
+    // below), so this opens matching what's already shown there instead of
+    // empty. Persisted immediately so this default only gets computed once.
+    var data = window.SSBB_DATA;
+    var defaults = new Set(
+      ((data && data.training_cards) || []).filter(function (c) { return c.on_roster; }).map(function (c) { return c.playerid; })
+    );
+    ssbbSetCandidates(defaults);
+    return defaults;
+  }
+
+  function ssbbSetCandidates(set) {
+    try { localStorage.setItem(CANDIDATES_KEY, JSON.stringify(Array.from(set))); } catch (e) {}
+  }
+
+  function ssbbRenderRosterCandidates() {
+    var data = window.SSBB_DATA;
+    var container = document.getElementById("roster-candidates");
+    if (!data || !container) return;
+    var comboSel = document.getElementById("tc-combo");
+    if (!comboSel || !comboSel.value) return;
+    var opt = ssbbParseTrainingOption(comboSel.value);
+    var posMinutes = data.position_minutes || {};
+    var rows = (data.roster_skills && data.roster_skills.rows) || [];
+    var candidates = ssbbGetCandidates();
+
+    var body = rows.map(function (r) {
+      var pm = posMinutes[r.playerid] || {};
+      var minutes = 0;
+      for (var i = 0; i < opt.positions.length; i++) minutes += Math.round(pm[opt.positions[i]] || 0);
+      var threshold = ssbbTrainingThreshold(r.age);
+      var status, color;
+      if (threshold == null) { status = "n/a"; color = "--ink-faint"; }
+      else {
+        var gap = threshold - minutes;
+        if (gap <= 0) { status = "Clears"; color = "--positive"; }
+        else if (gap <= 10) { status = "Short by " + gap; color = "--warning"; }
+        else { status = "Well short"; color = "--negative"; }
+      }
+      var minCell = threshold == null ? "—" : (minutes + " / " + threshold + " min");
+      var checked = candidates.has(r.playerid) ? " checked" : "";
+      return '<tr><td><input type="checkbox" class="candidate-checkbox" data-playerid="' + ssbbEsc(r.playerid) + '"' + checked + "></td>"
+        + "<td class=\"name-cell\">" + ssbbEsc(r.name) + "</td><td>" + ssbbEsc(r.position) + "</td>"
+        + "<td class=\"num\">" + ssbbEsc(r.age) + "</td><td class=\"num\">" + minCell + "</td>"
+        + "<td><span class=\"tag\" style=\"background:var(" + color + "-soft); color:var(" + color + ");\">" + status + "</span></td></tr>";
+    }).join("");
+
+    container.innerHTML =
+      '<div class="tbl-scroll"><table><thead><tr><th>Train?</th><th>Player</th><th>Pos</th><th class="num">Age</th>'
+      + '<th class="num">Minutes / threshold</th><th>Status</th></tr></thead><tbody>' + body + "</tbody></table></div>"
+      + '<p class="block-note" style="margin-top:10px;">Minutes/threshold above use <b style="color:var(--ink)">' + ssbbEsc(opt.label)
+      + "</b>, the combo currently selected in the training minutes calculator (Training Strategy tab).</p>";
   }
 
   document.addEventListener("change", function (e) {
     if (!e.target) return;
-    if (e.target.id === "tc-type") { ssbbPopulateComboDropdown(e.target.value); ssbbRenderTrainingCalc(); }
-    else if (e.target.id === "tc-combo") { ssbbRenderTrainingCalc(); }
+    if (e.target.id === "tc-type") {
+      ssbbPopulateComboDropdown(e.target.value);
+      ssbbRenderTrainingCalc();
+      ssbbRenderRosterCandidates();
+    } else if (e.target.id === "tc-combo") {
+      ssbbRenderTrainingCalc();
+      ssbbRenderRosterCandidates();
+    } else if (e.target.className === "candidate-checkbox") {
+      var candidates = ssbbGetCandidates();
+      var pid = e.target.getAttribute("data-playerid");
+      if (e.target.checked) candidates.add(pid); else candidates.delete(pid);
+      ssbbSetCandidates(candidates);
+    }
   });
 </script>
 
