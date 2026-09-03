@@ -1041,7 +1041,7 @@ def auto_investments_html(data):
             tco_per_skill_cell = f'${r["tco_per_skill"]:,.0f}' if r["tco_per_skill"] else "—"
             acquired_cell = esc(r["date"][:10])
             if r.get("acquisition") == "drafted":
-                acquired_cell += ' <span class="sub" title="Drafted/home-grown - the API has no acquisition date for these, so this is the date this ledger first tracked them, not when they actually joined.">(tracking start)</span>'
+                acquired_cell += ' <span class="sub" title="Drafted/home-grown - BuzzerBeater has no official transfer record for these, so this date is the best available estimate (a manually-supplied date, or failing that the day this ledger first tracked them), not an official acquisition date.">(estimated)</span>'
             body += (
                 f'<tr><td class="name-cell">{esc(r["name"])}</td><td>{acquired_cell}</td>'
                 f'<td class="num">{money_html(r["price"])}</td>'
@@ -1063,8 +1063,8 @@ def auto_investments_html(data):
             'TCO/week divides that by weeks owned (floored at 1 week, using the same acquisition date as the "Acquired" column) - a run-rate figure comparable across players regardless of how long each has been tracked. '
             '<span class="tag tag-rec">[Inference]</span> "Skill total" is a self-computed sum of the 12 rated skills from the official API, standing in for Buzzer Manager\'s '
             'proprietary TSP figure. Treat skill total as a progress signal, not a market valuation. '
-            '<span class="tag tag-rec">[Inference]</span> Rows marked "(tracking start)" are drafted/home-grown players with no purchase to date from - their salary-paid and TCO only reflect days since this ledger started tracking them, '
-            'not their full tenure on the team, so they will look far cheaper than a purchased player of similar quality until enough time passes.</p>'
+            '<span class="tag tag-rec">[Inference]</span> Rows marked "(estimated)" are drafted/home-grown players with no purchase to date from - salary-paid and TCO accrue from a manually-supplied acquisition date where one is known '
+            '(e.g. a franchise takeover date), otherwise from the day this ledger first tracked them, so treat those figures as approximate rather than an official record.</p>'
         )
     else:
         table = '<p class="block-note">No player purchases captured in the ledger yet.</p>'
