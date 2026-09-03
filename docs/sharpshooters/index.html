@@ -892,16 +892,26 @@
     var opt = ssbbParseTrainingOption(comboSel.value);
     var posMinutes = data.position_minutes || {};
     var rows = (data.roster_skills && data.roster_skills.rows) || [];
-    var affected = rows.filter(function (r) { return opt.positions.indexOf(r.position) !== -1; });
-    if (!affected.length) {
-      results.innerHTML = '<p class="block-note">No current roster player’s best position falls under ' + ssbbEsc(opt.label) + ".</p>";
-      return;
-    }
-    var body = affected.map(function (r) {
+    // Who's "affected" is whoever actually logged minutes at one of the
+    // trained positions this week - NOT whoever's roster.aspx bestPosition
+    // happens to match. Those are routinely different: fielding a player
+    // out of position specifically to bank training minutes there (e.g. a
+    // nominal PF playing 48 minutes at C) is exactly how this training
+    // doctrine is meant to work, and bestPosition-filtering was hiding
+    // precisely those players.
+    var affected = rows.map(function (r) {
       var pm = posMinutes[r.playerid] || {};
       var minutes = 0;
       for (var i = 0; i < opt.positions.length; i++) minutes += (pm[opt.positions[i]] || 0) * opt.weight;
-      minutes = Math.round(minutes);
+      return { r: r, minutes: Math.round(minutes) };
+    }).filter(function (x) { return x.minutes > 0; })
+      .sort(function (a, b) { return b.minutes - a.minutes; });
+    if (!affected.length) {
+      results.innerHTML = '<p class="block-note">No current roster player logged minutes at ' + ssbbEsc(opt.label) + " this training week.</p>";
+      return;
+    }
+    var body = affected.map(function (x) {
+      var r = x.r, minutes = x.minutes;
       var threshold = ssbbTrainingThreshold(r.age);
       var status, color;
       if (threshold == null) { status = "n/a"; color = "--ink-faint"; }
@@ -921,8 +931,8 @@
       '<div class="tbl-scroll"><table><thead><tr><th>Player</th><th>Pos</th><th class="num">Age</th>'
       + '<th class="num">Minutes / threshold</th><th>Status</th></tr></thead><tbody>' + body + "</tbody></table></div>"
       + '<p class="block-note" style="margin-top:10px;">' + affected.length + " player" + (affected.length === 1 ? "" : "s")
-      + ' on the current roster train under <b style="color:var(--ink)">' + ssbbEsc(opt.label) + "</b>" + weightNote
-      + ". Minutes are this training-week's actual playing time at these positions, live from boxscore.aspx.</p>";
+      + ' logged minutes at <b style="color:var(--ink)">' + ssbbEsc(opt.label) + "</b>" + weightNote
+      + " this training week (live from boxscore.aspx) - shown regardless of each player's own listed best position, since that's independent of where they were actually fielded.</p>";
   }
 
   function ssbbInitTrainingCalc(data) {
