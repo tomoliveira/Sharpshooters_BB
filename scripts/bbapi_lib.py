@@ -422,7 +422,7 @@ def _parse_date(d):
     try: return datetime.strptime(d[:10], "%Y-%m-%d")
     except (TypeError, ValueError): return None
 
-def update_investment_ledger(ledger, economy_root, roster_root, arena_root, run_date):
+def update_investment_ledger(ledger, economy_root, roster_root, arena_root, run_date, our_team_id):
     name_by_id = {p.get("id"): player_snapshot(p) for p in roster_root.findall(".//player") if p.get("id")}
 
     seen_txn = {(t["date"], t["playerid"], t["amount"]) for t in ledger["player_transactions"]}
@@ -460,6 +460,25 @@ def update_investment_ledger(ledger, economy_root, roster_root, arena_root, run_
             if amount <= 0 or matchid in seen_matchrev: continue
             seen_matchrev.add(matchid)
             ledger["match_revenue"].append({"matchid": matchid, "date": date, "amount": amount})
+
+    # Players this team drafted itself (roster.aspx's teamDrafted == our own
+    # id) never show up in economy.aspx's transfer log - there's no purchase
+    # to record. Per Tom, they should still appear in the investments table,
+    # just at $0 acquisition cost, rather than being silently omitted. Only
+    # added once per player (seen_any_buy/seen_drafted guards), so this
+    # doesn't re-fire (or overwrite a real purchase) on every run.
+    seen_any_buy = {t["playerid"] for t in ledger["player_transactions"] if t["amount"] < 0}
+    seen_drafted = {t["playerid"] for t in ledger["player_transactions"] if t.get("acquisition") == "drafted"}
+    for pid, snap in name_by_id.items():
+        if pid in seen_any_buy or pid in seen_drafted:
+            continue
+        p = roster_root.find(f".//player[@id='{pid}']")
+        if p is None or p.findtext("teamDrafted") != our_team_id:
+            continue
+        ledger["player_transactions"].append({
+            "date": run_date, "playerid": pid, "amount": 0.0,
+            "name": snap["name"], "acquisition": "drafted",
+        })
 
     if arena_root is not None:
         snap = arena_snapshot(arena_root, run_date)
@@ -502,7 +521,7 @@ def update_investment_ledger(ledger, economy_root, roster_root, arena_root, run_
     return ledger
 
 def build_investments_summary(ledger):
-    buys = [t for t in ledger["player_transactions"] if t["amount"] < 0]
+    buys = [t for t in ledger["player_transactions"] if t["amount"] < 0 or t.get("acquisition") == "drafted"]
     sells = [t for t in ledger["player_transactions"] if t["amount"] > 0]
     total_buys = sum(-t["amount"] for t in buys)
     total_sells = sum(t["amount"] for t in sells)
@@ -513,7 +532,7 @@ def build_investments_summary(ledger):
         snap = ledger["player_snapshots"].get(pid, {})
         baseline, latest = snap.get("baseline"), snap.get("latest")
         sale = next((s for s in sells if s["playerid"] == pid), None)
-        price = -t["amount"]
+        price = -t["amount"] or 0.0  # avoid "-0" from a $0 drafted-player row
         salary_paid = snap.get("cumulative_salary_paid", 0.0)
         tco = price + salary_paid
         skill_now = latest.get("skill_sum") if latest else None
@@ -577,7 +596,7 @@ def extract_data(conn, team_key, teaminfo, roster, economy, schedule, standings,
             transactions.append(item)
     data["economy"]["transactions"] = transactions
     ledger = load_investment_ledger(conn, team_key)
-    ledger = update_investment_ledger(ledger, economy, roster, arena, data["now"][:10])
+    ledger = update_investment_ledger(ledger, economy, roster, arena, data["now"][:10], our_team_id)
     save_investment_ledger(conn, team_key, ledger)
     data["investments"] = build_investments_summary(ledger)
     data["investments"]["arena"] = build_arena_investment_summary(ledger)
@@ -699,6 +718,7 @@ def esc(v):
 def money_html(v):
     try: v = float(v)
     except (TypeError, ValueError): return esc(v)
+    if v == 0: v = 0.0  # avoid "-0" from formatting a -0.0 (e.g. a $0 drafted-player row)
     return f"-${abs(v):,.0f}" if v < 0 else f"${v:,.0f}"
 
 def finance_card_html(week):
