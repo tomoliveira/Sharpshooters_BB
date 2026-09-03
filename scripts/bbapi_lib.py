@@ -1170,10 +1170,21 @@ def auto_roster_skills_html(data):
         f'<th colspan="{len(tags)}" class="group-header{" grp-start" if gi else ""}">{esc(group_name)}</th>'
         for gi, (group_name, tags) in enumerate(SKILL_GROUPS)
     )
-    skill_header_cells = "".join(
-        f'<th class="num{" grp-start" if (gi and ti == 0) else ""}">{esc(label)}</th>'
-        for gi, (_, tags) in enumerate(SKILL_GROUPS) for ti, (_, label) in enumerate(tags)
-    )
+    # Column indices for the sortable header click handler
+    # (ssbbSortRosterTable) - fixed leading columns are 0-4, then one index
+    # per individual skill column in SKILL_GROUPS order, then the two
+    # trailing columns. Computed here rather than hardcoded so this stays
+    # correct if SKILL_GROUPS is ever reshuffled again.
+    skill_header_cells = ""
+    skill_col = 5
+    for gi, (_, tags) in enumerate(SKILL_GROUPS):
+        for ti, (_, label) in enumerate(tags):
+            grp_class = " grp-start" if (gi and ti == 0) else ""
+            skill_header_cells += f'<th class="num sortable{grp_class}" data-col="{skill_col}">{esc(label)}</th>'
+            skill_col += 1
+    total_skill_cols = sum(len(tags) for _, tags in SKILL_GROUPS)
+    minutes_col = 5 + total_skill_cols
+    status_col = minutes_col + 1
     body = ""
     for r in sorted(rows, key=lambda r: r["name"]):
         cells = ""
@@ -1196,11 +1207,14 @@ def auto_roster_skills_html(data):
                  f'<td class="js-train-cell">—</td>{cells}'
                  f'<td class="num js-minutes-cell">—</td><td class="js-status-cell">—</td></tr>')
     table = (
-        '<div class="tbl-scroll"><table class="freeze-first-col" style="min-width:1200px;">'
+        '<div class="tbl-scroll"><table id="roster-skills-table" class="freeze-first-col" style="min-width:1200px;">'
         '<thead>'
-        f'<tr><th rowspan="2">Player</th><th rowspan="2">Pos</th><th rowspan="2" class="num">Age</th><th rowspan="2" class="num">Potential</th>'
-        f'<th rowspan="2">Train?</th>{group_header_cells}'
-        '<th rowspan="2" class="num">Minutes / threshold</th><th rowspan="2">Status</th></tr>'
+        '<tr><th rowspan="2" class="sortable" data-col="0">Player</th><th rowspan="2" class="sortable" data-col="1">Pos</th>'
+        '<th rowspan="2" class="num sortable" data-col="2">Age</th><th rowspan="2" class="num sortable" data-col="3">Potential</th>'
+        '<th rowspan="2" class="sortable" data-col="4">Train?</th>'
+        f'{group_header_cells}'
+        f'<th rowspan="2" class="num sortable" data-col="{minutes_col}">Minutes / threshold</th>'
+        f'<th rowspan="2" class="sortable" data-col="{status_col}">Status</th></tr>'
         f'<tr>{skill_header_cells}</tr>'
         '</thead>'
         f'<tbody>{body}</tbody></table></div>'

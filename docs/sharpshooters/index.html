@@ -248,6 +248,13 @@
   }
   .grp-start { border-left: 2px solid var(--line); }
 
+  /* ---- sortable table headers ---- */
+  th.sortable { cursor: pointer; user-select: none; position: relative; padding-right: 20px; }
+  th.sortable:hover { color: var(--ink); }
+  th.sortable::after { content: "\2195"; position: absolute; right: 6px; opacity: 0.35; font-size: 11px; }
+  th.sortable.sort-asc::after { content: "\2191"; opacity: 1; color: var(--accent); }
+  th.sortable.sort-desc::after { content: "\2193"; opacity: 1; color: var(--accent); }
+
   /* ---- bars ---- */
   .bar-row { display: grid; grid-template-columns: 160px 1fr 78px; align-items: center; gap: 12px; padding: 7px 0; }
   .bar-row .lbl { font-size: 13px; color: var(--ink-soft); }
@@ -1120,6 +1127,51 @@
       if (e.target.checked) candidates.add(pid); else candidates.delete(pid);
       ssbbSetCandidates(candidates);
     }
+  });
+
+  // ---- Sortable table headers (roster skill table) ----
+  // Generic: works on any table whose sortable <th>s carry a data-col
+  // matching each body row's <td> index at that position (server-rendered
+  // headers set this explicitly, see auto_roster_skills_html). Checkbox
+  // cells sort by checked state; everything else sorts numerically on its
+  // leading number if it has one (handles "48 / 45 min", "9 · MVP", a bare
+  // skill value), otherwise falls back to a case-insensitive text sort.
+  function ssbbCellSortValue(td) {
+    if (!td) return "";
+    var cb = td.querySelector('input[type="checkbox"]');
+    if (cb) return cb.checked ? 1 : 0;
+    var text = (td.textContent || "").trim();
+    var num = parseFloat(text);
+    return isNaN(num) ? text.toLowerCase() : num;
+  }
+
+  function ssbbSortRosterTable(table, col, asc) {
+    var tbody = table.tBodies[0];
+    if (!tbody) return;
+    var rows = Array.prototype.slice.call(tbody.querySelectorAll("tr"));
+    rows.sort(function (a, b) {
+      var va = ssbbCellSortValue(a.children[col]);
+      var vb = ssbbCellSortValue(b.children[col]);
+      if (typeof va === "number" && typeof vb === "number") return asc ? va - vb : vb - va;
+      va = String(va); vb = String(vb);
+      if (va < vb) return asc ? -1 : 1;
+      if (va > vb) return asc ? 1 : -1;
+      return 0;
+    });
+    rows.forEach(function (tr) { tbody.appendChild(tr); });
+  }
+
+  document.addEventListener("click", function (e) {
+    var th = e.target.closest && e.target.closest("th.sortable");
+    if (!th) return;
+    var table = th.closest("table");
+    if (!table) return;
+    var col = parseInt(th.getAttribute("data-col"), 10);
+    if (isNaN(col)) return;
+    var asc = !th.classList.contains("sort-asc");
+    table.querySelectorAll("th.sortable").forEach(function (h) { h.classList.remove("sort-asc", "sort-desc"); });
+    th.classList.add(asc ? "sort-asc" : "sort-desc");
+    ssbbSortRosterTable(table, col, asc);
   });
 </script>
 
