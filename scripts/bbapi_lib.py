@@ -520,12 +520,13 @@ def update_investment_ledger(ledger, economy_root, roster_root, arena_root, run_
 
     return ledger
 
-def build_investments_summary(ledger):
+def build_investments_summary(ledger, run_date):
     buys = [t for t in ledger["player_transactions"] if t["amount"] < 0 or t.get("acquisition") == "drafted"]
     sells = [t for t in ledger["player_transactions"] if t["amount"] > 0]
     total_buys = sum(-t["amount"] for t in buys)
     total_sells = sum(t["amount"] for t in sells)
     total_capex = sum(-c["amount"] for c in ledger["capex"])
+    run_dt = _parse_date(run_date)
     rows = []
     for t in sorted(buys, key=lambda t: -(-t["amount"])):
         pid = t["playerid"]
@@ -535,11 +536,20 @@ def build_investments_summary(ledger):
         price = -t["amount"] or 0.0  # avoid "-0" from a $0 drafted-player row
         salary_paid = snap.get("cumulative_salary_paid", 0.0)
         tco = price + salary_paid
+        # Weeks owned, floored at 1 so a same-day acquisition doesn't blow up
+        # the rate. "Acquired" date is t["date"] - the real purchase date for
+        # a transfer, or the date this ledger first saw a drafted/homegrown
+        # player (its earliest available proxy - see the acquisition-date
+        # caveat rendered per row below).
+        acquired_dt = _parse_date(t["date"])
+        weeks_owned = max((run_dt - acquired_dt).days / 7, 1) if (run_dt and acquired_dt) else 1
+        tco_per_week = tco / weeks_owned
         skill_now = latest.get("skill_sum") if latest else None
         tco_per_skill = (tco / skill_now) if skill_now else None
         rows.append({"name": t["name"], "playerid": pid, "date": t["date"], "price": price,
-                     "salary_paid": salary_paid, "tco": tco, "skill_now": skill_now,
-                     "tco_per_skill": tco_per_skill, "baseline": baseline, "latest": latest, "sale": sale})
+                     "salary_paid": salary_paid, "tco": tco, "tco_per_week": tco_per_week,
+                     "skill_now": skill_now, "tco_per_skill": tco_per_skill, "baseline": baseline,
+                     "latest": latest, "sale": sale, "acquisition": t.get("acquisition")})
     return {"rows": rows, "total_buys": total_buys, "total_sells": total_sells,
             "total_capex": total_capex, "capex": list(ledger["capex"]), "count": len(rows)}
 
@@ -598,7 +608,7 @@ def extract_data(conn, team_key, teaminfo, roster, economy, schedule, standings,
     ledger = load_investment_ledger(conn, team_key)
     ledger = update_investment_ledger(ledger, economy, roster, arena, data["now"][:10], our_team_id)
     save_investment_ledger(conn, team_key, ledger)
-    data["investments"] = build_investments_summary(ledger)
+    data["investments"] = build_investments_summary(ledger, data["now"][:10])
     data["investments"]["arena"] = build_arena_investment_summary(ledger)
     current_roster_ids = {p.get("id") for p in roster.findall(".//player") if p.get("id")}
     for row in data["investments"]["rows"]:
@@ -1029,24 +1039,32 @@ def auto_investments_html(data):
                 status = '<span class="tag" style="background:var(--warning-soft); color:var(--warning);">Off roster (release/trade, no sale recorded)</span>'
             skill_cell = f'{r["skill_now"]:g}' if r["skill_now"] is not None else "—"
             tco_per_skill_cell = f'${r["tco_per_skill"]:,.0f}' if r["tco_per_skill"] else "—"
+            acquired_cell = esc(r["date"][:10])
+            if r.get("acquisition") == "drafted":
+                acquired_cell += ' <span class="sub" title="Drafted/home-grown - the API has no acquisition date for these, so this is the date this ledger first tracked them, not when they actually joined.">(tracking start)</span>'
             body += (
-                f'<tr><td class="name-cell">{esc(r["name"])}</td><td>{esc(r["date"][:10])}</td>'
+                f'<tr><td class="name-cell">{esc(r["name"])}</td><td>{acquired_cell}</td>'
                 f'<td class="num">{money_html(r["price"])}</td>'
                 f'<td class="num">{money_html(r["salary_paid"])}</td>'
                 f'<td class="num">{money_html(r["tco"])}</td>'
+                f'<td class="num">{money_html(r["tco_per_week"])}</td>'
                 f'<td class="num">{skill_cell}</td>'
                 f'<td class="num">{tco_per_skill_cell}</td>'
                 f'<td class="num">{sale_cell}</td><td>{status}</td></tr>'
             )
         table = (
             '<div class="tbl-scroll"><table><thead><tr><th>Player</th><th>Acquired</th><th class="num">Price paid</th>'
-            '<th class="num">Salary paid since</th><th class="num">TCO</th><th class="num">Skill total now (TSP proxy)</th>'
+            '<th class="num">Salary paid since</th><th class="num">TCO</th><th class="num">TCO / week</th>'
+            '<th class="num">Skill total now (TSP proxy)</th>'
             '<th class="num">TCO / skill pt</th><th class="num">Sale price</th><th>Status</th></tr></thead>'
             f'<tbody>{body}</tbody></table></div>'
             '<p class="block-note" style="margin-top:10px;"><span class="tag tag-calc">Calculated</span> TCO = price paid + salary paid while owned '
             '(accrued daily from the official API salary field since the purchase date, or from first-tracked date for players already on roster before tracking began). '
+            'TCO/week divides that by weeks owned (floored at 1 week, using the same acquisition date as the "Acquired" column) - a run-rate figure comparable across players regardless of how long each has been tracked. '
             '<span class="tag tag-rec">[Inference]</span> "Skill total" is a self-computed sum of the 12 rated skills from the official API, standing in for Buzzer Manager\'s '
-            'proprietary TSP figure. Treat skill total as a progress signal, not a market valuation.</p>'
+            'proprietary TSP figure. Treat skill total as a progress signal, not a market valuation. '
+            '<span class="tag tag-rec">[Inference]</span> Rows marked "(tracking start)" are drafted/home-grown players with no purchase to date from - their salary-paid and TCO only reflect days since this ledger started tracking them, '
+            'not their full tenure on the team, so they will look far cheaper than a purchased player of similar quality until enough time passes.</p>'
         )
     else:
         table = '<p class="block-note">No player purchases captured in the ledger yet.</p>'
