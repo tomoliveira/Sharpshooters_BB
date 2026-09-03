@@ -327,8 +327,8 @@ def build_roster_skills_table(roster_root):
         skills = p.find("skills")
         if skills is None: continue
         name = f"{p.findtext('firstName') or ''} {p.findtext('lastName') or ''}".strip()
-        row = {"name": name, "position": p.findtext("bestPosition"), "age": p.findtext("age"),
-               "potential": skills.findtext("potential")}
+        row = {"playerid": p.get("id"), "name": name, "position": p.findtext("bestPosition"),
+               "age": p.findtext("age"), "potential": skills.findtext("potential")}
         for tag, _ in SKILL_DISPLAY_COLUMNS:
             el_text = skills.findtext(tag)
             pop = skills.find(tag).get("pop") if skills.find(tag) is not None else None
@@ -639,6 +639,11 @@ def extract_data(conn, team_key, teaminfo, roster, economy, schedule, standings,
     data["roster_skills"] = build_roster_skills_table(roster)
     data["training_cards"] = build_training_cohort_cards(roster)
     data["training_minutes"] = build_training_minutes_status(position_minutes, roster)
+    # Raw per-player, per-position weekly minutes (not just the total already
+    # filtered to this team's configured training focus) - exported so the
+    # report page's training-position calculator can recompute minutes for
+    # *any* position combo the user picks client-side, without a re-fetch.
+    data["position_minutes"] = position_minutes
     data["staff"] = staff_list
     data["minutes_vs_money"] = build_minutes_vs_money(position_minutes, roster)
     arena_snap = arena_snapshot(arena, data["now"][:10])

@@ -692,6 +692,29 @@
 
     <section class="block" style="margin-top:20px;">
       <div class="block-head">
+        <h2>Training minutes calculator</h2>
+        <span class="tag tag-calc">Calculated · updates instantly</span>
+      </div>
+      <details class="note"><summary>How this works</summary>
+        <p class="block-note">Pick any training type and position combo from the live training.aspx dropdowns, and every roster player who'd be affected is recalculated instantly against this week's actual minutes (via boxscore.aspx) - no page reload, no waiting on tomorrow's snapshot. This is independent of whatever training is actually set in-game right now (see "What's actually being trained right now" below for that).</p>
+      </details>
+      <div class="card" style="margin-top:8px;">
+        <div class="two-col">
+          <div>
+            <label for="tc-type" class="eyebrow" style="display:block; margin-bottom:6px;">Training type</label>
+            <select id="tc-type" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink); font:inherit;"></select>
+          </div>
+          <div>
+            <label for="tc-combo" class="eyebrow" style="display:block; margin-bottom:6px;">Positions trained</label>
+            <select id="tc-combo" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink); font:inherit;"></select>
+          </div>
+        </div>
+        <div id="training-calc-results" style="margin-top:16px;"><p class="block-note">Loading live data…</p></div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block-head">
         <h2>Training candidates &amp; skills</h2>
         <span class="auto-badge">Auto-updated daily</span>
       </div>
@@ -793,6 +816,141 @@
   document.addEventListener("DOMContentLoaded", ssbbUpdateToggleLabel);
 </script>
 
+<script>
+  // Training minutes calculator - lets Tom preview any training.aspx
+  // type/position combo and see which current roster players would be
+  // affected, recalculated instantly from this week's real per-position
+  // minutes already in the snapshot (data.position_minutes). The option
+  // lists below are captured verbatim from training.aspx's own dropdowns,
+  // not derived or guessed - see training_dropdown_map.md for the source.
+  // Uses event delegation (document-level, not attached to the <select>
+  // elements directly) for the same reason the theme toggle does: the
+  // sql.js loader below replaces document.body's innerHTML wholesale once
+  // live data arrives, which would otherwise drop a directly-attached
+  // listener.
+  var TRAINING_MAP = {
+    "Team Training": ["Game Shape", "Free Throws", "Stamina"],
+    "Outside Defense": ["PG", "SG (90%)", "SF (80%)", "PF (70%)", "C (60%)", "PG / SG", "SG / SF (90%)", "SF / PF (80%)", "C / PF (70%)", "PG / SG / SF", "SG / SF / PF (90%)", "C / PF / SF (80%)"],
+    "Shot Blocking": ["C", "PF (90%)", "SF (80%)", "SG (70%)", "PG (60%)", "C / PF", "SF / PF (90%)", "SG / SF (80%)", "PG / SG (70%)", "C / PF / SF", "SG / SF / PF (90%)", "PG / SG / SF (80%)"],
+    "Inside Defense": ["C", "PF (90%)", "SF (80%)", "SG (70%)", "PG (60%)", "C / PF", "SF / PF (90%)", "SG / SF (80%)", "PG / SG (70%)", "C / PF / SF", "SG / SF / PF (90%)", "PG / SG / SF (80%)"],
+    "Rebounding": ["C / PF", "SF / PF (90%)", "SG / SF (80%)", "PG / SG (70%)", "Team"],
+    "Inside Scoring": ["C", "PF (90%)", "SF (80%)", "SG (70%)", "PG (60%)", "C / PF", "SF / PF (90%)", "SG / SF (80%)", "PG / SG (70%)", "C / PF / SF", "SG / SF / PF (90%)", "PG / SG / SF (80%)"],
+    "One on One": ["Guards", "Wingmen (90%)", "Forwards", "C / PF (90%)", "Team"],
+    "Outside Shooting": ["SG", "PG (90%)", "SF (90%)", "PF (80%)", "C (70%)", "PG / SG", "SG / SF", "SF / PF (90%)", "C / PF (80%)", "Team"],
+    "Jump Shot": ["Guards", "Forwards", "Wingmen", "C / PF (90%)", "Team"],
+    "Ball Handling": ["PG", "SG (90%)", "SF (80%)", "PF (70%)", "C (60%)", "PG / SG", "SG / SF (90%)", "SF / PF (80%)", "C / PF (70%)", "PG / SG / SF", "SG / SF / PF (90%)", "C / PF / SF (80%)"],
+    "Passing": ["PG", "SG (90%)", "SF (80%)", "PF (70%)", "C (60%)", "PG / SG", "SG / SF (90%)", "SF / PF (80%)", "C / PF (70%)", "Team"]
+  };
+  var ALL_POSITIONS = ["PG", "SG", "SF", "PF", "C"];
+  var GROUP_LABELS = { "Guards": ["PG", "SG"], "Wingmen": ["SG", "SF"], "Forwards": ["SF", "PF"], "Team": ALL_POSITIONS };
+  var TEAM_TRAINING_SUBTARGETS = ["Game Shape", "Free Throws", "Stamina"];
+
+  function ssbbEsc(v) {
+    return String(v == null ? "" : v).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  function ssbbParseTrainingOption(label) {
+    var m = label.match(/^(.*?)(?:\s*\((\d+)%\))?$/);
+    var posPart = (m[1] || label).trim();
+    var weight = m[2] ? parseInt(m[2], 10) / 100 : 1;
+    var positions;
+    if (TEAM_TRAINING_SUBTARGETS.indexOf(posPart) !== -1) {
+      positions = ALL_POSITIONS; // Team Training's sub-targets count minutes at any position
+    } else if (GROUP_LABELS[posPart]) {
+      positions = GROUP_LABELS[posPart];
+    } else {
+      positions = posPart.split("/").map(function (s) { return s.trim(); });
+    }
+    return { label: label, positions: positions, weight: weight };
+  }
+
+  function ssbbTrainingThreshold(age) {
+    age = parseInt(age, 10);
+    if (isNaN(age)) return null;
+    if (age <= 19) return 45;
+    if (age <= 26) return 48;
+    return 40;
+  }
+
+  function ssbbPopulateComboDropdown(type) {
+    var comboSel = document.getElementById("tc-combo");
+    if (!comboSel) return;
+    var options = TRAINING_MAP[type] || [];
+    comboSel.innerHTML = options.map(function (label) {
+      return '<option value="' + ssbbEsc(label) + '">' + ssbbEsc(label) + "</option>";
+    }).join("");
+  }
+
+  function ssbbRenderTrainingCalc() {
+    var data = window.SSBB_DATA;
+    var results = document.getElementById("training-calc-results");
+    if (!data || !results) return;
+    var comboSel = document.getElementById("tc-combo");
+    if (!comboSel || !comboSel.value) return;
+    var opt = ssbbParseTrainingOption(comboSel.value);
+    var posMinutes = data.position_minutes || {};
+    var rows = (data.roster_skills && data.roster_skills.rows) || [];
+    var affected = rows.filter(function (r) { return opt.positions.indexOf(r.position) !== -1; });
+    if (!affected.length) {
+      results.innerHTML = '<p class="block-note">No current roster player’s best position falls under ' + ssbbEsc(opt.label) + ".</p>";
+      return;
+    }
+    var body = affected.map(function (r) {
+      var pm = posMinutes[r.playerid] || {};
+      var minutes = 0;
+      for (var i = 0; i < opt.positions.length; i++) minutes += (pm[opt.positions[i]] || 0) * opt.weight;
+      minutes = Math.round(minutes);
+      var threshold = ssbbTrainingThreshold(r.age);
+      var status, color;
+      if (threshold == null) { status = "n/a"; color = "--ink-faint"; }
+      else {
+        var gap = threshold - minutes;
+        if (gap <= 0) { status = "Clears"; color = "--positive"; }
+        else if (gap <= 10) { status = "Short by " + gap; color = "--warning"; }
+        else { status = "Well short"; color = "--negative"; }
+      }
+      var minCell = threshold == null ? "—" : (minutes + " / " + threshold + " min");
+      return "<tr><td class=\"name-cell\">" + ssbbEsc(r.name) + "</td><td>" + ssbbEsc(r.position) + "</td>"
+        + "<td class=\"num\">" + ssbbEsc(r.age) + "</td><td class=\"num\">" + minCell + "</td>"
+        + "<td><span class=\"tag\" style=\"background:var(" + color + "-soft); color:var(" + color + ");\">" + status + "</span></td></tr>";
+    }).join("");
+    var weightNote = opt.weight < 1 ? ' <span class="sub">(' + Math.round(opt.weight * 100) + "% effectiveness for this combo)</span>" : "";
+    results.innerHTML =
+      '<div class="tbl-scroll"><table><thead><tr><th>Player</th><th>Pos</th><th class="num">Age</th>'
+      + '<th class="num">Minutes / threshold</th><th>Status</th></tr></thead><tbody>' + body + "</tbody></table></div>"
+      + '<p class="block-note" style="margin-top:10px;">' + affected.length + " player" + (affected.length === 1 ? "" : "s")
+      + ' on the current roster train under <b style="color:var(--ink)">' + ssbbEsc(opt.label) + "</b>" + weightNote
+      + ". Minutes are this training-week's actual playing time at these positions, live from boxscore.aspx.</p>";
+  }
+
+  function ssbbInitTrainingCalc(data) {
+    window.SSBB_DATA = data;
+    var typeSel = document.getElementById("tc-type");
+    if (!typeSel) return;
+    typeSel.innerHTML = Object.keys(TRAINING_MAP).map(function (t) {
+      return '<option value="' + ssbbEsc(t) + '">' + ssbbEsc(t) + "</option>";
+    }).join("");
+    // Defaults to whatever this team's training doctrine already has live
+    // (see "What's actually being trained right now" below), so the
+    // calculator opens showing the same numbers as the rest of this tab.
+    var defaultType = "Rebounding", defaultCombo = "C / PF";
+    if (TRAINING_MAP[defaultType]) typeSel.value = defaultType;
+    ssbbPopulateComboDropdown(typeSel.value);
+    if (TRAINING_MAP[typeSel.value] && TRAINING_MAP[typeSel.value].indexOf(defaultCombo) !== -1) {
+      document.getElementById("tc-combo").value = defaultCombo;
+    }
+    ssbbRenderTrainingCalc();
+  }
+
+  document.addEventListener("change", function (e) {
+    if (!e.target) return;
+    if (e.target.id === "tc-type") { ssbbPopulateComboDropdown(e.target.value); ssbbRenderTrainingCalc(); }
+    else if (e.target.id === "tc-combo") { ssbbRenderTrainingCalc(); }
+  });
+</script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
 <script>
 (async function () {
@@ -819,7 +977,7 @@
     var buf = await resp.arrayBuffer();
     var db = new SQL.Database(new Uint8Array(buf));
     var res = db.exec(
-      "SELECT fragments_json, fetched_at FROM snapshots WHERE team_key = ? ORDER BY fetched_at DESC LIMIT 1",
+      "SELECT fragments_json, data_json, fetched_at FROM snapshots WHERE team_key = ? ORDER BY fetched_at DESC LIMIT 1",
       [TEAM_KEY]
     );
     if (!res.length || !res[0].values.length) {
@@ -828,9 +986,11 @@
     }
     var row = res[0].values[0];
     var fragments = JSON.parse(row[0]);
-    var fetchedAt = row[1];
+    var reportData = JSON.parse(row[1]);
+    var fetchedAt = row[2];
     document.body.innerHTML = patch(document.body.innerHTML, fragments);
     ssbbUpdateToggleLabel(); // the innerHTML swap above just reset #theme-toggle to its default markup
+    ssbbInitTrainingCalc(reportData); // ditto for the #tc-type/#tc-combo dropdowns
     console.log("BuzzerBeater report patched from snapshot", fetchedAt);
   } catch (err) {
     console.error("Failed to load live report data:", err);
