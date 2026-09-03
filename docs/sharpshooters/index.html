@@ -907,8 +907,14 @@
     var affected = rows.map(function (r) {
       var pm = posMinutes[r.playerid] || {};
       var minutes = 0;
-      for (var i = 0; i < opt.positions.length; i++) minutes += (pm[opt.positions[i]] || 0);
-      return { r: r, minutes: Math.round(minutes) };
+      var playedAt = []; // which of the *selected* positions actually contributed minutes, not roster.aspx's bestPosition
+      for (var i = 0; i < opt.positions.length; i++) {
+        var m = Math.round(pm[opt.positions[i]] || 0);
+        minutes += m;
+        if (m > 0) playedAt.push({ pos: opt.positions[i], minutes: m });
+      }
+      playedAt.sort(function (a, b) { return b.minutes - a.minutes; });
+      return { r: r, minutes: Math.round(minutes), playedAt: playedAt };
     }).filter(function (x) { return x.minutes > 0; })
       .sort(function (a, b) { return b.minutes - a.minutes; });
     if (!affected.length) {
@@ -927,7 +933,11 @@
         else { status = "Well short"; color = "--negative"; }
       }
       var minCell = threshold == null ? "—" : (minutes + " / " + threshold + " min");
-      return "<tr><td class=\"name-cell\">" + ssbbEsc(r.name) + "</td><td>" + ssbbEsc(r.position) + "</td>"
+      // Positions actually played for these minutes, not roster.aspx's
+      // bestPosition - same reasoning as the row filter above (a nominal
+      // PF banking minutes at C should read "C", not "PF").
+      var posCell = x.playedAt.map(function (p) { return p.pos + " (" + p.minutes + ")"; }).join(" / ");
+      return "<tr><td class=\"name-cell\">" + ssbbEsc(r.name) + "</td><td>" + ssbbEsc(posCell) + "</td>"
         + "<td class=\"num\">" + ssbbEsc(r.age) + "</td><td class=\"num\">" + minCell + "</td>"
         + "<td><span class=\"tag\" style=\"background:var(" + color + "-soft); color:var(" + color + ");\">" + status + "</span></td></tr>";
     }).join("");
