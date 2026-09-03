@@ -1190,13 +1190,15 @@ def auto_roster_skills_html(data):
         # data-playerid is what lets the JS find the right row without
         # re-deriving or duplicating any of the skill-rendering logic above.
         body += (f'<tr data-playerid="{esc(r["playerid"])}"><td class="name-cell">{esc(r["name"])}</td><td>{esc(r["position"])}</td>'
-                 f'<td class="num">{esc(r["age"])}</td><td class="num">{potential_label(r["potential"])}</td>{cells}'
-                 f'<td class="js-train-cell">—</td><td class="num js-minutes-cell">—</td><td class="js-status-cell">—</td></tr>')
+                 f'<td class="num">{esc(r["age"])}</td><td class="num">{potential_label(r["potential"])}</td>'
+                 f'<td class="js-train-cell">—</td>{cells}'
+                 f'<td class="num js-minutes-cell">—</td><td class="js-status-cell">—</td></tr>')
     table = (
         '<div class="tbl-scroll"><table class="freeze-first-col" style="min-width:1200px;">'
         '<thead>'
-        f'<tr><th rowspan="2">Player</th><th rowspan="2">Pos</th><th rowspan="2" class="num">Age</th><th rowspan="2" class="num">Potential</th>{group_header_cells}'
-        '<th rowspan="2">Train?</th><th rowspan="2" class="num">Minutes / threshold</th><th rowspan="2">Status</th></tr>'
+        f'<tr><th rowspan="2">Player</th><th rowspan="2">Pos</th><th rowspan="2" class="num">Age</th><th rowspan="2" class="num">Potential</th>'
+        f'<th rowspan="2">Train?</th>{group_header_cells}'
+        '<th rowspan="2" class="num">Minutes / threshold</th><th rowspan="2">Status</th></tr>'
         f'<tr>{skill_header_cells}</tr>'
         '</thead>'
         f'<tbody>{body}</tbody></table></div>'
