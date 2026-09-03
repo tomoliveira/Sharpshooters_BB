@@ -32,7 +32,7 @@ jobs:
         env:
           BB_LOGIN: ${{ secrets.BB_LOGIN }}
           BB_CODE: ${{ secrets.BB_CODE }}
-        run: python update_db.py --config ../teams/sharpshooters.json --db ../docs/report.db
+        run: python update_db.py --config ../teams/sharpshooters/config.json --db ../docs/report.db
 
       - name: Commit updated database
         run: |

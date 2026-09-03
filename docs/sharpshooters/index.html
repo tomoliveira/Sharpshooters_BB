@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sharpshooters Team Report</title>
+<link rel="icon" type="image/png" href="../favicon.png">
+<script>
+  // Applied before first paint, so a stored preference doesn't flash the
+  // wrong theme for a frame. Falls back to no attribute (system preference
+  // via prefers-color-scheme) if nothing was ever chosen or storage is
+  // unavailable.
+  (function () {
+    try {
+      var stored = localStorage.getItem("ssbb-theme");
+      if (stored === "dark" || stored === "light") {
+        document.documentElement.setAttribute("data-theme", stored);
+      }
+    } catch (e) {}
+  })();
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #eeece2;
+    --surface: #ffffff;
+    --surface-2: #f6f2e6;
+    --ink: #211f18;
+    --ink-soft: #5c574a;
+    --ink-faint: #8c8672;
+    --accent: #b85a24;
+    --accent-ink: #ffffff;
+    --accent-soft: #f0dcc4;
+    --accent2: #2c5c60;
+    --line: #ddd5bf;
+    --positive: #2f7a4f;
+    --positive-soft: #dcede1;
+    --negative: #a33f26;
+    --negative-soft: #f3ddd2;
+    --warning: #a67a1f;
+    --warning-soft: #f1e4c4;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(33,31,24,0.06), 0 6px 20px -8px rgba(33,31,24,0.12);
+    /* Game Manual's exact 20-level rating scale colors (contentbox.css, .lev1-.lev20).
+       Dark-theme values below are lightness-boosted for legibility on a dark
+       background - the game itself doesn't ship a dark theme to match against. */
+    --lev1: #000000; --lev2: #121263; --lev3: #221385; --lev4: #30139F; --lev5: #700BA2;
+    --lev6: #910B9D; --lev7: #AD0B88; --lev8: #B70B5A; --lev9: #9C0B32; --lev10: #A70B00;
+    --lev11: #BD2600; --lev12: #CB3100; --lev13: #D93C00; --lev14: #DB6E04; --lev15: #E5A64B;
+    --lev16: #AC860A; --lev17: #8E9800; --lev18: #498E00; --lev19: #0EAE28; --lev20: #0EB366;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1218;
+      --surface: #161b22;
+      --surface-2: #1e252d;
+      --ink: #e1e9ee;
+      --ink-soft: #a7b2ba;
+      --ink-faint: #6e7880;
+      --accent: #00cdbe;
+      --accent-ink: #0e1218;
+      --accent-soft: #0f3330;
+      --accent2: #33ded0;
+      --line: #3d474f;
+      --positive: #34d399;
+      --positive-soft: #12332a;
+      --negative: #ff7020;
+      --negative-soft: #3a2415;
+      --warning: #e0a040;
+      --warning-soft: #362a14;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px -10px rgba(0,0,0,0.5);
+      --lev1: #9E9E9E; --lev2: #5858E5; --lev3: #6652EA; --lev4: #6F4EEE; --lev5: #BC45F7;
+      --lev6: #E846F7; --lev7: #F845CF; --lev8: #F84497; --lev9: #F64675; --lev10: #FF4A3D;
+      --lev11: #FF643D; --lev12: #FF6C3D; --lev13: #FF733D; --lev14: #FF9D3D; --lev15: #EAAC52;
+      --lev16: #F9CE44; --lev17: #F2FF3D; --lev18: #A1FF3D; --lev19: #48F564; --lev20: #47F5A4;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1218;
+    --surface: #161b22;
+    --surface-2: #1e252d;
+    --ink: #e1e9ee;
+    --ink-soft: #a7b2ba;
+    --ink-faint: #6e7880;
+    --accent: #00cdbe;
+    --accent-ink: #0e1218;
+    --accent-soft: #0f3330;
+    --accent2: #33ded0;
+    --line: #3d474f;
+    --positive: #34d399;
+    --positive-soft: #12332a;
+    --negative: #ff7020;
+    --negative-soft: #3a2415;
+    --warning: #e0a040;
+    --warning-soft: #362a14;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px -10px rgba(0,0,0,0.5);
+    --lev1: #9E9E9E; --lev2: #5858E5; --lev3: #6652EA; --lev4: #6F4EEE; --lev5: #BC45F7;
+    --lev6: #E846F7; --lev7: #F845CF; --lev8: #F84497; --lev9: #F64675; --lev10: #FF4A3D;
+    --lev11: #FF643D; --lev12: #FF6C3D; --lev13: #FF733D; --lev14: #FF9D3D; --lev15: #EAAC52;
+    --lev16: #F9CE44; --lev17: #F2FF3D; --lev18: #A1FF3D; --lev19: #48F564; --lev20: #47F5A4;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Public Sans', system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1600px; margin: 0 auto; padding: 40px 32px 80px; }
+
+  .mono, .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  h1, h2, h3, .display {
+    font-family: 'Barlow Semi Condensed', system-ui, sans-serif;
+    font-weight: 700;
+    text-wrap: balance;
+    letter-spacing: 0.01em;
+  }
+
+  /* ---- Masthead ---- */
+  .masthead { display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; }
+  .team-banner { display: block; width: 100%; max-height: 220px; object-fit: cover; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 24px; }
+  .team-logo { display: block; height: 40px; width: 40px; object-fit: contain; border-radius: 8px; }
+  .eyebrow {
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  h1 { font-size: 42px; margin: 0; line-height: 1.05; color: var(--ink); }
+  .subhead { color: var(--ink-soft); font-size: 15.5px; max-width: 60ch; }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; font-size: 13.5px; color: var(--ink-faint); }
+  .meta-row b { color: var(--ink-soft); font-weight: 600; }
+
+  /* ---- tag pills (provenance) ---- */
+  .tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-weight: 600; font-size: 11.5px; letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 2.5px 8px 3px; border-radius: 100px; white-space: nowrap;
+  }
+  .tag-official { background: var(--positive-soft); color: var(--positive); }
+  .tag-tool { background: var(--warning-soft); color: var(--warning); }
+  .tag-calc { background: var(--accent-soft); color: var(--accent); }
+  .tag-rec { background: var(--surface-2); color: var(--ink-soft); border: 1px solid var(--line); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 12px 16px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); font-size: 13px; color: var(--ink-soft); margin: 28px 0 36px; }
+  .legend span.lbl { color: var(--ink-faint); }
+
+  /* ---- summary stat row ---- */
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 28px 0; }
+  .stat-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 4px; }
+  .stat-card.alert { border-color: var(--negative); }
+  .stat-card .label { font-family: 'Barlow Semi Condensed', sans-serif; font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; }
+  .stat-card .value { font-family: 'IBM Plex Mono'; font-variant-numeric: tabular-nums; font-size: 24px; font-weight: 600; color: var(--ink); }
+  .stat-card .foot { font-size: 12px; color: var(--ink-soft); }
+  .stat-card .value.pos { color: var(--positive); }
+  .stat-card .value.warn { color: var(--warning); }
+  .stat-card .value.neg { color: var(--negative); }
+
+  /* ---- urgent callout ---- */
+  .alert-card { background: var(--negative-soft); border: 1px solid var(--negative); border-radius: var(--radius); padding: 18px 20px; margin: 0 0 28px; box-shadow: var(--shadow); }
+  .alert-card .eyebrow { color: var(--negative); margin-bottom: 6px; }
+  .alert-card p { margin: 0 0 6px; color: var(--ink); font-size: 14px; }
+  .alert-card p:last-child { margin-bottom: 0; }
+
+  /* ---- sections ---- */
+  section.block { margin: 46px 0; }
+  .block-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 4px; flex-wrap: wrap; }
+  h2 { font-size: 25px; margin: 0; color: var(--ink); }
+  .block-note { color: var(--ink-soft); font-size: 14px; max-width: 66ch; margin: 6px 0 0; }
+
+  /* ---- collapsible note ---- */
+  details.note { margin: 6px 0 18px; }
+  details.note > summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-weight: 600;
+    font-size: 13.5px;
+    letter-spacing: 0.01em;
+    color: var(--ink-soft);
+    padding: 2px 0;
+  }
+  details.note > summary::-webkit-details-marker { display: none; }
+  details.note > summary::marker { content: ""; }
+  details.note > summary::before {
+    content: '▸';
+    font-size: 10px;
+    color: var(--ink-faint);
+    display: inline-block;
+    transition: transform 0.15s ease;
+  }
+  details.note[open] > summary::before { transform: rotate(90deg); }
+  details.note > summary:hover { color: var(--ink); }
+  details.note > summary:hover::before { color: var(--ink-soft); }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px 22px; }
+
+  /* ---- tables ---- */
+  .tbl-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 13.8px; }
+  thead th {
+    text-align: left; font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 600; font-size: 12.5px;
+    letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-faint);
+    padding: 11px 14px; border-bottom: 1px solid var(--line); background: var(--surface-2);
+    position: sticky; top: 0;
+  }
+  td { padding: 9px 14px; border-bottom: 1px solid var(--line); color: var(--ink); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: right; font-family: 'IBM Plex Mono'; font-variant-numeric: tabular-nums; }
+  tr.total td { font-weight: 600; background: var(--surface-2); border-top: 1px solid var(--line); }
+  tr.total.alert td { background: var(--negative-soft); color: var(--negative); }
+  td.debit { color: var(--negative); }
+  td.credit { color: var(--positive); }
+  .name-cell { font-weight: 600; }
+  .sub { color: var(--ink-faint); font-size: 12px; font-weight: 400; }
+
+  /* ---- frozen first column (for wide tables) ---- */
+  table.freeze-first-col th:first-child,
+  table.freeze-first-col td:first-child {
+    position: sticky; left: 0; z-index: 2;
+    background: var(--surface);
+    box-shadow: 1px 0 0 0 var(--line);
+  }
+  table.freeze-first-col thead th:first-child { z-index: 3; background: var(--surface-2); }
+  table.freeze-first-col tr.total td:first-child { background: var(--surface-2); }
+  table.freeze-first-col thead tr:last-child th:first-child {
+    position: static; left: auto; z-index: auto; box-shadow: none; background: var(--surface-2);
+  }
+
+  /* ---- grouped skill-table headers (OSP / ISP / Other) ---- */
+  .group-header {
+    text-align: center; background: var(--surface-2); border-bottom: 1px solid var(--line);
+    font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; font-size: 11.5px; color: var(--ink-soft);
+  }
+  .grp-start { border-left: 2px solid var(--line); }
+
+  /* ---- bars ---- */
+  .bar-row { display: grid; grid-template-columns: 160px 1fr 78px; align-items: center; gap: 12px; padding: 7px 0; }
+  .bar-row .lbl { font-size: 13px; color: var(--ink-soft); }
+  .bar-track { position: relative; height: 12px; background: var(--surface-2); border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
+  .bar-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 6px; }
+  .bar-fill.full { background: var(--positive); }
+  .bar-row .val { font-family: 'IBM Plex Mono'; font-size: 12.5px; text-align: right; color: var(--ink-soft); }
+  .cap-line { position: absolute; right: 0; top: -3px; bottom: -3px; width: 2px; background: var(--ink-faint); }
+
+  .price-bar { display: grid; grid-template-columns: 110px 1fr 150px; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); }
+  .price-bar:first-child { border-top: none; }
+  .price-track { position: relative; height: 10px; background: var(--surface-2); border-radius: 5px; border: 1px solid var(--line); }
+  .price-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent2); border-radius: 5px; }
+  .price-range { font-family: 'IBM Plex Mono'; font-size: 11.5px; color: var(--ink-faint); text-align: right; }
+
+  /* ---- two col ---- */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .two-col, .stat-row { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 520px) { .stat-row { grid-template-columns: 1fr; } }
+
+  .staff-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 720px) { .staff-grid { grid-template-columns: 1fr; } }
+  .training-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  @media (max-width: 720px) { .training-cards { grid-template-columns: 1fr; } }
+  .staff-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); }
+  .staff-card .role { font-family: 'Barlow Semi Condensed'; font-weight: 600; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent2); }
+  .staff-card .who { font-size: 17px; font-weight: 600; margin: 3px 0 6px; }
+  .staff-card .row { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-soft); padding: 3px 0; }
+  .staff-card .row b { color: var(--ink); font-family: 'IBM Plex Mono'; font-weight: 500; }
+
+  /* ---- survey ---- */
+  .survey-row { display: grid; grid-template-columns: 1fr 130px; gap: 14px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+  .survey-row:first-child { border-top: none; }
+  .dots { display: flex; gap: 4px; justify-content: flex-end; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line); }
+  .dot.on { background: var(--accent); border-color: var(--accent); }
+  .dot.half { background: linear-gradient(90deg, var(--accent) 50%, var(--surface-2) 50%); }
+
+  /* ---- recommendations ---- */
+  .rec-list { display: flex; flex-direction: column; gap: 14px; }
+  .rec {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 16px 18px; display: grid; grid-template-columns: 34px 1fr; gap: 14px;
+  }
+  .rec.urgent { border-color: var(--negative); }
+  .rec .idx { font-family: 'Barlow Semi Condensed'; font-weight: 700; font-size: 22px; color: var(--accent); }
+  .rec.urgent .idx { color: var(--negative); }
+  .rec h3 { font-size: 16.5px; margin: 0 0 5px; color: var(--ink); }
+  .rec p { margin: 0; font-size: 13.8px; color: var(--ink-soft); }
+  .rec .tags { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+
+  /* ---- tabs ---- */
+  /* Pure-CSS tabs: hidden radio inputs + label buttons + sibling selectors. No JS. */
+  .tab-radio {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+  .tabs-nav {
+    display: flex; align-items: stretch; gap: 4px; flex-wrap: nowrap; overflow-x: auto;
+    -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; scrollbar-width: thin;
+    border-bottom: 1px solid var(--line); margin: 40px 0 0;
+  }
+  .tab-btn {
+    font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 600; font-size: 14.5px;
+    letter-spacing: 0.02em; color: var(--ink-faint); background: none;
+    border: none; border-bottom: 2px solid transparent; border-left: 2px solid transparent;
+    padding: 11px 16px 12px; cursor: pointer;
+    margin-bottom: -1px; transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    display: inline-block; user-select: none; flex: 0 0 auto; scroll-snap-align: start; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--ink-soft); }
+  .tab-divider { flex: 0 0 auto; width: 1px; align-self: center; height: 18px; background: var(--line); margin: 0 2px; }
+  .tab-panel { display: none; padding-top: 8px; }
+
+  /* ---- side nav on wider screens; horizontal scroll strip stays on phone widths ---- */
+  @media (min-width: 880px) {
+    .tabs { display: grid; grid-template-columns: 200px 1fr; gap: 32px; align-items: start; }
+    .tabs-nav {
+      flex-direction: column; overflow-x: visible; white-space: normal;
+      border-bottom: none; border-right: 1px solid var(--line);
+      margin: 6px 0 0; padding-right: 18px;
+      position: sticky; top: 20px;
+    }
+    .tab-btn {
+      text-align: left; width: 100%; border-radius: 0 8px 8px 0;
+      margin-bottom: 0; padding: 9px 14px;
+    }
+    .tab-btn:hover { background: var(--surface-2); }
+    .tab-divider { width: auto; height: 1px; align-self: stretch; margin: 8px 0; }
+    .tab-panel { padding-top: 0; }
+  }
+
+  #r-overview:checked ~ .panels #panel-overview,
+  #r-investments:checked ~ .panels #panel-investments,
+  #r-finances:checked ~ .panels #panel-finances,
+  #r-arena:checked ~ .panels #panel-arena,
+  #r-roster:checked ~ .panels #panel-roster,
+  #r-byposition:checked ~ .panels #panel-byposition,
+  #r-training:checked ~ .panels #panel-training,
+  #r-schedule:checked ~ .panels #panel-schedule,
+  #r-division:checked ~ .panels #panel-division,
+  #r-fans:checked ~ .panels #panel-fans { display: block; }
+
+  #r-overview:checked ~ .tabs-nav label[for="r-overview"],
+  #r-investments:checked ~ .tabs-nav label[for="r-investments"],
+  #r-finances:checked ~ .tabs-nav label[for="r-finances"],
+  #r-arena:checked ~ .tabs-nav label[for="r-arena"],
+  #r-roster:checked ~ .tabs-nav label[for="r-roster"],
+  #r-byposition:checked ~ .tabs-nav label[for="r-byposition"],
+  #r-training:checked ~ .tabs-nav label[for="r-training"],
+  #r-schedule:checked ~ .tabs-nav label[for="r-schedule"],
+  #r-division:checked ~ .tabs-nav label[for="r-division"],
+  #r-fans:checked ~ .tabs-nav label[for="r-fans"] { color: var(--accent); border-bottom-color: var(--accent); border-left-color: var(--accent); }
+
+  #r-overview:focus-visible ~ .tabs-nav label[for="r-overview"],
+  #r-investments:focus-visible ~ .tabs-nav label[for="r-investments"],
+  #r-finances:focus-visible ~ .tabs-nav label[for="r-finances"],
+  #r-arena:focus-visible ~ .tabs-nav label[for="r-arena"],
+  #r-roster:focus-visible ~ .tabs-nav label[for="r-roster"],
+  #r-byposition:focus-visible ~ .tabs-nav label[for="r-byposition"],
+  #r-training:focus-visible ~ .tabs-nav label[for="r-training"],
+  #r-schedule:focus-visible ~ .tabs-nav label[for="r-schedule"],
+  #r-division:focus-visible ~ .tabs-nav label[for="r-division"],
+  #r-fans:focus-visible ~ .tabs-nav label[for="r-fans"] { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---- automated-section badge ---- */
+  .auto-badge { display: inline-flex; align-items: center; gap: 5px; font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; padding: 2.5px 8px 3px; border-radius: 100px; white-space: nowrap; background: var(--accent2); color: var(--accent-ink); }
+
+  /* ---- sources ---- */
+  .sources { font-size: 13px; color: var(--ink-soft); }
+  .sources ol { padding-left: 20px; margin: 10px 0 0; }
+  .sources li { margin-bottom: 5px; }
+  .sources code { font-family: 'IBM Plex Mono'; font-size: 12px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+
+  footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--ink-faint); font-size: 12.5px; }
+
+  /* ---- theme toggle ---- */
+  #theme-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 600; font-size: 12.5px;
+    letter-spacing: 0.03em; color: var(--ink-soft);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 100px;
+    padding: 6px 12px 6px 10px; cursor: pointer; box-shadow: var(--shadow);
+  }
+  #theme-toggle:hover { color: var(--ink); border-color: var(--accent); }
+  #theme-toggle .icon { font-size: 13px; line-height: 1; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- Optional team art - upload banner.png / logo.png to this team's images/
+       folder and these appear automatically; each is removed on load if its
+       file doesn't exist yet, so nothing breaks while the folder is empty. -->
+  <img class="team-banner" src="./images/banner.png" alt="" onerror="this.remove()">
+
+  <div class="masthead">
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <img class="team-logo" src="./images/logo.png" alt="Sharpshooters logo" onerror="this.remove()">
+        <div class="eyebrow">Team Report · Sharpshooters (#32988) · League III.15, Brasil</div>
+      </div>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">
+        <span class="icon" aria-hidden="true">&#9789;</span><span class="label">Dark mode</span>
+      </button>
+    </div>
+    <h1>Sharpshooters — team report</h1>
+    <div class="meta-row">
+      <span><!-- AUTO:META --><span class="auto-badge">Auto-updated</span> loading…<!-- /AUTO:META --></span>
+    </div>
+    <details class="note"><summary>Context on the rebuild</summary>
+        <p class="block-note" style="margin-top:8px; max-width:66ch;">Tom took over this team recently, and the aggressive rebuild — new Trainer, 5 new players, an arena expansion, then 6 more players cut — reads as the start of his tenure, not a mid-season pivot. The early results (see the live record in the Overview tab) predate that rebuild settling in. Training is set to <b style="color:var(--ink)">Rebounding (C/PF)</b>, matching this report's own recommendation. This note is hand-written context, not auto-updated — see the Overview and Roster tabs for what's actually live right now.</p>
+      </details>
+  </div>
+
+  <div class="legend">
+    <span class="lbl">Tag key:</span>
+    <span class="tag tag-official">Official · BuzzerBeater</span>
+    <span class="tag tag-tool">Tool est. · Buzzer Manager</span>
+    <span class="tag tag-calc">Calculated</span>
+    <span class="tag tag-rec">Recommendation</span>
+  </div>
+
+  <!-- ================= TABS (pure CSS — no JS dependency) ================= -->
+  <div class="tabs">
+    <input type="radio" name="ss-tabs" id="r-overview" class="tab-radio" checked>
+    <input type="radio" name="ss-tabs" id="r-investments" class="tab-radio">
+    <input type="radio" name="ss-tabs" id="r-finances" class="tab-radio">
+    <input type="radio" name="ss-tabs" id="r-arena" class="tab-radio">
+    <input type="radio" name="ss-tabs" id="r-roster" class="tab-radio">
+    <input type="radio" name="ss-tabs" id="r-byposition" class="tab-radio">
+    <input type="radio" name="ss-tabs" id="r-training" class="tab-radio">
+    <input type="radio" name="ss-tabs" id="r-schedule" class="tab-radio">
+    <input type="radio" name="ss-tabs" id="r-division" class="tab-radio">
+    <input type="radio" name="ss-tabs" id="r-fans" class="tab-radio">
+
+    <div class="tabs-nav">
+      <label class="tab-btn" for="r-overview">Overview</label>
+      <span class="tab-divider"></span>
+      <label class="tab-btn" for="r-investments">Investments</label>
+      <label class="tab-btn" for="r-finances">Finances</label>
+      <label class="tab-btn" for="r-arena">Arena &amp; Attendance</label>
+      <span class="tab-divider"></span>
+      <label class="tab-btn" for="r-roster">Roster &amp; Staff</label>
+      <label class="tab-btn" for="r-byposition">Roster by Position</label>
+      <label class="tab-btn" for="r-training">Training Strategy</label>
+      <span class="tab-divider"></span>
+      <label class="tab-btn" for="r-schedule">Schedule &amp; Standings</label>
+      <label class="tab-btn" for="r-division">Division Comparison</label>
+      <label class="tab-btn" for="r-fans">Fan Sentiment</label>
+    </div>
+
+    <div class="panels">
+
+  <!-- ================= PANEL: OVERVIEW & RECOMMENDATIONS ================= -->
+  <div class="tab-panel" id="panel-overview">
+
+  <div class="block-head" style="margin-top:20px;">
+    <h2 style="font-size:19px;">Live snapshot</h2>
+    <span class="auto-badge">Auto-updated daily</span>
+  </div>
+  <details class="note"><summary>About the live snapshot below</summary>
+        <p class="block-note" style="margin:2px 0 0;">Straight from the official API, refreshed every day by a GitHub Actions job — the stat cards above are the dated manual analysis and stay fixed until the next full manual refresh.</p>
+      </details>
+  <!-- AUTO:OVERVIEW_STATS -->
+  <p class="block-note">Loading live data…</p>
+  <!-- /AUTO:OVERVIEW_STATS -->
+
+  <!-- AUTO:RECOMMENDATIONS -->
+  <p class="block-note">Loading live data…</p>
+  <!-- /AUTO:RECOMMENDATIONS -->
+
+  </div>
+
+  <!-- ================= PANEL: INVESTMENTS ================= -->
+  <div class="tab-panel" id="panel-investments">
+
+  <div class="block-head" style="margin-top:20px;">
+    <h2>Investment tracker</h2>
+    <span class="auto-badge">Auto-updated daily</span>
+  </div>
+  <details class="note"><summary>What counts as an "investment" here</summary>
+        <p class="block-note">Every dated capital outlay pulled from the official economy ledger — player transfer purchases (and sales, if any) and lump-sum facility spend like the arena expansion — accumulated into a running ledger each time this report runs, since the API only ever shows the current and prior week. Recurring weekly costs (salaries, scouting) are operating expenses, not investments, but they do roll into each player's <b>TCO</b> (total cost of ownership: price paid + salary paid while owned) below, so cost-per-player is measured against the full bill, not just the transfer fee. Arena spend is tracked the same way against real gate revenue, bucketed automatically by capacity/price regime as arena.aspx changes.</p>
+      </details>
+  <!-- AUTO:INVESTMENTS -->
+  <p class="block-note">Loading live data…</p>
+  <!-- /AUTO:INVESTMENTS -->
+
+  </div>
+
+  <!-- ================= PANEL: SCHEDULE & STANDINGS ================= -->
+  <div class="tab-panel" id="panel-schedule">
+
+  <div class="block-head" style="margin-top:20px;">
+    <h2>Schedule &amp; standings</h2>
+    <span class="auto-badge">Auto-updated daily</span>
+  </div>
+  <details class="note"><summary>About this section</summary>
+        <p class="block-note">Straight from the official API — upcoming fixtures, recent results, and your conference standings. Refreshed automatically every day, no manual step required.</p>
+      </details>
+  <!-- AUTO:SCHEDULE_STANDINGS -->
+  <p class="block-note">Loading live data…</p>
+  <!-- /AUTO:SCHEDULE_STANDINGS -->
+
+  </div>
+
+  <!-- ================= PANEL: FINANCES ================= -->
+  <div class="tab-panel" id="panel-finances">
+
+    <section class="block" style="margin-top:20px;">
+      <div class="block-head">
+        <h2>Recent cash movement</h2>
+        <span class="auto-badge">Auto-updated daily</span>
+      </div>
+      <details class="note"><summary>About this ledger</summary>
+        <p class="block-note">Itemized transactions from the official API's economy ledger (last week and this week), running balance computed from each week's confirmed opening balance. Zero-amount placeholder entries (e.g. an unplayed match's revenue row) are omitted.</p>
+      </details>
+      <!-- AUTO:TRANSACTION_LEDGER -->
+      <p class="block-note">Loading live data…</p>
+      <!-- /AUTO:TRANSACTION_LEDGER -->
+    </section>
+
+    <section class="block">
+      <div class="block-head">
+        <h2>This week's live category breakdown</h2>
+        <span class="auto-badge">Auto-updated daily</span>
+      </div>
+      <details class="note"><summary>About this breakdown</summary>
+        <p class="block-note">The official API's own category breakdown for the current and prior week, refreshed daily.</p>
+      </details>
+      <!-- AUTO:FINANCE_WEEKLY -->
+      <p class="block-note">Loading live data…</p>
+      <!-- /AUTO:FINANCE_WEEKLY -->
+    </section>
+
+  </div>
+
+  <!-- ================= PANEL: ARENA ================= -->
+  <div class="tab-panel" id="panel-arena">
+
+    <section class="block" style="margin-top:20px;">
+      <div class="block-head">
+        <h2>Arena &amp; attendance</h2>
+        <span class="auto-badge">Auto-updated daily</span>
+      </div>
+      <!-- AUTO:ARENA_GLANCE -->
+      <p class="block-note">Loading live data…</p>
+      <!-- /AUTO:ARENA_GLANCE -->
+
+      <div class="two-col" style="margin-top:16px;">
+        <div class="card">
+          <div class="eyebrow" style="margin-bottom:10px;">Current prices vs. the game's allowed max</div>
+          <!-- AUTO:ARENA_PRICE_BARS -->
+          <p class="block-note">Loading live data…</p>
+          <!-- /AUTO:ARENA_PRICE_BARS -->
+        </div>
+        <div class="card">
+          <div class="eyebrow" style="margin-bottom:10px;">Expansion cost per seat</div>
+          <table style="min-width:0;">
+            <tbody>
+              <tr><td>Bleachers <span class="sub">(+162 seats)</span></td><td class="num">$200</td></tr>
+              <tr><td>Lower Tier <span class="sub">(+42 seats)</span></td><td class="num">$700</td></tr>
+              <tr><td>Courtside <span class="sub">(+48 seats)</span></td><td class="num">$2,000</td></tr>
+              <tr><td>Luxury Boxes <span class="sub">(+3 boxes)</span></td><td class="num">$16,000</td></tr>
+              <tr class="total"><td>Total expansion cost</td><td class="num">$205,800</td></tr>
+            </tbody>
+          </table>
+          <details class="note"><summary>Sellout revenue math</summary>
+        <p class="block-note" style="margin:12px 0 0;"><span class="tag tag-calc">Calculated</span>&nbsp; At today's prices and full capacity, one sellout ≈ <b class="mono">$92,298</b> in gate receipts (5,438×$12 + 500×$38 + 60×$106 + 2×$841). Once the expansion lands, the new max sellout ≈ <b class="mono">$103,449</b> at these same prices (5,600×$12 + 542×$38 + 108×$106 + 5×$841, 6,255 total seats).</p>
+      </details>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ================= PANEL: ROSTER & STAFF ================= -->
+  <div class="tab-panel" id="panel-roster">
+
+    <section class="block" style="margin-top:20px;">
+      <div class="block-head">
+        <h2>Roster changes since last automated check</h2>
+        <span class="auto-badge">Auto-updated daily</span>
+      </div>
+      <!-- AUTO:ROSTER_CHANGES -->
+      <p class="block-note">Loading live data…</p>
+      <!-- /AUTO:ROSTER_CHANGES -->
+    </section>
+
+    <section class="block">
+      <div class="block-head">
+        <h2>Staff, training &amp; scouting</h2>
+        <span class="auto-badge">Auto-updated daily</span>
+      </div>
+      <!-- AUTO:STAFF -->
+      <p class="block-note">Loading live data…</p>
+      <!-- /AUTO:STAFF -->
+      <details class="note"><summary>Training focus, scouting</summary>
+        <p class="block-note" style="margin-top:14px;"><span class="tag tag-official">Official · training.aspx</span>&nbsp; Training is set to <b style="color:var(--ink)">Rebounding, C/PF</b> — an individual skill focus for Centers and Power Forwards, not Team Training. training.aspx has no API endpoint, so this line is carried over from the last screenshot check, not live.</p>
+      </details>
+    </section>
+
+    <section class="block">
+      <div class="block-head">
+        <h2>Skill ratings (as shown in-game)</h2>
+        <span class="auto-badge">Auto-updated daily</span>
+      </div>
+      <!-- AUTO:ROSTER_SKILLS -->
+      <p class="block-note">Loading live data…</p>
+      <!-- /AUTO:ROSTER_SKILLS -->
+    </section>
+
+    <section class="block">
+      <div class="block-head">
+        <h2>Minutes vs. money — this week</h2>
+        <span class="auto-badge">Auto-updated daily</span>
+      </div>
+      <details class="note"><summary>About this section</summary>
+        <p class="block-note">Live total minutes (any position, not just the training-focused ones) via boxscore.aspx across this training-week's played matches.</p>
+      </details>
+      <!-- AUTO:MINUTES_VS_MONEY -->
+      <p class="block-note">Loading live data…</p>
+      <!-- /AUTO:MINUTES_VS_MONEY -->
+    </section>
+
+  </div>
+
+  <!-- ================= PANEL: ROSTER BY POSITION ================= -->
+  <div class="tab-panel" id="panel-byposition">
+
+    <section class="block" style="margin-top:20px;">
+      <div class="block-head">
+        <h2>Roster by position group</h2>
+        <span class="auto-badge">Auto-updated daily</span>
+      </div>
+      <!-- AUTO:ROSTER_BY_POSITION -->
+      <p class="block-note">Loading live data…</p>
+      <!-- /AUTO:ROSTER_BY_POSITION -->
+    </section>
+
+  </div>
+
+  <!-- ================= PANEL: DIVISION COMPARISON ================= -->
+  <div class="tab-panel" id="panel-division">
+
+    <section class="block" style="margin-top:20px;">
+      <div class="block-head">
+        <h2>Live standings context</h2>
+        <span class="auto-badge">Auto-updated daily</span>
+      </div>
+      <details class="note" open><summary>Standings context</summary>
+        <!-- AUTO:DIVISION_STANDINGS -->
+        <p class="block-note">Loading live data…</p>
+        <!-- /AUTO:DIVISION_STANDINGS -->
+        <p class="block-note" style="margin-top:8px;">A per-team $/player comparison against the rest of the division needs a third-party tool (Buzzer Manager) with a live browser session, which this automated pipeline doesn't have — add that manually here when you refresh it by hand.</p>
+      </details>
+    </section>
+
+  </div>
+
+  <!-- ================= PANEL: FAN SENTIMENT ================= -->
+  <div class="tab-panel" id="panel-fans">
+
+    <section class="block" style="margin-top:20px;">
+      <div class="block-head">
+        <h2>Fan sentiment</h2>
+        <span class="tag tag-official">Official · read manually from in-game survey</span>
+      </div>
+      <details class="note"><summary>About this survey</summary>
+        <p class="block-note">Read from the in-game dot scale (out of 5) — there's no API endpoint for this, so it's updated by hand whenever you check it, not by the daily job.</p>
+      </details>
+      <div class="card">
+        <p class="block-note" style="margin:0;">Not yet filled in for this report — open buzzerbeater.com/team/&lt;id&gt;/fanSurvey.aspx and add the current dots here.</p>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ================= PANEL: TRAINING STRATEGY ================= -->
+  <div class="tab-panel" id="panel-training">
+
+    <section class="block" style="margin-top:20px;">
+      <div class="block-head">
+        <h2>Training candidates &amp; skills</h2>
+        <span class="auto-badge">Auto-updated daily</span>
+      </div>
+      <details class="note"><summary>About these skill ratings</summary>
+        <p class="block-note">Cards below are pulled live from the official API each run, laid out the same way the game shows a player page. Thresholds: 45min (18–19yo), 48min (20–26yo), 40min (27+yo). Skill ratings use the Game Manual's full 20-level scale and exact color coding (1 atrocious … 20 legendary).</p>
+      </details>
+      <!-- AUTO:TRAINING_CARDS -->
+      <p class="block-note">Loading live data…</p>
+      <!-- /AUTO:TRAINING_CARDS -->
+    </section>
+
+    <section class="block">
+      <div class="block-head">
+        <h2>General training priorities</h2>
+        <span class="tag tag-rec">Your stated doctrine</span>
+      </div>
+      <details class="note"><summary>Standing training doctrine</summary>
+        <p class="block-note">Recorded here as the standing framework for training decisions going forward, not just for the current cohort.</p>
+      </details>
+      <div class="two-col">
+        <div class="card">
+          <div class="eyebrow" style="margin-bottom:10px;">Big men (C / PF)</div>
+          <ol style="margin:0; padding-left:18px; font-size:13.8px; color:var(--ink-soft);">
+            <li style="margin-bottom:6px;"><b style="color:var(--ink)">ISP first</b> — Inside Shot, Inside Defense, Rebounding are the priority group.</li>
+            <li style="margin-bottom:6px;"><b style="color:var(--ink)">Shot Blocking deliberately lower</b> than those other three ISP skills — it adds too much salary for the value it returns.</li>
+            <li style="margin-bottom:6px;">Passing and Driving are important — next tier.</li>
+            <li style="margin-bottom:6px;">Shooting (Jump Shot) and Outside Defense — after that.</li>
+            <li>Jump Range — generally not a priority.</li>
+          </ol>
+        </div>
+        <div class="card">
+          <div class="eyebrow" style="margin-bottom:10px;">Guards (PG / SG)</div>
+          <ol style="margin:0; padding-left:18px; font-size:13.8px; color:var(--ink-soft);">
+            <li style="margin-bottom:6px;"><b style="color:var(--ink)">OSP first</b> — the outside-skill group.</li>
+            <li style="margin-bottom:6px;"><b style="color:var(--ink)">Jump Range deliberately lower</b> than the other outside skills — same salary-cost logic as Shot Blocking for bigs.</li>
+            <li style="margin-bottom:6px;">Passing is important — even more so for point guards.</li>
+            <li>Inside Scoring and Rebounding also matter for guards.</li>
+          </ol>
+        </div>
+      </div>
+      <details class="note"><summary>Universal training targets</summary>
+        <p class="block-note" style="margin-top:12px;">Universal targets, regardless of position: <b style="color:var(--ink)">Stamina 6–8</b>, <b style="color:var(--ink)">Free Throw 7+</b>.</p>
+      </details>
+      <details class="note"><summary>Team Training vs. individual skills</summary>
+        <p class="block-note" style="margin-top:10px;"><span class="tag tag-official">Official · training.aspx mechanics</span>&nbsp; Stamina and Free Throw are only trainable through <b>Team Training</b> mode (alongside Game Shape), which is mutually exclusive with the 10 individual position-skill categories — only one training focus is active for the whole team at a time. Hitting the Stamina 6–8 / Free Throw 7+ targets means periodically rotating into Team Training, which pauses individual skill development for everyone while it's active.</p>
+      </details>
+    </section>
+
+  </div>
+
+    </div>
+    <!-- /.panels -->
+  </div>
+  <!-- /.tabs -->
+
+  <section class="block sources">
+    <div class="block-head"><h2 style="font-size:19px;">Sources</h2></div>
+    <p>The sections tagged "Auto-updated daily" above are filled in from a SQLite snapshot fetched from this page's own <code>report.db</code> (written once a day by a GitHub Actions job talking to the official BuzzerBeater API). Everything else on this page is hand-written analysis, kept as-is until you update it manually.</p>
+    <ol>
+      <li><code>buzzerbeater.com</code> official API (<code>bbapi.buzzerbeater.com</code>) — teaminfo, roster, economy, schedule, standings, arena, staff, boxscore endpoints, fetched daily.</li>
+      <li><code>buzzerbeater.com/manage/training.aspx</code> and <code>fanSurvey.aspx</code> — no API endpoint; update these sections by hand when you check them in-browser.</li>
+      <li><code>buzzerbeater.com/community/rules.aspx?nav=Nomenclature</code> — Game Manual: full 20-level skill adjective scale and full potential scale, verbatim.</li>
+    </ol>
+  </section>
+
+  <footer>
+    Auto-updated sections are read-only data pulled by a scheduled job — no purchases, price changes, or training changes are ever made automatically. Manual sections (fan sentiment, division $/player comparison, training-doctrine narrative) reflect whatever was last written in by hand.
+  </footer>
+
+</div>
+
+<script>
+  // Theme toggle. Uses event delegation (listens on document, not the
+  // button itself) since the sql.js loader below replaces document.body's
+  // innerHTML wholesale once live data arrives, which would otherwise
+  // silently drop a directly-attached listener.
+  function ssbbCurrentTheme() {
+    var attr = document.documentElement.getAttribute("data-theme");
+    if (attr === "dark" || attr === "light") return attr;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  function ssbbUpdateToggleLabel() {
+    var btn = document.getElementById("theme-toggle");
+    if (!btn) return;
+    var dark = ssbbCurrentTheme() === "dark";
+    var icon = btn.querySelector(".icon");
+    var label = btn.querySelector(".label");
+    if (icon) icon.innerHTML = dark ? "&#9728;" : "&#9789;";
+    if (label) label.textContent = dark ? "Light mode" : "Dark mode";
+  }
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest && e.target.closest("#theme-toggle");
+    if (!btn) return;
+    var next = ssbbCurrentTheme() === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("ssbb-theme", next); } catch (err) {}
+    ssbbUpdateToggleLabel();
+  });
+  document.addEventListener("DOMContentLoaded", ssbbUpdateToggleLabel);
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+<script>
+(async function () {
+  var TEAM_KEY = "sharpshooters";
+  var AUTO_MARKERS = ["META", "OVERVIEW_STATS", "RECOMMENDATIONS", "INVESTMENTS", "ROSTER_SKILLS",
+    "ROSTER_BY_POSITION", "TRAINING_CARDS", "TRANSACTION_LEDGER", "SCHEDULE_STANDINGS", "FINANCE_WEEKLY",
+    "ROSTER_CHANGES", "STAFF", "MINUTES_VS_MONEY", "ARENA_GLANCE", "ARENA_PRICE_BARS", "DIVISION_STANDINGS"];
+
+  function patch(sourceHtml, fragments) {
+    var out = sourceHtml;
+    for (var i = 0; i < AUTO_MARKERS.length; i++) {
+      var name = AUTO_MARKERS[i];
+      if (!(name in fragments)) continue;
+      var re = new RegExp("<!-- AUTO:" + name + " -->[\\s\\S]*?<!-- /AUTO:" + name + " -->");
+      out = out.replace(re, "<!-- AUTO:" + name + " -->" + fragments[name] + "<!-- /AUTO:" + name + " -->");
+    }
+    return out;
+  }
+
+  try {
+    var SQL = await initSqlJs({ locateFile: function (f) { return "https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/" + f; } });
+    var resp = await fetch("../report.db", { cache: "no-store" });
+    if (!resp.ok) throw new Error("report.db fetch failed: " + resp.status);
+    var buf = await resp.arrayBuffer();
+    var db = new SQL.Database(new Uint8Array(buf));
+    var res = db.exec(
+      "SELECT fragments_json, fetched_at FROM snapshots WHERE team_key = ? ORDER BY fetched_at DESC LIMIT 1",
+      [TEAM_KEY]
+    );
+    if (!res.length || !res[0].values.length) {
+      console.warn("No snapshot found for team:", TEAM_KEY);
+      return;
+    }
+    var row = res[0].values[0];
+    var fragments = JSON.parse(row[0]);
+    var fetchedAt = row[1];
+    document.body.innerHTML = patch(document.body.innerHTML, fragments);
+    ssbbUpdateToggleLabel(); // the innerHTML swap above just reset #theme-toggle to its default markup
+    console.log("BuzzerBeater report patched from snapshot", fetchedAt);
+  } catch (err) {
+    console.error("Failed to load live report data:", err);
+    var badge = document.querySelector(".masthead .meta-row");
+    if (badge) {
+      badge.insertAdjacentHTML(
+        "beforeend",
+        '<span style="color:var(--negative)">Live data failed to load — see console for details.</span>'
+      );
+    }
+  }
+})();
+</script>
+
+</body>
+</html>
