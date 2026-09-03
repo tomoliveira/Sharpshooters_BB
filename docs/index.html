@@ -5,6 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sharpshooters Team Report</title>
 <link rel="icon" type="image/png" href="./favicon.png">
+<script>
+  // Applied before first paint, so a stored preference doesn't flash the
+  // wrong theme for a frame. Falls back to no attribute (system preference
+  // via prefers-color-scheme) if nothing was ever chosen or storage is
+  // unavailable.
+  (function () {
+    try {
+      var stored = localStorage.getItem("ssbb-theme");
+      if (stored === "dark" || stored === "light") {
+        document.documentElement.setAttribute("data-theme", stored);
+      }
+    } catch (e) {}
+  })();
+</script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
@@ -39,23 +53,23 @@
 
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #16140f;
-      --surface: #1e1b14;
-      --surface-2: #262218;
-      --ink: #ece6d6;
-      --ink-soft: #b3ac97;
-      --ink-faint: #7d7767;
-      --accent: #e08a44;
-      --accent-ink: #1a1408;
-      --accent-soft: #3c2c18;
-      --accent2: #78b0b3;
-      --line: #3a3527;
-      --positive: #6cb98a;
-      --positive-soft: #24352a;
-      --negative: #e08468;
-      --negative-soft: #3a281f;
-      --warning: #dcb15f;
-      --warning-soft: #3a2f18;
+      --bg: #0e1218;
+      --surface: #161b22;
+      --surface-2: #1e252d;
+      --ink: #e1e9ee;
+      --ink-soft: #a7b2ba;
+      --ink-faint: #6e7880;
+      --accent: #00cdbe;
+      --accent-ink: #0e1218;
+      --accent-soft: #0f3330;
+      --accent2: #33ded0;
+      --line: #3d474f;
+      --positive: #34d399;
+      --positive-soft: #12332a;
+      --negative: #ff7020;
+      --negative-soft: #3a2415;
+      --warning: #e0a040;
+      --warning-soft: #362a14;
       --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px -10px rgba(0,0,0,0.5);
       --lev1: #9E9E9E; --lev2: #5858E5; --lev3: #6652EA; --lev4: #6F4EEE; --lev5: #BC45F7;
       --lev6: #E846F7; --lev7: #F845CF; --lev8: #F84497; --lev9: #F64675; --lev10: #FF4A3D;
@@ -64,23 +78,23 @@
     }
   }
   :root[data-theme="dark"] {
-    --bg: #16140f;
-    --surface: #1e1b14;
-    --surface-2: #262218;
-    --ink: #ece6d6;
-    --ink-soft: #b3ac97;
-    --ink-faint: #7d7767;
-    --accent: #e08a44;
-    --accent-ink: #1a1408;
-    --accent-soft: #3c2c18;
-    --accent2: #78b0b3;
-    --line: #3a3527;
-    --positive: #6cb98a;
-    --positive-soft: #24352a;
-    --negative: #e08468;
-    --negative-soft: #3a281f;
-    --warning: #dcb15f;
-    --warning-soft: #3a2f18;
+    --bg: #0e1218;
+    --surface: #161b22;
+    --surface-2: #1e252d;
+    --ink: #e1e9ee;
+    --ink-soft: #a7b2ba;
+    --ink-faint: #6e7880;
+    --accent: #00cdbe;
+    --accent-ink: #0e1218;
+    --accent-soft: #0f3330;
+    --accent2: #33ded0;
+    --line: #3d474f;
+    --positive: #34d399;
+    --positive-soft: #12332a;
+    --negative: #ff7020;
+    --negative-soft: #3a2415;
+    --warning: #e0a040;
+    --warning-soft: #362a14;
     --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px -10px rgba(0,0,0,0.5);
     --lev1: #9E9E9E; --lev2: #5858E5; --lev3: #6652EA; --lev4: #6F4EEE; --lev5: #BC45F7;
     --lev6: #E846F7; --lev7: #F845CF; --lev8: #F84497; --lev9: #F64675; --lev10: #FF4A3D;
@@ -367,6 +381,17 @@
   .sources code { font-family: 'IBM Plex Mono'; font-size: 12px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
 
   footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--ink-faint); font-size: 12.5px; }
+
+  /* ---- theme toggle ---- */
+  #theme-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 600; font-size: 12.5px;
+    letter-spacing: 0.03em; color: var(--ink-soft);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 100px;
+    padding: 6px 12px 6px 10px; cursor: pointer; box-shadow: var(--shadow);
+  }
+  #theme-toggle:hover { color: var(--ink); border-color: var(--accent); }
+  #theme-toggle .icon { font-size: 13px; line-height: 1; }
 </style>
 </head>
 <body>
@@ -374,7 +399,12 @@
 <div class="wrap">
 
   <div class="masthead">
-    <div class="eyebrow">Team Report · Sharpshooters (#32988) · League III.15, Brasil</div>
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+      <div class="eyebrow">Team Report · Sharpshooters (#32988) · League III.15, Brasil</div>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">
+        <span class="icon" aria-hidden="true">&#9789;</span><span class="label">Dark mode</span>
+      </button>
+    </div>
     <h1>Sharpshooters — team report</h1>
     <div class="meta-row">
       <span><!-- AUTO:META --><span class="auto-badge">Auto-updated</span> loading…<!-- /AUTO:META --></span>
@@ -723,6 +753,36 @@
 
 </div>
 
+<script>
+  // Theme toggle. Uses event delegation (listens on document, not the
+  // button itself) since the sql.js loader below replaces document.body's
+  // innerHTML wholesale once live data arrives, which would otherwise
+  // silently drop a directly-attached listener.
+  function ssbbCurrentTheme() {
+    var attr = document.documentElement.getAttribute("data-theme");
+    if (attr === "dark" || attr === "light") return attr;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  function ssbbUpdateToggleLabel() {
+    var btn = document.getElementById("theme-toggle");
+    if (!btn) return;
+    var dark = ssbbCurrentTheme() === "dark";
+    var icon = btn.querySelector(".icon");
+    var label = btn.querySelector(".label");
+    if (icon) icon.innerHTML = dark ? "&#9728;" : "&#9789;";
+    if (label) label.textContent = dark ? "Light mode" : "Dark mode";
+  }
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest && e.target.closest("#theme-toggle");
+    if (!btn) return;
+    var next = ssbbCurrentTheme() === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("ssbb-theme", next); } catch (err) {}
+    ssbbUpdateToggleLabel();
+  });
+  document.addEventListener("DOMContentLoaded", ssbbUpdateToggleLabel);
+</script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
 <script>
 (async function () {
@@ -760,6 +820,7 @@
     var fragments = JSON.parse(row[0]);
     var fetchedAt = row[1];
     document.body.innerHTML = patch(document.body.innerHTML, fragments);
+    ssbbUpdateToggleLabel(); // the innerHTML swap above just reset #theme-toggle to its default markup
     console.log("BuzzerBeater report patched from snapshot", fetchedAt);
   } catch (err) {
     console.error("Failed to load live report data:", err);
