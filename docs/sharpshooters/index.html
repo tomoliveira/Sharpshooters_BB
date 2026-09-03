@@ -899,10 +899,15 @@
     // nominal PF playing 48 minutes at C) is exactly how this training
     // doctrine is meant to work, and bestPosition-filtering was hiding
     // precisely those players.
+    // Per Tom: the "(NN%)" on an option isn't a discount on minutes - it's
+    // the game's own skill-progression effectiveness rate for that combo
+    // (how much the skill improves per minute trained), which this
+    // calculator doesn't model. Minutes toward the weekly threshold count
+    // at full value regardless; opt.weight is only shown below as context.
     var affected = rows.map(function (r) {
       var pm = posMinutes[r.playerid] || {};
       var minutes = 0;
-      for (var i = 0; i < opt.positions.length; i++) minutes += (pm[opt.positions[i]] || 0) * opt.weight;
+      for (var i = 0; i < opt.positions.length; i++) minutes += (pm[opt.positions[i]] || 0);
       return { r: r, minutes: Math.round(minutes) };
     }).filter(function (x) { return x.minutes > 0; })
       .sort(function (a, b) { return b.minutes - a.minutes; });
@@ -926,7 +931,9 @@
         + "<td class=\"num\">" + ssbbEsc(r.age) + "</td><td class=\"num\">" + minCell + "</td>"
         + "<td><span class=\"tag\" style=\"background:var(" + color + "-soft); color:var(" + color + ");\">" + status + "</span></td></tr>";
     }).join("");
-    var weightNote = opt.weight < 1 ? ' <span class="sub">(' + Math.round(opt.weight * 100) + "% effectiveness for this combo)</span>" : "";
+    var weightNote = opt.weight < 1
+      ? ' <span class="sub">(' + Math.round(opt.weight * 100) + "% skill-progression effectiveness for this combo - minutes toward the threshold still count in full)</span>"
+      : "";
     results.innerHTML =
       '<div class="tbl-scroll"><table><thead><tr><th>Player</th><th>Pos</th><th class="num">Age</th>'
       + '<th class="num">Minutes / threshold</th><th>Status</th></tr></thead><tbody>' + body + "</tbody></table></div>"

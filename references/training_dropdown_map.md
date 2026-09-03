@@ -32,7 +32,11 @@ Method: for each option in the first ("Choose Training") dropdown, I selected it
 Strategy tab) hardcodes this table verbatim as the JS `TRAINING_MAP`
 constant. Each option label is parsed client-side: text before a trailing
 `(NN%)` is split on `/` into the trained positions (or resolved via the
-Guards/Wingmen/Forwards/Team group labels above), and the percentage - or
-100% if none is given - is applied as a single weight across every position
-in that option. Re-capture and update both this file and `TRAINING_MAP`
-together if BuzzerBeater ever changes these dropdowns.
+Guards/Wingmen/Forwards/Team group labels above). Per Tom, that percentage
+is the game's own skill-progression effectiveness rate for the combo (how
+much the skill improves per minute trained) - **not** a discount on minutes
+counted toward the weekly threshold, which always count in full regardless
+of the percentage. The calculator only surfaces the percentage as an
+informational note; it does not scale the minutes math with it. Re-capture
+and update both this file and `TRAINING_MAP` together if BuzzerBeater ever
+changes these dropdowns.
