@@ -983,6 +983,7 @@
     }
     ssbbRenderTrainingCalc();
     ssbbApplyTrainingColumns();
+    ssbbApplyTrainingCards();
   }
 
   // ---- Roster tab: Train?/Minutes/Status columns on the skill table ----
@@ -1020,6 +1021,25 @@
     try { localStorage.setItem(CANDIDATES_KEY, JSON.stringify(Array.from(set))); } catch (e) {}
   }
 
+  // Shared by the roster skill table's Minutes/Status columns and the
+  // Training Strategy cohort cards, so both always agree on the same
+  // selected combo's math.
+  function ssbbComputeMinutesStatus(pid, age, opt, posMinutes) {
+    var pm = posMinutes[pid] || {};
+    var minutes = 0;
+    for (var i = 0; i < opt.positions.length; i++) minutes += Math.round(pm[opt.positions[i]] || 0);
+    var threshold = ssbbTrainingThreshold(age);
+    var status, color;
+    if (threshold == null) { status = "n/a"; color = "--ink-faint"; }
+    else {
+      var gap = threshold - minutes;
+      if (gap <= 0) { status = "Clears"; color = "--positive"; }
+      else if (gap <= 10) { status = "Short by " + gap; color = "--warning"; }
+      else { status = "Well short"; color = "--negative"; }
+    }
+    return { minutes: minutes, threshold: threshold, status: status, color: color };
+  }
+
   function ssbbApplyTrainingColumns() {
     var data = window.SSBB_DATA;
     if (!data) return;
@@ -1041,20 +1061,45 @@
 
       trainCell.innerHTML = '<input type="checkbox" class="candidate-checkbox" data-playerid="' + ssbbEsc(pid) + '"' + (candidates.has(pid) ? " checked" : "") + ">";
 
-      var pm = posMinutes[pid] || {};
-      var minutes = 0;
-      for (var i = 0; i < opt.positions.length; i++) minutes += Math.round(pm[opt.positions[i]] || 0);
-      var threshold = ssbbTrainingThreshold(r.age);
-      var status, color;
-      if (threshold == null) { status = "n/a"; color = "--ink-faint"; }
-      else {
-        var gap = threshold - minutes;
-        if (gap <= 0) { status = "Clears"; color = "--positive"; }
-        else if (gap <= 10) { status = "Short by " + gap; color = "--warning"; }
-        else { status = "Well short"; color = "--negative"; }
-      }
-      minutesCell.textContent = threshold == null ? "—" : (minutes + " / " + threshold + " min");
-      statusCell.innerHTML = '<span class="tag" style="background:var(' + color + '-soft); color:var(' + color + ');">' + status + "</span>";
+      var res = ssbbComputeMinutesStatus(pid, r.age, opt, posMinutes);
+      minutesCell.textContent = res.threshold == null ? "—" : (res.minutes + " / " + res.threshold + " min");
+      statusCell.innerHTML = '<span class="tag" style="background:var(' + res.color + '-soft); color:var(' + res.color + ');">' + res.status + "</span>";
+    });
+  }
+
+  // Training Strategy tab's hand-curated cohort cards - the "Training: X"
+  // label and the minutes/threshold status both used to read this team's
+  // static config value (CURRENT_TRAINING_FOCUS/TRAINING_FOCUS_POSITIONS)
+  // regardless of what was picked in the calculator above. Per Tom, they
+  // should reflect the actually-selected combo instead, so both are now
+  // driven by the same #tc-type/#tc-combo state as the skill table.
+  function ssbbApplyTrainingCards() {
+    var data = window.SSBB_DATA;
+    if (!data) return;
+    var comboSel = document.getElementById("tc-combo");
+    if (!comboSel || !comboSel.value) return;
+    var opt = ssbbParseTrainingOption(comboSel.value);
+    var posMinutes = data.position_minutes || {};
+    var cardsByPid = {};
+    (data.training_cards || []).forEach(function (c) { cardsByPid[c.playerid] = c; });
+
+    document.querySelectorAll(".training-cohort-card[data-playerid]").forEach(function (card) {
+      var pid = card.getAttribute("data-playerid");
+      var c = cardsByPid[pid];
+      var label = card.querySelector(".js-training-label");
+      var minutesEl = card.querySelector(".js-training-minutes");
+      var badge = card.querySelector(".js-clears-badge");
+      if (!c || !label || !minutesEl) return;
+
+      label.textContent = opt.label;
+      var res = ssbbComputeMinutesStatus(pid, c.age, opt, posMinutes);
+      minutesEl.innerHTML = res.threshold == null
+        ? "minutes not tracked"
+        : (res.minutes + " / " + res.threshold + " min &nbsp;<span class=\"tag\" style=\"background:var(" + res.color + "-soft); color:var(" + res.color + ");\">" + res.status + "</span>");
+
+      var clears = res.status === "Clears";
+      card.style.borderColor = clears ? "var(--positive)" : "";
+      if (badge) badge.style.display = clears ? "" : "none";
     });
   }
 
@@ -1064,9 +1109,11 @@
       ssbbPopulateComboDropdown(e.target.value);
       ssbbRenderTrainingCalc();
       ssbbApplyTrainingColumns();
+      ssbbApplyTrainingCards();
     } else if (e.target.id === "tc-combo") {
       ssbbRenderTrainingCalc();
       ssbbApplyTrainingColumns();
+      ssbbApplyTrainingCards();
     } else if (e.target.className === "candidate-checkbox") {
       var candidates = ssbbGetCandidates();
       var pid = e.target.getAttribute("data-playerid");

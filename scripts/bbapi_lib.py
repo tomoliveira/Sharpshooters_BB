@@ -1276,20 +1276,26 @@ CLEARS_CHECK_SVG = (
 )
 
 def training_status_html(playerid, minutes_map):
+    # Label and minutes/status are placeholders, deliberately left for the
+    # page's own JS (ssbbApplyTrainingColumns) to fill in from whichever
+    # training combo is currently selected in the calculator, not this
+    # team's static config value - see docs/sharpshooters/index.html. The
+    # server-computed values below are just the initial paint, matching
+    # this team's configured default, before that script runs.
     m = minutes_map.get(playerid)
     if not m: status_color = "--ink-soft"
     elif m["status"] == "Clears": status_color = "--positive"
     elif m["status"].startswith("Short by"): status_color = "--warning"
     else: status_color = "--negative"
     minutes_html = (
-        f'<span>{m["minutes"]} / {m["threshold"]} min &nbsp;'
-        f'<span class="tag" style="background:var({status_color}-soft); color:var({status_color});">{esc(m["status"])}</span></span>'
-    ) if m else '<span class="sub">minutes not tracked</span>'
+        f'{m["minutes"]} / {m["threshold"]} min &nbsp;'
+        f'<span class="tag" style="background:var({status_color}-soft); color:var({status_color});">{esc(m["status"])}</span>'
+    ) if m else "minutes not tracked"
     return (
         '<div style="display:flex; flex-wrap:wrap; gap:6px 18px; align-items:center; font-size:13px; color:var(--ink-soft); '
         'padding:6px 0 10px; margin-top:2px; border-bottom:1px solid var(--line);">'
-        f'<span>Training: <b style="color:var(--ink)">{esc(CURRENT_TRAINING_FOCUS)}</b></span>'
-        f'{minutes_html}'
+        f'<span>Training: <b class="js-training-label" style="color:var(--ink)">{esc(CURRENT_TRAINING_FOCUS)}</b></span>'
+        f'<span class="js-training-minutes">{minutes_html}</span>'
         '</div>'
     )
 
@@ -1316,11 +1322,17 @@ def auto_training_cards_html(data):
         skill_rows = "".join(skill_cell(lt) + skill_cell(rt) for lt, rt in zip(left_tags, right_tags))
         minutes_map = data["training_minutes"]
         clears = minutes_map.get(c["playerid"], {}).get("status") == "Clears"
+        # Border color and the checkmark badge both reflect "clears" -
+        # server-computed here as the initial paint (this team's configured
+        # default combo), then kept live by ssbbApplyTrainingColumns as the
+        # combo changes. js-clears-badge always exists in the DOM (hidden
+        # when not clearing) rather than being added/removed, so the JS
+        # only ever has to toggle it, not build new markup for it.
         card_style = "position:relative;" + (" border-color:var(--positive);" if clears else "")
-        check_badge = f'<div style="position:absolute; top:14px; right:14px;">{CLEARS_CHECK_SVG}</div>' if clears else ""
+        badge_style = "position:absolute; top:14px; right:14px;" + ("" if clears else " display:none;")
         out.append(
-            f'<div class="card" style="{card_style}">'
-            + check_badge +
+            f'<div class="card training-cohort-card" data-playerid="{esc(c["playerid"])}" style="{card_style}">'
+            f'<div class="js-clears-badge" style="{badge_style}">{CLEARS_CHECK_SVG}</div>'
             f'<div class="who" style="font-size:17px; font-weight:700; padding-right:38px;">{esc(c["name"])} <span class="sub">&middot; {esc(c["position"])}</span></div>'
             + training_status_html(c["playerid"], minutes_map) +
             f'<div class="sub" style="margin:8px 0 8px;">Owner: {esc(data["team"]["name"])}</div>'
