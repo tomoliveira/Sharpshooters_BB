@@ -245,13 +245,15 @@ SKILL_DISPLAY_COLUMNS = [
     ("block", "Shot Blocking"), ("stamina", "Stamina"), ("freeThrow", "Free Throw"),
 ]
 
-# Grouping for the full-roster skill table, matching the OSP/ISP split already
-# used in this report's own training doctrine (Driving/Passing/Stamina/Free
-# Throw don't cleanly belong to either, so they sit in their own group).
+# Grouping for the full-roster skill table, matching the OSP/ISP split
+# already used in this report's own training doctrine. Per Tom: Driving and
+# Passing are OSP (guard) skills, not unaffiliated - only Stamina and Free
+# Throw don't cleanly belong to either group.
 SKILL_GROUPS = [
-    ("OSP", [("jumpShot", "Jump Shot"), ("range", "Jump Range"), ("outsideDef", "Outside Def."), ("handling", "Handling")]),
+    ("OSP", [("jumpShot", "Jump Shot"), ("range", "Jump Range"), ("outsideDef", "Outside Def."), ("handling", "Handling"),
+              ("driving", "Driving"), ("passing", "Passing")]),
     ("ISP", [("insideShot", "Inside Shot"), ("insideDef", "Inside Def."), ("rebound", "Rebounding"), ("block", "Shot Blocking")]),
-    ("Other", [("driving", "Driving"), ("passing", "Passing"), ("stamina", "Stamina"), ("freeThrow", "Free Throw")]),
+    ("Other", [("stamina", "Stamina"), ("freeThrow", "Free Throw")]),
 ]
 
 def skill_number_only(v):
