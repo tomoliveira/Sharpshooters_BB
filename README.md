@@ -111,8 +111,9 @@ the repo. Tools exposed: `get_report_snapshot`, `get_report_section`,
 ## Adding another team
 
 1. Copy `teams/sharpshooters/config.json` to `teams/<team_key>/config.json`,
-   filling in that team's `training_cohort`, `current_training_focus`, and
-   distinct `bb_login_env`/`bb_code_env` names (e.g. `BB_LOGIN_TEAM2`).
+   filling in that team's `training_cohort`, `current_training_focus`,
+   `trainee_score_pops_so_far` (see "Trainee Score" below), and distinct
+   `bb_login_env`/`bb_code_env` names (e.g. `BB_LOGIN_TEAM2`).
 2. Add the matching secrets in repo settings.
 3. Add a second step (or job) to `.github/workflows/daily-update.yml` that
    runs `update_db.py --config ../teams/<team_key>/config.json --db ../docs/report.db`
@@ -125,6 +126,22 @@ the repo. Tools exposed: `get_report_snapshot`, `get_report_section`,
    masthead text and manual-analysis sections with that team's own.
 5. Turn `docs/index.html` from a hard redirect into a real picker linking to
    each team's folder.
+
+## Trainee Score
+
+A house metric (not an official BuzzerBeater figure) on the roster skill
+table: how a player's current TSP (sum of the 12 rated skills) compares to
+an "ideal trainee" bar - 60+ TSP at age 18, climbing ~10/season after that,
+capped at 160 TSP since real growth decelerates with age. Potential only
+matters below 6 (halves the score) - a placeholder until a proper TSP/
+potential ratio replaces it. See `trainee_score()` in `scripts/bbapi_lib.py`
+for the exact formula.
+
+The one piece that goes stale during a season is `trainee_score_pops_so_far`
+in that team's `config.json` - roughly how many skill pops have already
+landed since the season started (a season adds ~8-12 total; nudge this
+value up by hand every week or two as the season progresses, the same way
+`current_training_focus` already needs occasional manual updates).
 
 ## What's live vs. manual
 

@@ -9,5 +9,6 @@
     "55910729": "Gunnar Støen"
   },
   "bb_login_env": "BB_LOGIN",
-  "bb_code_env": "BB_CODE"
+  "bb_code_env": "BB_CODE",
+  "trainee_score_pops_so_far": 2.5
 }

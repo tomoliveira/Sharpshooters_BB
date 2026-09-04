@@ -39,6 +39,58 @@ TRAINING_COHORT_IDS = {
 CURRENT_TRAINING_FOCUS = "Rebounding, C / PF"
 TRAINING_FOCUS_POSITIONS = ["PF", "C"]
 
+# Trainee Score - worked out with Tom across several rounds, not derived from
+# anything in the Game Manual: an "ideal trainee" has 60+ TSP (sum of the 12
+# rated skills) at age 18. A season adds ~8-12 skill pops (10 as a working
+# midpoint); a 19yo should start their season where an 18yo finished theirs,
+# so the bar climbs by that same ~10/season - except real growth decelerates
+# with age, so the bar is capped at 160 TSP (roughly what a potential-10+
+# player tops out around) rather than climbing forever. TRAINEE_SCORE_POPS_SO_FAR
+# is the one piece that goes stale during a season (how many pops have
+# likely landed since the season's own start) - it's a team-config value
+# (see teams/<team>/config.json's trainee_score_pops_so_far), not a
+# constant, precisely so it can be nudged upward week by week without a
+# code change, the same way CURRENT_TRAINING_FOCUS already is.
+TRAINEE_SCORE_ANCHOR_AGE = 18
+TRAINEE_SCORE_START_TSP = 60
+TRAINEE_SCORE_POPS_PER_SEASON = 10
+TRAINEE_SCORE_CAP_TSP = 160
+TRAINEE_SCORE_LOW_POTENTIAL_THRESHOLD = 6
+TRAINEE_SCORE_POPS_SO_FAR = 2.5
+
+def trainee_score(age, potential, tsp):
+    """None if age/tsp aren't usable numbers. Otherwise 0-100+ (a player
+    ahead of the age-scaled bar can and should score over 100 - that's a
+    real signal, not a bug). Potential only matters below the low-potential
+    threshold, where the score is halved - a deliberately blunt guard until
+    the Max TSP/potential-ratio scaling Tom and I are still working out
+    replaces it."""
+    try:
+        age = int(age)
+        tsp = float(tsp)
+    except (TypeError, ValueError):
+        return None
+    ideal_start = min(TRAINEE_SCORE_CAP_TSP, TRAINEE_SCORE_START_TSP + TRAINEE_SCORE_POPS_PER_SEASON * (age - TRAINEE_SCORE_ANCHOR_AGE))
+    ideal_now = min(TRAINEE_SCORE_CAP_TSP, ideal_start + TRAINEE_SCORE_POPS_SO_FAR)
+    if ideal_now <= 0:
+        return None
+    raw = tsp / ideal_now * 100
+    try:
+        pot = int(potential)
+        if pot < TRAINEE_SCORE_LOW_POTENTIAL_THRESHOLD:
+            raw *= 0.5
+    except (TypeError, ValueError):
+        pass
+    return round(raw)
+
+def trainee_score_html(score):
+    if score is None:
+        return "—"
+    if score >= 90: color = "--positive"
+    elif score >= 60: color = "--warning"
+    else: color = "--negative"
+    return f'<span style="color:var({color}); font-weight:600;">{score}</span>'
+
 def training_threshold(age):
     try: age = int(age)
     except (TypeError, ValueError): return None
@@ -99,11 +151,12 @@ def load_team_config(config_path):
     from these globals at call time, not at import time, so reassigning here
     is safe as long as it happens first."""
     global CURRENT_TRAINING_FOCUS, TRAINING_FOCUS_POSITIONS, TRAINING_COHORT_IDS
-    global LOGIN, CODE, TEAM_KEY
+    global LOGIN, CODE, TEAM_KEY, TRAINEE_SCORE_POPS_SO_FAR
     cfg = json.loads(Path(config_path).read_text(encoding="utf-8"))
     CURRENT_TRAINING_FOCUS = cfg.get("current_training_focus", CURRENT_TRAINING_FOCUS)
     TRAINING_FOCUS_POSITIONS = cfg.get("training_focus_positions", TRAINING_FOCUS_POSITIONS)
     TRAINING_COHORT_IDS = cfg.get("training_cohort", TRAINING_COHORT_IDS)
+    TRAINEE_SCORE_POPS_SO_FAR = cfg.get("trainee_score_pops_so_far", TRAINEE_SCORE_POPS_SO_FAR)
     TEAM_KEY = cfg.get("team_key") or Path(config_path).stem
     # Separate env var names let one environment hold credentials for several
     # teams at once (each BuzzerBeater login owns exactly one team, so a
@@ -331,10 +384,19 @@ def build_roster_skills_table(roster_root):
         name = f"{p.findtext('firstName') or ''} {p.findtext('lastName') or ''}".strip()
         row = {"playerid": p.get("id"), "name": name, "position": p.findtext("bestPosition"),
                "age": p.findtext("age"), "potential": skills.findtext("potential")}
+        tsp = 0
+        tsp_ok = False
         for tag, _ in SKILL_DISPLAY_COLUMNS:
             el_text = skills.findtext(tag)
             pop = skills.find(tag).get("pop") if skills.find(tag) is not None else None
             row[tag] = {"value": el_text, "pop": pop}
+            try:
+                tsp += int(el_text)
+                tsp_ok = True
+            except (TypeError, ValueError):
+                pass
+        row["tsp"] = tsp if tsp_ok else None
+        row["trainee_score"] = trainee_score(row["age"], row["potential"], row["tsp"]) if tsp_ok else None
         rows.append(row)
     return {"rows": rows}
 
@@ -1176,14 +1238,14 @@ def auto_roster_skills_html(data):
     # trailing columns. Computed here rather than hardcoded so this stays
     # correct if SKILL_GROUPS is ever reshuffled again.
     skill_header_cells = ""
-    skill_col = 5
+    skill_col = 6
     for gi, (_, tags) in enumerate(SKILL_GROUPS):
         for ti, (_, label) in enumerate(tags):
             grp_class = " grp-start" if (gi and ti == 0) else ""
             skill_header_cells += f'<th class="num sortable{grp_class}" data-col="{skill_col}">{esc(label)}</th>'
             skill_col += 1
     total_skill_cols = sum(len(tags) for _, tags in SKILL_GROUPS)
-    minutes_col = 5 + total_skill_cols
+    minutes_col = 6 + total_skill_cols
     status_col = minutes_col + 1
     body = ""
     for r in sorted(rows, key=lambda r: r["name"]):
@@ -1204,6 +1266,7 @@ def auto_roster_skills_html(data):
         # re-deriving or duplicating any of the skill-rendering logic above.
         body += (f'<tr data-playerid="{esc(r["playerid"])}"><td class="name-cell">{esc(r["name"])}</td><td>{esc(r["position"])}</td>'
                  f'<td class="num">{esc(r["age"])}</td><td class="num">{potential_label(r["potential"])}</td>'
+                 f'<td class="num">{trainee_score_html(r.get("trainee_score"))}</td>'
                  f'<td class="js-train-cell">—</td>{cells}'
                  f'<td class="num js-minutes-cell">—</td><td class="js-status-cell">—</td></tr>')
     table = (
@@ -1211,7 +1274,8 @@ def auto_roster_skills_html(data):
         '<thead>'
         '<tr><th rowspan="2" class="sortable" data-col="0">Player</th><th rowspan="2" class="sortable" data-col="1">Pos</th>'
         '<th rowspan="2" class="num sortable" data-col="2">Age</th><th rowspan="2" class="num sortable" data-col="3">Potential</th>'
-        '<th rowspan="2" class="sortable" data-col="4">Train?</th>'
+        '<th rowspan="2" class="num sortable" data-col="4">Trainee Score</th>'
+        '<th rowspan="2" class="sortable" data-col="5">Train?</th>'
         f'{group_header_cells}'
         f'<th rowspan="2" class="num sortable" data-col="{minutes_col}">Minutes / threshold</th>'
         f'<th rowspan="2" class="sortable" data-col="{status_col}">Status</th></tr>'
@@ -1225,9 +1289,16 @@ def auto_roster_skills_html(data):
         'Dark-mode colors are lightness-boosted for legibility, since the game has no dark theme of its own to match. '
         '<span class="tag tag-calc">Calculated</span> The trailing Train?/Minutes/Status columns are filled in live by this page\'s own script from whichever training combo is currently selected above (see the training minutes calculator, Training Strategy tab) - not part of the daily snapshot.</p>'
     )
+    trainee_score_note = (
+        '<p class="block-note" style="margin-top:10px;"><span class="tag tag-rec">[Inference]</span> Trainee Score - a house metric, not an official BuzzerBeater figure - measures how a player\'s current total skill points (sum of the 12 above) '
+        'compares to an "ideal trainee" bar: 60+ TSP at age 18, climbing ~10/season after that (a 19yo should start their season where an 18yo finished), '
+        f'capped at {TRAINEE_SCORE_CAP_TSP} TSP since real growth decelerates with age rather than climbing forever. '
+        f'Adjusted for {TRAINEE_SCORE_POPS_SO_FAR} pops already banked this season (team config\'s <code>trainee_score_pops_so_far</code> - update that by hand as the season progresses). '
+        f'100 = exactly on the bar; over 100 means ahead of it. Potential only matters below {TRAINEE_SCORE_LOW_POTENTIAL_THRESHOLD} (halves the score) - a deliberately blunt stand-in until a proper TSP/potential ratio replaces it.</p>'
+    )
     return (
         '<p class="block-note">Same 12 skills, word scale, and color coding the game itself shows on a player card, pulled live from the official API for the full roster — grouped OSP/ISP/Other and shown as numbers only (hover a value for its word) to keep the table scannable.</p>'
-        + table + gap_note
+        + table + gap_note + trainee_score_note
     )
 
 # Option 3 from the roster-readability discussion: split into narrower,
