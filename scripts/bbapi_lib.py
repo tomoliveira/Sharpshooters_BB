@@ -17,6 +17,11 @@ from dotenv import load_dotenv
 
 BASE = "https://bbapi.buzzerbeater.com"
 SCRIPT_DIR = Path(__file__).resolve().parent
+# Fixed UTC-3 rather than a zoneinfo("America/Sao_Paulo") lookup - Brazil
+# dropped DST in 2019, so this is correct, and it avoids depending on the
+# system tzdata package being present (it isn't on stock Windows Python;
+# not guaranteed on every CI runner either).
+BRASILIA_TZ = timezone(timedelta(hours=-3))
 TRAINING_REMINDER = "Training report not available via API - check https://buzzerbeater.com/manage/training.aspx manually."
 SKILL_TAGS = ["jumpShot", "range", "outsideDef", "handling", "driving", "passing",
               "insideShot", "insideDef", "rebound", "block", "stamina", "freeThrow"]
@@ -675,7 +680,7 @@ def build_arena_investment_summary(ledger):
 def extract_data(conn, team_key, teaminfo, roster, economy, schedule, standings, arena, our_team_id, position_minutes, staff_list):
     team = teaminfo.find(".//team")
     data = {
-        "now": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "now": datetime.now(BRASILIA_TZ).strftime("%Y-%m-%d %H:%M"),
         "team": {"id": our_team_id, "name": team_name(team) or our_team_id if team is not None else our_team_id,
                  "owner": team.findtext("owner") if team is not None else None,
                  "league": team.find("league").text if team is not None and team.find("league") is not None else None},
@@ -882,7 +887,7 @@ def auto_transaction_ledger_html(data):
 
 
 def auto_meta_html(data):
-    return f'<span class="auto-badge">Auto-updated</span> {esc(data["now"])}'
+    return f'<span class="auto-badge">Auto-updated</span> {esc(data["now"])} <span class="sub">(Bras&iacute;lia time)</span>'
 
 def auto_overview_stats_html(data):
     weeks = data["economy"]["weeks"]
@@ -905,7 +910,7 @@ def auto_overview_stats_html(data):
     return (f'<div class="stat-row" style="margin-top:12px;">'
             f'<div class="stat-card {"alert" if cash_class == "neg" else ""}"><div class="label">Cash on hand</div>'
             f'<div class="value {cash_class}">{money_html(cash_now) if cash_now is not None else "N/A"}</div>'
-            f'<div class="foot">as of {esc(data["now"])}</div></div>'
+            f'<div class="foot">as of {esc(data["now"])} (Bras&iacute;lia time)</div></div>'
             f'<div class="stat-card"><div class="label">This week\'s net change</div>'
             f'<div class="value {net_class}">{net_str}</div><div class="foot">all confirmed income &amp; expenses</div></div>'
             f'<div class="stat-card"><div class="label">League record</div><div class="value">{esc(record_str)}</div>'
