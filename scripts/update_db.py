@@ -54,7 +54,7 @@ def main():
     )
     conn.execute(
         "DELETE FROM snapshots WHERE team_key = ? AND id NOT IN "
-        "(SELECT id FROM snapshots WHERE team_key = ? ORDER BY fetched_at DESC LIMIT ?)",
+        "(SELECT id FROM snapshots WHERE team_key = ? ORDER BY id DESC LIMIT ?)",
         (team_key, team_key, args.keep),
     )
     conn.commit()

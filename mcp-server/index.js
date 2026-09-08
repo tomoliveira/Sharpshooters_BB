@@ -34,7 +34,7 @@ async function getDb() {
 
 function latestSnapshot(db, teamKey) {
   const res = db.exec(
-    "SELECT data_json, fetched_at FROM snapshots WHERE team_key = ? ORDER BY fetched_at DESC LIMIT 1",
+    "SELECT data_json, fetched_at FROM snapshots WHERE team_key = ? ORDER BY id DESC LIMIT 1",
     [teamKey]
   );
   if (!res.length || !res[0].values.length) return null;
@@ -115,7 +115,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     if (name === "list_snapshots") {
       const limit = args.limit || 10;
       const res = db.exec(
-        "SELECT fetched_at FROM snapshots WHERE team_key = ? ORDER BY fetched_at DESC LIMIT ?",
+        "SELECT fetched_at FROM snapshots WHERE team_key = ? ORDER BY id DESC LIMIT ?",
         [teamKey, limit]
       );
       const rows = res.length ? res[0].values.map((v) => v[0]) : [];

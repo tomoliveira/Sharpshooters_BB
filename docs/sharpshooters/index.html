@@ -1201,7 +1201,7 @@
     var buf = await resp.arrayBuffer();
     var db = new SQL.Database(new Uint8Array(buf));
     var res = db.exec(
-      "SELECT fragments_json, data_json, fetched_at FROM snapshots WHERE team_key = ? ORDER BY fetched_at DESC LIMIT 1",
+      "SELECT fragments_json, data_json, fetched_at FROM snapshots WHERE team_key = ? ORDER BY id DESC LIMIT 1",
       [TEAM_KEY]
     );
     if (!res.length || !res[0].values.length) {
