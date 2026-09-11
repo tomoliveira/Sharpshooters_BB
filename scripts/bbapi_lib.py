@@ -830,17 +830,36 @@ def money_html(v):
 
 def finance_card_html(week):
     rows = sorted_totals(week["totals"])
-    body = "".join(f'<tr><td>{esc(humanize(cat))}</td><td class="num {"credit" if amt >= 0 else "debit"}">'
-                    f'{signed_money(amt).replace("+", "+$").replace("-", "-$")}</td></tr>' for cat, amt in rows)
+    revenue = [(cat, amt) for cat, amt in rows if amt > 0]
+    expenses = [(cat, amt) for cat, amt in rows if amt < 0]
+
+    def money_signed(amt):
+        return signed_money(amt).replace("+", "+$").replace("-", "-$")
+
+    def section(title, items, cls):
+        if not items:
+            body = '<tr><td colspan="2" class="sub">none</td></tr>'
+            subtotal_str = "$0"
+        else:
+            body = "".join(f'<tr><td>{esc(humanize(cat))}</td><td class="num {cls}">{money_signed(amt)}</td></tr>' for cat, amt in items)
+            subtotal_str = money_signed(sum(amt for _, amt in items))
+        return (f'<div class="eyebrow" style="margin:10px 0 6px;">{title}</div>'
+                f'<table style="min-width:0;"><tbody>{body}'
+                f'<tr class="total"><td>Subtotal</td><td class="num {cls}">{subtotal_str}</td></tr></tbody></table>')
+
     try:
         net = float(week["final"]) - float(week["initial"])
         net_str = f'{"+$" if net >= 0 else "-$"}{abs(net):,.0f}'
         net_class = "credit" if net >= 0 else "debit"
     except (TypeError, ValueError): net_str, net_class = "N/A", ""
-    return (f'<div class="card"><div class="eyebrow" style="margin-bottom:10px;">{esc(week["label"])} · '
-            f'{money_html(week["initial"])} &rarr; {money_html(week["final"])}</div><table style="min-width:0;">'
-            f'<tbody>{body if body else "<tr><td colspan=2 class=sub>no transactions</td></tr>"}'
-            f'<tr class="total"><td>Net change</td><td class="num {net_class}">{net_str}</td></tr></tbody></table></div>')
+    return (
+        f'<div class="card"><div class="eyebrow" style="margin-bottom:4px;">{esc(week["label"])} · '
+        f'{money_html(week["initial"])} &rarr; {money_html(week["final"])}</div>'
+        + section("Revenue", revenue, "credit")
+        + section("Expenses", expenses, "debit")
+        + f'<table style="min-width:0; margin-top:6px;"><tbody><tr class="total"><td>Net change</td><td class="num {net_class}">{net_str}</td></tr></tbody></table>'
+        + '</div>'
+    )
 
 def auto_transaction_ledger_html(data):
     weeks_by_label = {w["label"]: w for w in data["economy"]["weeks"]}
