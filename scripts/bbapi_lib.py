@@ -588,6 +588,35 @@ def most_recent_monday_reset(now_utc):
         candidate -= timedelta(days=7)
     return candidate
 
+def next_monday_reset(dt):
+    """First Monday 05:00:01 UTC reset strictly after dt."""
+    days_until_monday = (7 - dt.weekday()) % 7
+    candidate = dt.replace(hour=5, minute=0, second=1, microsecond=0) + timedelta(days=days_until_monday)
+    if candidate <= dt:
+        candidate += timedelta(days=7)
+    return candidate
+
+def count_monday_resets_remaining(now_utc, season_end_utc):
+    """How many Monday economy-week resets - the season-end cash
+    projection's unit of "a week remaining" - fall between now and the
+    season's last currently-scheduled match. Per Tom: derived from the
+    schedule itself (schedule.aspx returns the whole season, not just a
+    handful of upcoming fixtures), not a hand-maintained config value."""
+    if season_end_utc is None or season_end_utc <= now_utc:
+        return 0
+    count = 0
+    candidate = next_monday_reset(now_utc)
+    while candidate <= season_end_utc:
+        count += 1
+        candidate += timedelta(days=7)
+    return count
+
+def parse_bb_datetime(s):
+    try:
+        return datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
 def record_weekly_salary_payments(ledger, name_by_id):
     """Salaries are paid once a week, on the Monday reset - not continuously
     day by day. Each player gets one ledger["player_snapshots"][pid]
@@ -747,6 +776,16 @@ def extract_data(conn, team_key, teaminfo, roster, economy, schedule, standings,
             upcoming.append(row)
     data["schedule"]["upcoming"] = sorted(upcoming, key=lambda r: r["start"])[:5]
     data["schedule"]["recent"] = sorted(recent, key=lambda r: r["start"])[-5:]
+    # Season-end cash projection needs "how many Monday resets are left" -
+    # derived from the full match list above (schedule.aspx returns the
+    # whole season, not just the handful of upcoming fixtures kept for
+    # display), not a hand-maintained config value.
+    last_match_dt = max((parse_bb_datetime(m.get("start", "")) for m in matches), default=None, key=lambda d: d or datetime.min.replace(tzinfo=timezone.utc))
+    now_utc = datetime.now(timezone.utc)
+    data["season"] = {
+        "last_match_date": last_match_dt.strftime("%Y-%m-%d") if last_match_dt else None,
+        "weeks_remaining": count_monday_resets_remaining(now_utc, last_match_dt) if last_match_dt else None,
+    }
     for conf in standings.findall(".//conference"):
         teams = conf.findall("team")
         if any(t.get("id") == our_team_id for t in teams):
@@ -1037,16 +1076,25 @@ def auto_season_projection_html(data):
     except (TypeError, ValueError):
         last_week_net = None
 
-    if not SEASON_WEEKS_REMAINING or SEASON_WEEKS_REMAINING <= 0:
+    # Derived from the schedule's last currently-known match (see
+    # extract_data) - falls back to a hand-maintained config value only if
+    # the schedule didn't yield one (e.g. no matches returned at all).
+    season = data.get("season") or {}
+    weeks_left = season.get("weeks_remaining")
+    source_note = f'derived from the schedule - last currently-listed match {esc(season.get("last_match_date"))}'
+    if weeks_left is None:
+        weeks_left = SEASON_WEEKS_REMAINING
+        source_note = 'from this team\'s config.json (the schedule didn\'t yield a match date to derive it from)'
+
+    if not weeks_left or weeks_left <= 0:
         return (
-            '<p class="block-note"><span class="tag tag-rec">Not configured</span> '
-            'This needs to know how many of the season\'s 13 Monday resets are left, and there\'s no way to '
-            'derive that from the API data this report already pulls. Set <code>season_weeks_remaining</code> '
-            'in this team\'s <code>config.json</code> (update it as the season progresses) and this section will '
-            'project end-of-season cash from the recent weekly run rate.</p>'
+            '<p class="block-note"><span class="tag tag-rec">Not available</span> '
+            'Couldn\'t work out how many of the season\'s 13 Monday resets are left - the schedule returned no '
+            'usable match date, and no fallback is set in this team\'s <code>config.json</code> '
+            '(<code>season_weeks_remaining</code>). This section will project end-of-season cash once one of '
+            'those is available.</p>'
         )
 
-    weeks_left = SEASON_WEEKS_REMAINING
     projected_primary = current_cash + this_week_net * weeks_left
     avg_net = (this_week_net + last_week_net) / 2 if last_week_net is not None else None
     projected_avg = current_cash + avg_net * weeks_left if avg_net is not None else None
@@ -1057,7 +1105,7 @@ def auto_season_projection_html(data):
         f'<div class="stat-card"><div class="label">Current cash</div><div class="value">{money_html(current_cash)}</div>'
         f'<div class="foot">as of {esc(data["now"])}</div></div>'
         f'<div class="stat-card"><div class="label">Weeks remaining</div><div class="value">{weeks_left}</div>'
-        f'<div class="foot">of {SEASON_TOTAL_MONDAYS} Monday resets this season</div></div>'
+        f'<div class="foot">of {SEASON_TOTAL_MONDAYS} Monday resets — {source_note}</div></div>'
         f'<div class="stat-card{" alert" if primary_class == "neg" else ""}"><div class="label">Projected season-end cash</div>'
         f'<div class="value {primary_class}">{money_html(projected_primary)}</div>'
         f'<div class="foot">at this week\'s run rate ({money_html(this_week_net)}/wk)</div></div>'
@@ -1077,7 +1125,11 @@ def auto_season_projection_html(data):
         'net change is the primary estimate, the 2-week average shown alongside for context. Neither knows about '
         'one-time events that haven\'t happened yet (a transfer, an arena expansion, a scouting spend) or ones '
         'already reflected in a recent week that won\'t repeat (e.g. a capex payment). Treat this as a rough '
-        'steady-state extrapolation, not a guarantee.</p>'
+        'steady-state extrapolation, not a guarantee. '
+        '<span class="tag tag-rec">[Inference]</span> Weeks remaining reflects only matches already listed on the '
+        'schedule as of this run - if the league adds more fixtures later (e.g. a deep cup or playoff run extending '
+        'the season), this number will grow to match on the next refresh, and today\'s projection would have been '
+        'undercounting how much season is actually left.</p>'
     )
     return stat_row + caveat
 

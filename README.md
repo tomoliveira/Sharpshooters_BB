@@ -159,6 +159,19 @@ landed since the season started (a season adds ~8-12 total; nudge this
 value up by hand every week or two as the season progresses, the same way
 `current_training_focus` already needs occasional manual updates).
 
+## Season-end cash projection
+
+Finances tab: projects current cash forward at a flat weekly run rate
+(this week's net change, plus a 2-week-average alternative shown for
+context) across however many of the season's 13 Monday resets remain.
+Unlike Trainee Score's `pops_so_far`, weeks-remaining doesn't need manual
+upkeep - it's derived each run from the schedule's own last currently-listed
+match (`schedule.aspx` returns the whole season, not just a handful of
+upcoming fixtures), so it self-updates and even grows if the league adds
+more fixtures later (a deep cup or playoff run). A `season_weeks_remaining`
+value in team config is only consulted as a fallback, if the schedule ever
+returns no usable match date.
+
 ## What's live vs. manual
 
 Every section tagged **"Auto-updated daily"** on the report page is filled

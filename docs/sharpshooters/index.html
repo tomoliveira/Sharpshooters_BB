@@ -651,7 +651,7 @@
         <span class="auto-badge">Auto-updated daily</span>
       </div>
       <details class="note"><summary>About this projection</summary>
-        <p class="block-note">Projects current cash forward at a flat weekly run rate for however many of the season's 13 Monday resets remain (set by hand in team config as the season progresses — nothing in the API says which week of the season this is). Doesn't know about one-time events that haven't happened yet.</p>
+        <p class="block-note">Projects current cash forward at a flat weekly run rate for however many of the season's 13 Monday resets remain — derived from the schedule's own last currently-listed match, not a hand-maintained number, so it self-updates (and grows) if the league adds more fixtures later. Falls back to a config value only if the schedule returns nothing. Doesn't know about one-time events that haven't happened yet.</p>
       </details>
       <!-- AUTO:SEASON_PROJECTION -->
       <p class="block-note">Loading live data…</p>
