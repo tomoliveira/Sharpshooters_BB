@@ -416,6 +416,24 @@
   /* ---- automated-section badge ---- */
   .auto-badge { display: inline-flex; align-items: center; gap: 5px; font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; padding: 2.5px 8px 3px; border-radius: 100px; white-space: nowrap; background: var(--accent2); color: var(--accent-ink); }
 
+  /* ---- info tooltip (methodology/caveat notes, next to a section title) ---- */
+  .info-tip {
+    position: relative; display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line);
+    color: var(--ink-faint); font-size: 11px; font-style: normal; font-weight: 700; line-height: 1;
+    cursor: help; margin-left: 6px; vertical-align: middle;
+  }
+  .info-tip:hover, .info-tip:focus { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); outline: none; }
+  .info-tip .tip-bubble {
+    display: none; position: absolute; z-index: 30; left: 0; top: 22px; width: 340px; max-width: 82vw;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 12px 14px; font-size: 12.5px; font-weight: 400; font-style: normal; line-height: 1.5; color: var(--ink-soft);
+    text-align: left; white-space: normal; cursor: auto;
+  }
+  .info-tip:hover .tip-bubble, .info-tip:focus .tip-bubble, .info-tip:focus-within .tip-bubble { display: block; }
+  .info-tip .tip-bubble .tag { margin-bottom: 5px; }
+  @media (max-width: 480px) { .info-tip .tip-bubble { left: auto; right: 0; width: 260px; } }
+
   /* ---- sources ---- */
   .sources { font-size: 13px; color: var(--ink-soft); }
   .sources ol { padding-left: 20px; margin: 10px 0 0; }
@@ -539,7 +557,7 @@
   <div class="tab-panel" id="panel-investments">
 
   <div class="block-head" style="margin-top:20px;">
-    <h2>Investment tracker</h2>
+    <h2>Investment tracker<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-calc">Calculated</span> TCO = price paid + salary paid while owned. Salary is paid weekly, not continuously - one payment per Monday reset since acquisition, each recorded at that week's own salary (from the official API), so a later raise or skill-driven salary change doesn't retroactively change what earlier weeks cost. TCO/week divides TCO by the number of weekly payments recorded so far (floored at 1) - a run-rate figure comparable across players regardless of how long each has been tracked. <span class="tag tag-rec">[Inference]</span> "Skill total" is a self-computed sum of the 12 rated skills from the official API, standing in for Buzzer Manager's proprietary TSP figure. Treat skill total as a progress signal, not a market valuation. <span class="tag tag-rec">[Inference]</span> Rows marked "(estimated)" are drafted/home-grown players with no purchase to date from - salary-paid and TCO accrue from a manually-supplied acquisition date where one is known (e.g. a franchise takeover date), otherwise from the day this ledger first tracked them, so treat those figures as approximate rather than an official record.</span></span></h2>
     <span class="auto-badge">Auto-updated daily</span>
   </div>
   <details class="note"><summary>What counts as an "investment" here</summary>
@@ -770,7 +788,7 @@
 
     <section class="block">
       <div class="block-head">
-        <h2>Skill ratings (as shown in-game)</h2>
+        <h2>Skill ratings (as shown in-game)<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-official">Official · Game Manual, rules.aspx?nav=Nomenclature + contentbox.css</span> Word labels (on hover) are the manual's verbatim 1&ndash;20 adjective scale; colors are the exact hex values from the game's own stylesheet (.lev1&ndash;.lev20). Dark-mode colors are lightness-boosted for legibility, since the game has no dark theme of its own to match. <span class="tag tag-calc">Calculated</span> The trailing Train?/Minutes/Status columns are filled in live by this page's own script from whichever training combo is currently selected above (see the training minutes calculator, Training Strategy tab) - not part of the daily snapshot.</span></span></h2>
         <span class="auto-badge">Auto-updated daily</span>
       </div>
       <details class="note"><summary>About the Train?/Minutes/Status columns</summary>
@@ -783,7 +801,7 @@
 
     <section class="block">
       <div class="block-head">
-        <h2>Minutes vs. money — this week</h2>
+        <h2>Minutes vs. money — this week<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-calc">Calculated</span> Live total minutes (any position) this training week vs. each player's salary, sorted by salary — a quick check on whether the highest earners are actually playing. This resets on the Friday training-week boundary, same as the training-threshold minutes elsewhere in this report.</span></span></h2>
         <span class="auto-badge">Auto-updated daily</span>
       </div>
       <details class="note"><summary>About this section</summary>
@@ -893,7 +911,7 @@
 
     <section class="block">
       <div class="block-head">
-        <h2>Training candidates &amp; skills</h2>
+        <h2>Training candidates &amp; skills<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-rec">[Inference]</span> Laid out like the in-game player page, live from the official API each run. A few fields shown in-game aren't exposed by the API and are left out rather than guessed. Word labels and colors use the Game Manual's exact 1&ndash;20 scale and stylesheet. Weekly minutes are computed live each run by summing boxscore.aspx across matches played since the most recent Friday reset. <span class="tag tag-rec">Per Tom</span> Only minutes played at one of the focused positions count toward the threshold. Training focus is still static, carried over from the last screenshot check, since training.aspx has no API endpoint. The Clears/Short/Well-short bucketing is our own heuristic, not an official in-game label.</span></span></h2>
         <span class="auto-badge">Auto-updated daily</span>
       </div>
       <details class="note"><summary>About these skill ratings</summary>

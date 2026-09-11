@@ -246,6 +246,31 @@ fragment:
     always-on. (The card label itself doesn't call out which window is
     active - per Tom, that's not worth surfacing in the UI.)
 
+## Methodology tooltips
+
+Per Tom: the "Calculated"/"[Inference]" methodology paragraphs that used
+to sit as always-visible text under most sections are now a small (i)
+icon next to that section's own title instead - hover, or tap/focus on
+touch, to see the note. `info_tip(html)` (`scripts/bbapi_lib.py`) builds
+one; the CSS (`.info-tip`/`.tip-bubble`) lives in
+`docs/<team_key>/index.html`. Two ways it's wired up, depending on
+whether the section's title is itself auto-updated data or static page
+furniture:
+- **Python-owned heading** (e.g. "Training overview", "League power
+  rankings" - both rendered inside the RECOMMENDATIONS fragment): the
+  tip is built and appended to the heading string in the same function
+  that renders the heading.
+- **Static heading in index.html** (e.g. "Investment tracker", "Minutes
+  vs. money"): if the caveat text is pure static prose (no per-run
+  data), the tip is hand-written directly into that `<h2>` in
+  index.html and the corresponding paragraph was deleted from the
+  Python side entirely. If the caveat embeds live or per-team-config
+  values (e.g. the season projection's weeks-remaining count, or
+  Trainee Score's `trainee_score_pops_so_far`), it stays Python-rendered
+  and is instead attached to a stat-card label or table column header
+  that Python already controls within that section, rather than the
+  static `<h2>` it can't reach.
+
 ## What's live vs. manual
 
 Every section tagged **"Auto-updated daily"** on the report page is filled

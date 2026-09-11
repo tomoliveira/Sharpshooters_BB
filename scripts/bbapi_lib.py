@@ -1058,6 +1058,18 @@ def money_html(v):
     if v == 0: v = 0.0  # avoid "-0" from formatting a -0.0 (e.g. a $0 drafted-player row)
     return f"-${abs(v):,.0f}" if v < 0 else f"${v:,.0f}"
 
+def info_tip(content_html):
+    """A small (i) icon that shows `content_html` (already-built HTML, tags
+    and all) as a hover/focus tooltip - per Tom, the old always-visible
+    "Calculated"/"[Inference]" caveat paragraphs under a section read as
+    clutter; the methodology explanation should be one click/hover away
+    from the section's own title instead of sitting in the main flow.
+    tabindex="0" + :focus-within (see index.html's .info-tip CSS) makes
+    this reachable by keyboard and by tapping on a touch device, not just
+    mouse hover."""
+    return (f'<span class="info-tip" tabindex="0" role="note" aria-label="About this section">'
+            f'&#9432;<span class="tip-bubble">{content_html}</span></span>')
+
 def finance_card_html(week):
     rows = sorted_totals(week["totals"])
     revenue = [(cat, amt) for cat, amt in rows if amt > 0]
@@ -1323,14 +1335,16 @@ def _training_pops_html(data):
                          f'<tbody>{rows}</tbody></table></div>')
     else:
         totals_block = ""
-    return (
-        '<div class="eyebrow" style="margin:14px 0 6px;">Training overview</div>' + recent_block + totals_block
-        + '<p class="block-note" style="margin-top:8px;"><span class="tag tag-rec">[Inference]</span> '
+    tip = info_tip(
+        '<span class="tag tag-rec">[Inference]</span> '
         'Pops and drops come directly from roster.aspx\'s own live \'pop\' flag on each skill - a signed net change '
         'since the current training week\'s Friday reset - bucketed by which training week they landed in, not '
         'just "since the last daily check." Season totals only cover training weeks observed since this tracking '
         'started (2026-09-11) - a week that finished before that has no record here, since the game\'s own flag '
-        'resets every Friday and can\'t be recovered after the fact.</p>'
+        'resets every Friday and can\'t be recovered after the fact.'
+    )
+    return (
+        f'<div class="eyebrow" style="margin:14px 0 6px;">Training overview{tip}</div>' + recent_block + totals_block
     )
 
 def _teams_to_watch_html(data):
@@ -1352,14 +1366,16 @@ def _teams_to_watch_html(data):
             f'({money_html(h["salary"])}/wk vs. their own roster median of {money_html(h["roster_median_salary"])}/wk)</li>'
             for h in big_hires
         )
-        parts.append(
-            '<p style="margin:0 0 4px;"><b>New big hires</b></p>'
-            f'<ul style="margin:0 0 6px; padding-left:18px;">{items}</ul>'
-            '<p class="block-note" style="margin:0 0 10px;"><span class="tag tag-rec">[Inference]</span> '
+        hires_tip = info_tip(
+            '<span class="tag tag-rec">[Inference]</span> '
             'No transfer/bidding data exists for other teams in the BuzzerBeater API - this is inferred from a '
             'newly-appeared, high-salary roster entry vs. that team\'s own previous roster. Could be a real '
             'marquee signing, a loan return, or a cleared draft pick - a lead worth checking, not a confirmed '
-            'transfer.</p>'
+            'transfer.'
+        )
+        parts.append(
+            f'<p style="margin:0 0 4px;"><b>New big hires</b>{hires_tip}</p>'
+            f'<ul style="margin:0 0 10px; padding-left:18px;">{items}</ul>'
         )
     if cards:
         def you_tag(is_us):
@@ -1374,24 +1390,34 @@ def _teams_to_watch_html(data):
             weak = c.get("weak_outlier")
             weak_line = (
                 f'<span style="color:var(--negative);">&#9888; weakest: {esc(weak["team"])}{you_tag(weak["is_us"])} '
-                f'{weak["value"]:.1f} ({weak["z"]:+.1f}&sigma;)</span>' if weak else ''
+                f'{weak["value"]:.1f} ({weak["z"]:+.1f}&sigma;)</span><br>' if weak else ''
             )
             you_line = ""
             if c.get("you_avg") is not None and not leader["is_us"]:
                 gap = c["you_gap"]  # leader's value minus our average; positive = leader ahead of us
                 gap_color = "var(--negative)" if gap > 0 else "var(--positive)"
                 gap_desc = f'leader +{gap:.1f} ahead' if gap > 0 else f'you +{-gap:.1f} ahead'
-                you_line = (f'<br><span style="color:var(--ink-faint);">You (avg): {c["you_avg"]:.1f} '
-                            f'<span style="color:{gap_color};">({gap_desc})</span></span>')
+                you_line = (f'<div style="font-size:14px; font-weight:700; color:var(--ink); margin:4px 0 2px;">'
+                            f'You: {c["you_avg"]:.1f} <span style="color:{gap_color};">({gap_desc})</span></div>')
             return (
                 '<div class="stat-card">'
                 f'<div class="label">{RATING_ICONS.get(c["category"], "")} {esc(c["label"])}</div>'
                 f'<div class="value" style="font-size:18px;">{"&#9889; " if leader["is_outlier"] else ""}'
                 f'{esc(leader["team"])}{you_tag(leader["is_us"])} &middot; {leader["value"]:.1f}</div>'
-                f'<div class="foot">{runner_lines}{weak_line}{you_line}</div></div>'
+                f'{you_line}<div class="foot">{runner_lines}{weak_line}</div></div>'
             )
+        cards_tip = info_tip(
+            '<span class="tag tag-calc">Calculated</span> Outliers are ranked first: a team\'s category value more '
+            'than 1.25 population standard deviations from the ranked pool\'s own mean in that category (a real '
+            'standout strength or weakness, not just that team\'s own best stat), flagged with &#9889; on the '
+            'leader or a red "weakest" callout. "You" is our own team\'s rating in that category, averaged over '
+            'our own recent games, so the leader\'s number always has something of ours to compare against even '
+            'on weeks we\'re not in the top-6 group ourselves. '
+            '<span class="tag tag-rec">[Inference]</span> Player injuries aren\'t exposed anywhere in the '
+            'BuzzerBeater API, so they\'re not reflected here.'
+        )
         parts.append(
-            '<p style="margin:0 0 4px;"><b>Outlier &amp; top ratings</b></p>'
+            f'<p style="margin:0 0 4px;"><b>Outlier &amp; top ratings</b>{cards_tip}</p>'
             '<div class="watch-cards">'
             + "".join(card_html(c) for c in cards) + '</div>'
         )
@@ -1425,21 +1451,23 @@ def _power_rankings_html(data):
     fallback_note = (' Rows marked * hadn\'t yet played anyone else in this top group when selected, so they fell '
                       'back to season-long point differential instead of a head-to-head number.'
                       if any_fallback else '')
+    rankings_tip = info_tip(
+        '<span class="tag tag-calc">Calculated</span> '
+        'Top 6 teams in your conference selected by head-to-head point differential among top teams (not season-wide '
+        'diff, which top teams can pad by blowing out bottom-feeders), then ranked here by recent-form boxscore '
+        'ratings (average over each team\'s last up to 5 competitive games - league, cup, playoffs, TV, B3; '
+        'friendlies and BBM scrimmages excluded) - a different cut than the season-long standings shown elsewhere '
+        'on this page.' + fallback_note + ' '
+        '<span class="tag tag-rec">[Inference]</span> Player injuries aren\'t exposed anywhere in the BuzzerBeater '
+        'API, so they\'re not reflected here - check a team\'s roster page manually if that matters.'
+    )
     return (
         watch_html +
-        '<div class="eyebrow" style="margin:14px 0 6px;">League power rankings &middot; last 5 games</div>'
+        f'<div class="eyebrow" style="margin:14px 0 6px;">League power rankings &middot; last 5 games{rankings_tip}</div>'
         '<div class="tbl-scroll"><table><thead><tr><th>#</th><th>Team</th><th class="num">Record</th>'
         '<th class="num">Out. Scoring</th><th class="num">In. Scoring</th><th class="num">Out. Defense</th>'
         '<th class="num">In. Defense</th><th class="num">Rebounding</th><th class="num">Flow</th>'
         '<th class="num">Power</th></tr></thead><tbody>' + rows_html + '</tbody></table></div>'
-        '<p class="block-note" style="margin-top:8px;"><span class="tag tag-calc">Calculated</span> '
-        'Top 6 teams in your conference selected by head-to-head point differential among top teams (not season-wide '
-        'diff, which top teams can pad by blowing out bottom-feeders - see compute_top_group_by_head_to_head), then '
-        'ranked here by recent-form boxscore ratings (average over each team\'s last up to 5 competitive games - '
-        'league, cup, playoffs, TV, B3; friendlies and BBM scrimmages excluded) - a different cut than the '
-        'season-long standings shown elsewhere on this page.' + fallback_note + ' '
-        '<span class="tag tag-rec">[Inference]</span> Player injuries aren\'t exposed anywhere in the BuzzerBeater '
-        'API, so they\'re not reflected here - check a team\'s roster page manually if that matters.</p>'
     )
 
 def auto_schedule_standings_html(data):
@@ -1572,7 +1600,21 @@ def auto_season_projection_html(data):
         f'<div class="foot">as of {esc(data["now"])}</div></div>'
         f'<div class="stat-card"><div class="label">Weeks remaining</div><div class="value">{weeks_left}</div>'
         f'<div class="foot">of {SEASON_TOTAL_MONDAYS} Monday resets — {source_note}</div></div>'
-        f'<div class="stat-card{" alert" if primary_class == "neg" else ""}"><div class="label">Projected season-end cash</div>'
+        f'<div class="stat-card{" alert" if primary_class == "neg" else ""}"><div class="label">Projected season-end cash' + info_tip(
+            '<span class="tag tag-calc">Calculated</span> '
+            f'Projects forward at a flat weekly run rate across the {weeks_left} remaining Monday resets - this week\'s '
+            'recurring net change is the primary estimate, the 2-week average shown alongside for context. '
+            '<b style="color:var(--ink)">Excludes player/staff hiring bonuses (transfers) and arena expansion costs</b> '
+            'from the run rate itself - those are one-time capital events, not representative of a typical week, and '
+            'would otherwise badly skew the projection (they still show up in full in the weekly breakdown and ledger '
+            'above, just not counted toward this rate). It still doesn\'t know about one-time events that haven\'t '
+            'happened yet (a new transfer, another expansion, a scouting spend). Treat this as a rough steady-state '
+            'extrapolation, not a guarantee. '
+            '<span class="tag tag-rec">[Inference]</span> Weeks remaining reflects only matches already listed on the '
+            'schedule as of this run - if the league adds more fixtures later (e.g. a deep cup or playoff run extending '
+            'the season), this number will grow to match on the next refresh, and today\'s projection would have been '
+            'undercounting how much season is actually left.'
+        ) + '</div>'
         f'<div class="value {primary_class}">{money_html(projected_primary)}</div>'
         f'<div class="foot">at this week\'s recurring run rate ({money_html(this_week_net)}/wk)</div></div>'
     )
@@ -1592,23 +1634,7 @@ def auto_season_projection_html(data):
             f'<div class="foot">projection moved vs. the previous snapshot</div></div>'
         )
     stat_row += '</div>'
-
-    caveat = (
-        '<p class="block-note" style="margin-top:10px;"><span class="tag tag-calc">Calculated</span> '
-        f'Projects forward at a flat weekly run rate across the {weeks_left} remaining Monday resets - this week\'s '
-        'recurring net change is the primary estimate, the 2-week average shown alongside for context. '
-        '<b style="color:var(--ink)">Excludes player/staff hiring bonuses (transfers) and arena expansion costs</b> '
-        'from the run rate itself - those are one-time capital events, not representative of a typical week, and '
-        'would otherwise badly skew the projection (they still show up in full in the weekly breakdown and ledger '
-        'above, just not counted toward this rate). It still doesn\'t know about one-time events that haven\'t '
-        'happened yet (a new transfer, another expansion, a scouting spend). Treat this as a rough steady-state '
-        'extrapolation, not a guarantee. '
-        '<span class="tag tag-rec">[Inference]</span> Weeks remaining reflects only matches already listed on the '
-        'schedule as of this run - if the league adds more fixtures later (e.g. a deep cup or playoff run extending '
-        'the season), this number will grow to match on the next refresh, and today\'s projection would have been '
-        'undercounting how much season is actually left.</p>'
-    )
-    return stat_row + caveat
+    return stat_row
 
 def auto_finance_weekly_html(data):
     weeks = data["economy"]["weeks"]
@@ -1684,11 +1710,7 @@ def auto_minutes_vs_money_html(data):
             f'<div class="bar-row"><span class="lbl">{esc(r["name"])} <span class="sub">{money_html(r["salary"])}/wk, #{r["salary_rank"]} salary</span></span>'
             f'<div class="bar-track"><div class="bar-fill {fill_class}" style="width:{pct}%"></div></div><span class="val">{r["minutes"]} min</span></div>'
         )
-    return (
-        f'<div class="card">{bars}'
-        '<p class="block-note" style="margin-top:14px;"><span class="tag tag-calc">Calculated</span> Live total minutes (any position) this training week vs. each player\'s salary, sorted by salary — a quick check on whether the highest earners are actually playing. This resets on the Friday training-week boundary, same as the training-threshold minutes elsewhere in this report.</p>'
-        '</div>'
-    )
+    return f'<div class="card">{bars}</div>'
 
 def auto_arena_glance_html(data):
     snap = data.get("arena_live")
@@ -1775,13 +1797,6 @@ def auto_investments_html(data):
             '<th class="num">Skill total now (TSP proxy)</th>'
             '<th class="num">TCO / skill pt</th><th class="num">Sale price</th><th>Status</th></tr></thead>'
             f'<tbody>{body}</tbody></table></div>'
-            '<p class="block-note" style="margin-top:10px;"><span class="tag tag-calc">Calculated</span> TCO = price paid + salary paid while owned. '
-            'Salary is paid weekly, not continuously - one payment per Monday reset since acquisition, each recorded at that week\'s own salary (from the official API), so a later raise or skill-driven salary change doesn\'t retroactively change what earlier weeks cost. '
-            'TCO/week divides TCO by the number of weekly payments recorded so far (floored at 1) - a run-rate figure comparable across players regardless of how long each has been tracked. '
-            '<span class="tag tag-rec">[Inference]</span> "Skill total" is a self-computed sum of the 12 rated skills from the official API, standing in for Buzzer Manager\'s '
-            'proprietary TSP figure. Treat skill total as a progress signal, not a market valuation. '
-            '<span class="tag tag-rec">[Inference]</span> Rows marked "(estimated)" are drafted/home-grown players with no purchase to date from - salary-paid and TCO accrue from a manually-supplied acquisition date where one is known '
-            '(e.g. a franchise takeover date), otherwise from the day this ledger first tracked them, so treat those figures as approximate rather than an official record.</p>'
         )
     else:
         table = '<p class="block-note">No player purchases captured in the ledger yet.</p>'
@@ -1838,13 +1853,17 @@ def auto_arena_revenue_html(data):
     else:
         regime_html = '<p class="block-note" style="margin-top:10px;">No arena capacity snapshot recorded yet.</p>'
 
+    revenue_tip = info_tip(
+        '<span class="tag tag-official">Official · economy.aspx + arena.aspx, live each run</span> '
+        'Every home game\'s actual gate revenue, bucketed by which capacity/price regime was in effect that night. '
+        'A new regime opens automatically the moment arena.aspx reports a change in seat counts or prices. '
+        '<span class="tag tag-rec">[Inference]</span> Capacity regimes are detected from this ledger\'s own '
+        'snapshots. "Full-house ceiling" is every seat at that regime\'s prices, sold out.'
+    )
     return (
         '<div class="card" style="margin-top:16px;">'
-        '<div class="eyebrow" style="margin-bottom:10px;">Ticket revenue tracked since each expansion</div>'
-        '<p class="block-note" style="margin:0 0 4px;"><span class="tag tag-official">Official · economy.aspx + arena.aspx, live each run</span>&nbsp; '
-        'Every home game\'s actual gate revenue, bucketed by which capacity/price regime was in effect that night. A new regime opens automatically the moment arena.aspx reports a change in seat counts or prices.</p>'
+        f'<div class="eyebrow" style="margin-bottom:10px;">Ticket revenue tracked since each expansion{revenue_tip}</div>'
         + pre_html + regime_html +
-        '<p class="block-note" style="margin-top:10px;"><span class="tag tag-rec">[Inference]</span> Capacity regimes are detected from this ledger\'s own snapshots. "Full-house ceiling" is every seat at that regime\'s prices, sold out.</p>'
         '</div>'
     )
 
@@ -1899,7 +1918,18 @@ def auto_roster_skills_html(data):
         '<thead>'
         '<tr><th rowspan="2" class="sortable" data-col="0">Player</th><th rowspan="2" class="sortable" data-col="1">Pos</th>'
         '<th rowspan="2" class="num sortable" data-col="2">Age</th><th rowspan="2" class="num sortable" data-col="3">Potential</th>'
-        '<th rowspan="2" class="num sortable" data-col="4">Trainee Score</th>'
+        '<th rowspan="2" class="num sortable" data-col="4">Trainee Score' + info_tip(
+            '<span class="tag tag-rec">[Inference]</span> Trainee Score - a house metric, not an official '
+            'BuzzerBeater figure - measures how a player\'s current total skill points (sum of the 12 above) '
+            'compares to an "ideal trainee" bar: 60+ TSP at age 18, climbing ~10/season after that (a 19yo should '
+            'start their season where an 18yo finished), '
+            f'capped at {TRAINEE_SCORE_CAP_TSP} TSP since real growth decelerates with age rather than climbing forever. '
+            f'Adjusted for {TRAINEE_SCORE_POPS_SO_FAR} pops already banked this season (team config\'s '
+            '<code>trainee_score_pops_so_far</code> - update that by hand as the season progresses). '
+            f'100 = exactly on the bar; over 100 means ahead of it. Potential only matters below '
+            f'{TRAINEE_SCORE_LOW_POTENTIAL_THRESHOLD} (halves the score) - a deliberately blunt stand-in until a '
+            'proper TSP/potential ratio replaces it.'
+        ) + '</th>'
         '<th rowspan="2" class="sortable" data-col="5">Train?</th>'
         f'{group_header_cells}'
         f'<th rowspan="2" class="num sortable" data-col="{minutes_col}">Minutes / threshold</th>'
@@ -1908,22 +1938,9 @@ def auto_roster_skills_html(data):
         '</thead>'
         f'<tbody>{body}</tbody></table></div>'
     )
-    gap_note = (
-        '<p class="block-note" style="margin-top:10px;"><span class="tag tag-official">Official · Game Manual, rules.aspx?nav=Nomenclature + contentbox.css</span> '
-        'Word labels (on hover) are the manual\'s verbatim 1&ndash;20 adjective scale; colors are the exact hex values from the game\'s own stylesheet (.lev1&ndash;.lev20). '
-        'Dark-mode colors are lightness-boosted for legibility, since the game has no dark theme of its own to match. '
-        '<span class="tag tag-calc">Calculated</span> The trailing Train?/Minutes/Status columns are filled in live by this page\'s own script from whichever training combo is currently selected above (see the training minutes calculator, Training Strategy tab) - not part of the daily snapshot.</p>'
-    )
-    trainee_score_note = (
-        '<p class="block-note" style="margin-top:10px;"><span class="tag tag-rec">[Inference]</span> Trainee Score - a house metric, not an official BuzzerBeater figure - measures how a player\'s current total skill points (sum of the 12 above) '
-        'compares to an "ideal trainee" bar: 60+ TSP at age 18, climbing ~10/season after that (a 19yo should start their season where an 18yo finished), '
-        f'capped at {TRAINEE_SCORE_CAP_TSP} TSP since real growth decelerates with age rather than climbing forever. '
-        f'Adjusted for {TRAINEE_SCORE_POPS_SO_FAR} pops already banked this season (team config\'s <code>trainee_score_pops_so_far</code> - update that by hand as the season progresses). '
-        f'100 = exactly on the bar; over 100 means ahead of it. Potential only matters below {TRAINEE_SCORE_LOW_POTENTIAL_THRESHOLD} (halves the score) - a deliberately blunt stand-in until a proper TSP/potential ratio replaces it.</p>'
-    )
     return (
         '<p class="block-note">Same 12 skills, word scale, and color coding the game itself shows on a player card, pulled live from the official API for the full roster — grouped OSP/ISP/Other and shown as numbers only (hover a value for its word) to keep the table scannable.</p>'
-        + table + gap_note + trainee_score_note
+        + table
     )
 
 # Option 3 from the roster-readability discussion: split into narrower,
@@ -2059,15 +2076,7 @@ def auto_training_cards_html(data):
             f'<div style="display:grid; grid-template-columns:1fr 1fr; gap:3px 16px; font-size:13px; padding-top:8px; border-top:1px solid var(--line);">{skill_rows}</div>'
             '</div>'
         )
-    return (
-        '<div class="training-cards">' + "".join(out) + '</div>'
-        '<p class="block-note" style="margin-top:12px;"><span class="tag tag-rec">[Inference]</span> Laid out like the in-game player page, live from the official API each run. '
-        'A few fields shown in-game aren\'t exposed by the API and are left out rather than guessed. Word labels and colors use the Game Manual\'s exact 1&ndash;20 scale and stylesheet. '
-        'Weekly minutes are computed live each run by summing boxscore.aspx across matches played since the most recent Friday reset. '
-        '<span class="tag tag-rec">Per Tom</span> Only minutes played at one of the focused positions count toward the threshold. '
-        'Training focus is still static, carried over from the last screenshot check, since training.aspx has no API endpoint. '
-        'The Clears/Short/Well-short bucketing is our own heuristic, not an official in-game label.</p>'
-    )
+    return '<div class="training-cards">' + "".join(out) + '</div>'
 
 def build_fragments(data):
     """Same marker->generator mapping the original patch_template() used,
