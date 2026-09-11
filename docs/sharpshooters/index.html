@@ -394,16 +394,18 @@
 
   footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--ink-faint); font-size: 12.5px; }
 
-  /* ---- theme toggle ---- */
-  #theme-toggle {
+  /* ---- masthead buttons (theme toggle, update-now) ---- */
+  .masthead-btn {
     display: inline-flex; align-items: center; gap: 6px;
     font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 600; font-size: 12.5px;
     letter-spacing: 0.03em; color: var(--ink-soft);
     background: var(--surface); border: 1px solid var(--line); border-radius: 100px;
     padding: 6px 12px 6px 10px; cursor: pointer; box-shadow: var(--shadow);
   }
-  #theme-toggle:hover { color: var(--ink); border-color: var(--accent); }
-  #theme-toggle .icon { font-size: 13px; line-height: 1; }
+  .masthead-btn:hover { color: var(--ink); border-color: var(--accent); }
+  .masthead-btn:disabled { opacity: 0.6; cursor: default; }
+  .masthead-btn .icon { font-size: 13px; line-height: 1; }
+  #gh-refresh-status { font-size: 11.5px; max-width: 300px; text-align: right; min-height: 1.4em; }
 </style>
 </head>
 <body>
@@ -421,9 +423,17 @@
         <img class="team-logo" src="./images/logo.png" alt="Sharpshooters logo" onerror="this.remove()">
         <div class="eyebrow">Team Report · Sharpshooters (#32988) · League III.15, Brasil</div>
       </div>
-      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">
-        <span class="icon" aria-hidden="true">&#9789;</span><span class="label">Dark mode</span>
-      </button>
+      <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button id="gh-refresh-btn" class="masthead-btn" type="button" title="Shift-click to change the saved token">
+            <span class="icon" aria-hidden="true">&#8635;</span><span class="label">Update now</span>
+          </button>
+          <button id="theme-toggle" class="masthead-btn" type="button" aria-label="Toggle dark mode">
+            <span class="icon" aria-hidden="true">&#9789;</span><span class="label">Dark mode</span>
+          </button>
+        </div>
+        <span id="gh-refresh-status" class="sub"></span>
+      </div>
     </div>
     <h1>Sharpshooters — team report</h1>
     <div class="meta-row">
@@ -834,6 +844,94 @@
     ssbbUpdateToggleLabel();
   });
   document.addEventListener("DOMContentLoaded", ssbbUpdateToggleLabel);
+</script>
+
+<script>
+  // "Update now" button - triggers daily-update.yml's workflow_dispatch
+  // directly from the browser via GitHub's REST API. This repo (and this
+  // page) is public, so no credential can ever live in the page's own
+  // source - instead this prompts for a personal access token ONCE and
+  // keeps it only in THIS browser's localStorage (key ssbb-gh-pat), never
+  // sent anywhere but api.github.com, never written back to the repo.
+  // Scope the token narrowly: a fine-grained PAT limited to just this repo
+  // with only "Actions: Read and write" permission - never a classic
+  // token with full account/repo access. Shift-click the button to
+  // replace a saved token (e.g. after rotating it).
+  var GH_OWNER = "tomoliveira";
+  var GH_REPO = "Sharpshooters_BB";
+  var GH_WORKFLOW = "daily-update.yml";
+  var GH_REF = "master";
+  var GH_TOKEN_KEY = "ssbb-gh-pat";
+
+  function ssbbGetGhToken(forcePrompt) {
+    var stored = null;
+    try { stored = localStorage.getItem(GH_TOKEN_KEY); } catch (e) {}
+    if (stored && !forcePrompt) return stored;
+    var entered = window.prompt(
+      "Paste a GitHub personal access token to trigger the update workflow.\n\n" +
+      "Use a FINE-GRAINED token scoped to just the " + GH_REPO + " repo, with only " +
+      "\"Actions: Read and write\" permission - never a classic token with full access.\n\n" +
+      "Stored only in this browser (localStorage), never sent anywhere but api.github.com.",
+      ""
+    );
+    if (entered == null) return stored || null; // cancelled - keep whatever was already saved, if anything
+    entered = entered.trim();
+    if (!entered) {
+      try { localStorage.removeItem(GH_TOKEN_KEY); } catch (e) {}
+      return null;
+    }
+    try { localStorage.setItem(GH_TOKEN_KEY, entered); } catch (e) {}
+    return entered;
+  }
+
+  function ssbbSetRefreshStatus(text, isError) {
+    var el = document.getElementById("gh-refresh-status");
+    if (!el) return;
+    el.textContent = text;
+    el.style.color = isError ? "var(--negative)" : "var(--ink-faint)";
+  }
+
+  async function ssbbTriggerUpdate(forcePrompt) {
+    var btn = document.getElementById("gh-refresh-btn");
+    var token = ssbbGetGhToken(!!forcePrompt);
+    if (!token) { ssbbSetRefreshStatus("No token saved - nothing triggered.", true); return; }
+    if (btn) btn.disabled = true;
+    ssbbSetRefreshStatus("Triggering…");
+    try {
+      var resp = await fetch(
+        "https://api.github.com/repos/" + GH_OWNER + "/" + GH_REPO + "/actions/workflows/" + GH_WORKFLOW + "/dispatches",
+        {
+          method: "POST",
+          headers: {
+            "Accept": "application/vnd.github+json",
+            "Authorization": "Bearer " + token,
+            "X-GitHub-Api-Version": "2022-11-28",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ ref: GH_REF })
+        }
+      );
+      if (resp.status === 204) {
+        ssbbSetRefreshStatus("Triggered — new data in ~1-2 min. Reload this page after that.");
+      } else if (resp.status === 401 || resp.status === 403) {
+        try { localStorage.removeItem(GH_TOKEN_KEY); } catch (e) {}
+        ssbbSetRefreshStatus("Token rejected (" + resp.status + ") - it's been cleared. Click Update now again to enter a new one.", true);
+      } else {
+        var bodyText = await resp.text();
+        ssbbSetRefreshStatus("Failed (" + resp.status + "): " + bodyText.slice(0, 150), true);
+      }
+    } catch (err) {
+      ssbbSetRefreshStatus("Network error: " + err.message, true);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest && e.target.closest("#gh-refresh-btn");
+    if (!btn || btn.disabled) return;
+    ssbbTriggerUpdate(e.shiftKey);
+  });
 </script>
 
 <script>
