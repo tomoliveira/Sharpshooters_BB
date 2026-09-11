@@ -519,6 +519,92 @@
   <p class="block-note">Loading live data…</p>
   <!-- /AUTO:INVESTMENTS -->
 
+  <section class="block">
+    <div class="block-head">
+      <h2>Investment knowledge guide</h2>
+      <span class="tag tag-rec">Reference · not auto-updated</span>
+    </div>
+    <p class="block-note">Two worked-through analyses of what actually pays off fastest, kept here as reference for future decisions rather than recomputed each run. Static — edit this section by hand if the underlying assumptions change.</p>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="eyebrow" style="margin-bottom:8px;">Bench-player acquisitions: which one is cheapest, long-run?</div>
+      <p class="block-note" style="margin:0 0 12px;">A total-cost-of-ownership comparison of three hypothetical bench-player acquisitions, with salary <b style="color:var(--ink)">projected forward</b> rather than held flat — using a decay curve fit from 15 real players' actual season-by-season salary histories.</p>
+      <details class="note"><summary>The decay model</summary>
+        <p class="block-note" style="margin-top:8px;">Player salaries peak around age 33–34, then decline. Fit from the 15-player sample (log-linear regression, R²=0.24 — larger salaries drop sharper): each season past the peak, <code>% change ≈ 14.1% − 4.02%×ln(salary)</code>. A $200/week floor applies (no tracked player was ever observed below it). 14-week season, age advances 1 year/season.</p>
+        <p class="block-note" style="margin-top:8px;"><span class="tag tag-rec">[Inference]</span> The $200 floor is empirical, drawn from the sample's observed minimum — not a documented game rule, and could be wrong for a large enough roster.</p>
+      </details>
+      <p class="block-note" style="margin-top:10px;"><b style="color:var(--ink)">The three options modeled:</b></p>
+      <ul style="margin:4px 0 12px; padding-left:20px; font-size:13.8px; color:var(--ink-soft);">
+        <li><b style="color:var(--ink)">A</b> — $800/wk, $40,000 acquisition, starting age 32</li>
+        <li><b style="color:var(--ink)">B</b> — $250/wk, $100,000 acquisition, starting age 50</li>
+        <li><b style="color:var(--ink)">C</b> — $2,000/wk, $1,000 acquisition, starting age 30</li>
+      </ul>
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr><th>Season</th><th class="num">A — cumulative cost</th><th class="num">B — cumulative cost</th><th class="num">C — cumulative cost</th></tr></thead>
+          <tbody>
+            <tr><td>2</td><td class="num">$62,400</td><td class="num">$106,184</td><td class="num"><b style="color:var(--positive)">$57,000</b></td></tr>
+            <tr><td>5</td><td class="num"><b style="color:var(--positive)">$88,317</b></td><td class="num">$114,584</td><td class="num">$136,392</td></tr>
+            <tr><td>10</td><td class="num"><b style="color:var(--positive)">$115,689</b></td><td class="num">$128,584</td><td class="num">$210,286</td></tr>
+            <tr><td>15</td><td class="num"><b style="color:var(--positive)">$132,649</b></td><td class="num">$142,584</td><td class="num">$247,515</td></tr>
+            <tr><td>20</td><td class="num"><b style="color:var(--positive)">$146,649</b></td><td class="num">$156,584</td><td class="num">$269,170</td></tr>
+            <tr><td>30</td><td class="num"><b style="color:var(--positive)">$174,649</b></td><td class="num">$184,584</td><td class="num">$297,855</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="block-note" style="margin-top:10px;"><span class="tag tag-calc">Calculated</span> <b style="color:var(--ink)">A is cheapest from season 3 onward, indefinitely.</b> Both A and B eventually hit the $200 floor — A by season 16, B already by season 3 — and once both are floored, the gap between them (B's larger acquisition price) never closes. C is only competitive in the first two seasons, on the strength of its near-zero acquisition price alone; its high starting salary catches up fast once decay hasn't yet had time to bite.</p>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="eyebrow" style="margin-bottom:8px;">Arena upgrade: payback and long-run surplus</div>
+      <p class="block-note" style="margin:0 0 12px;">Payback/surplus analysis of the real, already-executed $205,800 arena expansion, using this report's own live arena data.</p>
+      <div class="stat-row" style="margin-top:4px;">
+        <div class="stat-card"><div class="label">Incremental revenue / full-value game</div><div class="value">$10,716</div><div class="foot">($103,449 new sellout − $92,298 old) × 96.1% avg. utilization</div></div>
+        <div class="stat-card"><div class="label">Payback — baseline season</div><div class="value">1.75 seasons</div><div class="foot">11 full-value-equivalent games/season</div></div>
+        <div class="stat-card"><div class="label">Payback — deep-run season</div><div class="value">1.48 seasons</div><div class="foot">13 full-value-equivalent games/season</div></div>
+      </div>
+      <details class="note" style="margin-top:12px;"><summary>Where "11" and "13" games/season come from</summary>
+        <p class="block-note" style="margin-top:8px;">Modeled via a proxy schedule (Velotrol Metalizado, Season 72 — a completed league-finals-plus-tie-breaker season), broken down by the BuzzerBeater Game Manual's own revenue rules: Cup/Tournament and Scrimmage games earn zero arena revenue; Playoff/relegation games earn half (gate split with the visiting team); Private League and B3 games are excluded entirely. Of 28 home games in that schedule, 11 are full-value-equivalent in a baseline (regular-season-only) year, rising to 13 in a deep playoff run.</p>
+        <p class="block-note" style="margin-top:8px;"><span class="tag tag-rec">[Inference]</span> That's a different team's schedule, used as a structural proxy — not the Sharpshooters' own game mix. The 96.1% fill rate is also assumed, not confirmed, to hold on the newly added seats specifically.</p>
+      </details>
+      <p class="block-note" style="margin-top:14px;"><b style="color:var(--ink)">Cumulative surplus</b> (cumulative incremental revenue − $205,800), assuming revenue grows at a flat annual rate:</p>
+      <div class="two-col" style="margin-top:8px;">
+        <div>
+          <div class="eyebrow" style="margin-bottom:8px;">Baseline season (11 games/yr)</div>
+          <div class="tbl-scroll">
+            <table style="min-width:0;">
+              <thead><tr><th>Growth</th><th class="num">Season 5</th><th class="num">10</th><th class="num">15</th><th class="num">20</th></tr></thead>
+              <tbody>
+                <tr><td>0%</td><td class="num">$383,580</td><td class="num">$972,960</td><td class="num">$1,562,340</td><td class="num">$2,151,720</td></tr>
+                <tr><td>3%</td><td class="num">$420,020</td><td class="num">$1,145,516</td><td class="num">$1,986,566</td><td class="num">$2,961,572</td></tr>
+                <tr><td>5%</td><td class="num">$445,539</td><td class="num">$1,276,832</td><td class="num">$2,337,795</td><td class="num">$3,691,882</td></tr>
+                <tr><td>8%</td><td class="num">$485,731</td><td class="num">$1,501,818</td><td class="num">$2,994,783</td><td class="num">$5,188,437</td></tr>
+                <tr><td>10%</td><td class="num">$513,845</td><td class="num">$1,672,840</td><td class="num">$3,539,413</td><td class="num">$6,545,548</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <div class="eyebrow" style="margin-bottom:8px;">Deep-run season (13 games/yr)</div>
+          <div class="tbl-scroll">
+            <table style="min-width:0;">
+              <thead><tr><th>Growth</th><th class="num">Season 5</th><th class="num">10</th><th class="num">15</th><th class="num">20</th></tr></thead>
+              <tbody>
+                <tr><td>0%</td><td class="num">$490,740</td><td class="num">$1,187,280</td><td class="num">$1,883,820</td><td class="num">$2,580,360</td></tr>
+                <tr><td>3%</td><td class="num">$533,805</td><td class="num">$1,391,210</td><td class="num">$2,385,177</td><td class="num">$3,537,458</td></tr>
+                <tr><td>5%</td><td class="num">$563,965</td><td class="num">$1,546,401</td><td class="num">$2,800,267</td><td class="num">$4,400,552</td></tr>
+                <tr><td>8%</td><td class="num">$611,464</td><td class="num">$1,812,294</td><td class="num">$3,576,707</td><td class="num">$6,169,208</td></tr>
+                <tr><td>10%</td><td class="num">$644,689</td><td class="num">$2,014,411</td><td class="num">$4,220,361</td><td class="num">$7,773,066</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <p class="block-note" style="margin-top:10px;"><span class="tag tag-calc">Calculated</span> The expansion <b style="color:var(--ink)">pays for itself within its second season in every scenario tested</b>. Growth rate barely moves the payback timing (it's a near-term, low-compounding effect at that horizon) but compounds long-run surplus substantially — the 20-season gap between 0% and 10% growth is roughly 3x the baseline surplus itself.</p>
+      <p class="block-note" style="margin-top:8px;"><span class="tag tag-rec">[Inference]</span> Growth rates (0/3/5/8/10%) are illustrative, not verified against any real trend. Two of the four current price tiers are already near their game-imposed ceiling, which caps how much of that growth could plausibly come from further price increases rather than attendance/demand growth.</p>
+    </div>
+  </section>
+
   </div>
 
   <!-- ================= PANEL: SCHEDULE & STANDINGS ================= -->
