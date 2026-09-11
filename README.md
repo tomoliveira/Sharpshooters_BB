@@ -184,13 +184,18 @@ fragment:
   since the projection's numeric result is itself stored in each
   snapshot's `data_json` under `projection`).
 - **Training overview** - skill pops for the training cohort
-  (`config.json`'s `training_cohort`), tracked two ways: pops since the
-  last run, and a running season-to-date count per player. Real pops,
+  (`config.json`'s `training_cohort`), tracked two ways: pops in the
+  current training week (since the most recent Friday 05:00:01 UTC reset -
+  not just "since the daily job last ran", which can span more or less
+  than a week if a run is missed or re-triggered), and a season-to-date
+  count broken down by which skills popped and how many times. Real pops,
   diffed from each run's observed skill values (not the API's own `pop`
   flag on `roster.aspx`, which is too transient to answer "how many this
-  season") - persisted in the same `state.ledger_json` blob as the
-  investment ledger, under `skill_pops`. Season totals only cover time
-  since this tracking started, not retroactively.
+  season") and logged as a persistent per-player event log in the same
+  `state.ledger_json` blob as the investment ledger, under `skill_pops`
+  (`summarize_training_pops` buckets that log by training week at render
+  time). Season totals only cover time since this tracking started, not
+  retroactively.
 - **League power rankings** - the top 6 teams in your conference, selected
   by head-to-head point differential *among top teams only* rather than
   raw season diff (which a top team can pad by blowing out bottom-feeders).

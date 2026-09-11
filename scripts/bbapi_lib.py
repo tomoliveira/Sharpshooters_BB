@@ -395,15 +395,18 @@ def build_training_cohort_cards(roster_root):
 
 def update_skill_pop_tracking(ledger, roster_root, run_date):
     """Diffs each training-cohort player's rated-skill values against what
-    was observed on the previous run, and accumulates a running season-total
-    pop count in the ledger. Per Tom: this should reflect real pops observed
-    over the season, not just today's live roster.aspx 'pop' flag (that flag
-    is transient - it can't answer "how many pops so far this season"). A
-    player's first-ever observation only seeds the baseline; nothing to diff
-    against yet, so it can't count as a pop. Returns this run's pop events
-    (empty on a baseline-only run) for the "recent pops" summary."""
+    was observed on the previous run, and appends every detected pop to a
+    persistent per-player event log (ledger["skill_pops"][pid]["events"]).
+    Per Tom: this should reflect real pops observed over the season, not
+    just today's live roster.aspx 'pop' flag (that flag is transient - it
+    can't answer "how many pops so far this season"). Logging full events
+    (skill, from, to, date) instead of just a running total lets
+    summarize_training_pops bucket pops by the training week they actually
+    landed in (the Friday reset), not merely "since whenever this job last
+    happened to run" - not the same thing if a run is missed or re-run
+    mid-week. A player's first-ever observation only seeds the baseline;
+    nothing to diff against yet, so it can't count as a pop."""
     pops_state = ledger.setdefault("skill_pops", {})
-    recent_events = []
     for pid, known_name in TRAINING_COHORT_IDS.items():
         p = roster_root.find(f".//player[@id='{pid}']")
         if p is None:
@@ -412,8 +415,9 @@ def update_skill_pop_tracking(ledger, roster_root, run_date):
         if skills is None:
             continue
         name = f"{p.findtext('firstName') or ''} {p.findtext('lastName') or ''}".strip() or known_name
-        entry = pops_state.setdefault(pid, {"name": name, "last_observed": {}, "season_total": 0})
+        entry = pops_state.setdefault(pid, {"name": name, "last_observed": {}, "events": []})
         entry["name"] = name
+        entry.setdefault("events", [])
         last_observed = entry["last_observed"]
         for tag in SKILL_TAGS:
             try:
@@ -422,12 +426,37 @@ def update_skill_pop_tracking(ledger, roster_root, run_date):
                 continue
             prev = last_observed.get(tag)
             if prev is not None and current > prev:
-                delta = current - prev
-                entry["season_total"] += delta
-                recent_events.append({"playerid": pid, "name": name, "skill": humanize(tag),
-                                       "from": prev, "to": current, "date": run_date})
+                entry["events"].append({"skill": humanize(tag), "from": prev, "to": current,
+                                         "delta": current - prev, "date": run_date})
             last_observed[tag] = current
-    return recent_events
+
+def summarize_training_pops(ledger, now_utc):
+    """Per Tom: "recent pops" should mean this training week (since the
+    most recent Friday 05:00:01 UTC reset - see
+    most_recent_training_week_start), not just "since the daily job last
+    ran." Also builds the season-to-date per-skill breakdown for each
+    cohort player, both derived from the same persistent event log
+    (ledger["skill_pops"][pid]["events"]) rather than a bare counter."""
+    week_start = most_recent_training_week_start(now_utc).strftime("%Y-%m-%d")
+
+    def by_skill(events):
+        out = {}
+        for e in events:
+            out[e["skill"]] = out.get(e["skill"], 0) + e["delta"]
+        return out
+
+    players = []
+    for pid, entry in (ledger.get("skill_pops") or {}).items():
+        events = entry.get("events") or []
+        this_week_skills = by_skill([e for e in events if e["date"] >= week_start])
+        season_skills = by_skill(events)
+        players.append({
+            "playerid": pid, "name": entry.get("name"),
+            "this_week_total": sum(this_week_skills.values()), "this_week_by_skill": this_week_skills,
+            "season_total": sum(season_skills.values()), "season_by_skill": season_skills,
+        })
+    players.sort(key=lambda p: (-p["this_week_total"], -p["season_total"]))
+    return {"week_start": week_start, "players": players}
 
 def build_roster_skills_table(roster_root):
     rows = []
@@ -849,13 +878,9 @@ def extract_data(conn, team_key, teaminfo, roster, economy, schedule, standings,
     data["economy"]["transactions"] = transactions
     ledger = load_investment_ledger(conn, team_key)
     ledger = update_investment_ledger(ledger, economy, roster, arena, data["now"][:10], our_team_id)
-    recent_pop_events = update_skill_pop_tracking(ledger, roster, data["now"][:10])
+    update_skill_pop_tracking(ledger, roster, data["now"][:10])
     save_investment_ledger(conn, team_key, ledger)
-    data["training_pops"] = {
-        "recent": recent_pop_events,
-        "season_totals": [{"playerid": pid, "name": e["name"], "season_total": round(e["season_total"], 1)}
-                           for pid, e in ledger["skill_pops"].items()],
-    }
+    data["training_pops"] = summarize_training_pops(ledger, datetime.now(timezone.utc))
     data["investments"] = build_investments_summary(ledger)
     data["investments"]["arena"] = build_arena_investment_summary(ledger)
     current_roster_ids = {p.get("id") for p in roster.findall(".//player") if p.get("id")}
@@ -1222,32 +1247,45 @@ def _financial_changes_html(data):
     return html_out
 
 def _training_pops_html(data):
-    """Recent skill pops (since the last run) and a season-to-date pop count
-    per training-cohort player - see update_skill_pop_tracking. Season
-    totals only cover time since this tracking started, not the whole
-    season retroactively."""
+    """This training week's pops (since the most recent Friday reset, not
+    just "since the last run") and a season-to-date per-skill breakdown per
+    training-cohort player - see summarize_training_pops."""
     pops = data.get("training_pops") or {}
-    recent = pops.get("recent") or []
-    totals = sorted(pops.get("season_totals") or [], key=lambda t: -t["season_total"])
-    if recent:
-        recent_html = "".join(
-            f'<li>{esc(e["name"])}: {esc(e["skill"])} {e["from"]:g} &rarr; {e["to"]:g}</li>' for e in recent
+    players = pops.get("players") or []
+    week_start = pops.get("week_start")
+
+    def skill_list(by_skill):
+        return ", ".join(f'{esc(skill)} +{amt:g}' for skill, amt in sorted(by_skill.items(), key=lambda kv: -kv[1]))
+
+    this_week = [p for p in players if p["this_week_total"] > 0]
+    if this_week:
+        items = "".join(
+            f'<li>{esc(p["name"])}: <b>{p["this_week_total"]:g}</b> pop{"" if p["this_week_total"] == 1 else "s"} '
+            f'&mdash; {skill_list(p["this_week_by_skill"])}</li>'
+            for p in this_week
         )
-        recent_block = (f'<p style="margin:0 0 6px;"><b>Since last check:</b></p>'
-                         f'<ul style="margin:0 0 10px; padding-left:18px;">{recent_html}</ul>')
+        recent_block = (f'<p style="margin:0 0 6px;"><b>This training week</b> (since the {esc(week_start)} Friday reset):</p>'
+                         f'<ul style="margin:0 0 10px; padding-left:18px;">{items}</ul>')
     else:
-        recent_block = '<p class="block-note" style="margin:0 0 10px;">No new pops observed since the last run.</p>'
-    if totals:
-        totals_html = "".join(f'<tr><td>{esc(t["name"])}</td><td class="num">{t["season_total"]:g}</td></tr>' for t in totals)
+        recent_block = f'<p class="block-note" style="margin:0 0 10px;">No pops yet this training week (since {esc(week_start)}).</p>'
+
+    season_players = [p for p in players if p["season_total"] > 0]
+    if season_players:
+        rows = "".join(
+            f'<tr><td>{esc(p["name"])}</td><td class="num">{p["season_total"]:g}</td><td>{skill_list(p["season_by_skill"])}</td></tr>'
+            for p in season_players
+        )
         totals_block = ('<div class="tbl-scroll"><table style="min-width:0;"><thead><tr><th>Training cohort</th>'
-                         f'<th class="num">Pops this season</th></tr></thead><tbody>{totals_html}</tbody></table></div>')
+                         f'<th class="num">Pops this season</th><th>By skill</th></tr></thead><tbody>{rows}</tbody></table></div>')
     else:
         totals_block = ""
     return (
         '<div class="eyebrow" style="margin:14px 0 6px;">Training overview</div>' + recent_block + totals_block
         + '<p class="block-note" style="margin-top:8px;"><span class="tag tag-rec">[Inference]</span> '
-        'Pops are counted by diffing each training-cohort player\'s rated skills against the previous run - '
-        'season totals only cover time since this tracking started, not pops from earlier in the season.</p>'
+        'Pops are counted by diffing each training-cohort player\'s rated skills against the previous run, then '
+        'bucketed into the training week (Friday 05:00:01 UTC reset) they landed in - not just "since the last '
+        'daily check," which can span more or less than a week if a run is missed or re-triggered. Season totals '
+        'only cover time since this tracking started, not pops from earlier in the season.</p>'
     )
 
 def _teams_to_watch_html(data):
