@@ -63,6 +63,17 @@ TRAINEE_SCORE_CAP_TSP = 160
 TRAINEE_SCORE_LOW_POTENTIAL_THRESHOLD = 6
 TRAINEE_SCORE_POPS_SO_FAR = 2.5
 
+# Season-end cash projection (Finances tab). A season has 13 Monday
+# financial resets (see the Investments tab's knowledge guide - 14 weeks,
+# but only 13 paydays), and nothing in the BBAPI data this report pulls
+# says which of those 13 has just happened - same gap as
+# TRAINEE_SCORE_POPS_SO_FAR, so it's a team-config value
+# (season_weeks_remaining) rather than a constant, kept current by hand.
+# None/0 means "not set yet" - the projection section says so rather than
+# guessing a number.
+SEASON_TOTAL_MONDAYS = 13
+SEASON_WEEKS_REMAINING = None
+
 def trainee_score(age, potential, tsp):
     """None if age/tsp aren't usable numbers. Otherwise 0-100+ (a player
     ahead of the age-scaled bar can and should score over 100 - that's a
@@ -156,12 +167,13 @@ def load_team_config(config_path):
     from these globals at call time, not at import time, so reassigning here
     is safe as long as it happens first."""
     global CURRENT_TRAINING_FOCUS, TRAINING_FOCUS_POSITIONS, TRAINING_COHORT_IDS
-    global LOGIN, CODE, TEAM_KEY, TRAINEE_SCORE_POPS_SO_FAR
+    global LOGIN, CODE, TEAM_KEY, TRAINEE_SCORE_POPS_SO_FAR, SEASON_WEEKS_REMAINING
     cfg = json.loads(Path(config_path).read_text(encoding="utf-8"))
     CURRENT_TRAINING_FOCUS = cfg.get("current_training_focus", CURRENT_TRAINING_FOCUS)
     TRAINING_FOCUS_POSITIONS = cfg.get("training_focus_positions", TRAINING_FOCUS_POSITIONS)
     TRAINING_COHORT_IDS = cfg.get("training_cohort", TRAINING_COHORT_IDS)
     TRAINEE_SCORE_POPS_SO_FAR = cfg.get("trainee_score_pops_so_far", TRAINEE_SCORE_POPS_SO_FAR)
+    SEASON_WEEKS_REMAINING = cfg.get("season_weeks_remaining", SEASON_WEEKS_REMAINING)
     TEAM_KEY = cfg.get("team_key") or Path(config_path).stem
     # Separate env var names let one environment hold credentials for several
     # teams at once (each BuzzerBeater login owns exactly one team, so a
@@ -816,8 +828,8 @@ def render_text(data):
     return "\n".join(lines)
 
 AUTO_MARKERS = ["META", "OVERVIEW_STATS", "RECOMMENDATIONS", "INVESTMENTS", "ROSTER_SKILLS", "ROSTER_BY_POSITION",
-                "TRAINING_CARDS", "TRANSACTION_LEDGER", "SCHEDULE_STANDINGS", "FINANCE_WEEKLY", "ROSTER_CHANGES",
-                "STAFF", "MINUTES_VS_MONEY", "ARENA_GLANCE", "ARENA_PRICE_BARS", "DIVISION_STANDINGS"]
+                "TRAINING_CARDS", "TRANSACTION_LEDGER", "SCHEDULE_STANDINGS", "FINANCE_WEEKLY", "SEASON_PROJECTION",
+                "ROSTER_CHANGES", "STAFF", "MINUTES_VS_MONEY", "ARENA_GLANCE", "ARENA_PRICE_BARS", "DIVISION_STANDINGS"]
 
 def esc(v):
     return html.escape(str(v)) if v is not None else ""
@@ -1008,6 +1020,66 @@ def auto_schedule_standings_html(data):
     standings_html = (f'<div class="tbl-scroll" style="margin-top:20px;"><table><thead><tr><th>#</th><th>Team</th>'
                        f'<th class="num">W-L</th></tr></thead><tbody>{rows_html}</tbody></table></div>')
     return schedule_html + standings_html
+
+def auto_season_projection_html(data):
+    weeks = data["economy"]["weeks"]
+    this_week = next((w for w in weeks if w["label"] == "This week"), None)
+    last_week = next((w for w in weeks if w["label"] == "Last week"), None)
+    if not this_week:
+        return '<p class="block-note">No economy data returned.</p>'
+    try:
+        current_cash = float(this_week["final"])
+        this_week_net = float(this_week["final"]) - float(this_week["initial"])
+    except (TypeError, ValueError):
+        return '<p class="block-note">Current cash balance not available.</p>'
+    try:
+        last_week_net = (float(last_week["final"]) - float(last_week["initial"])) if last_week else None
+    except (TypeError, ValueError):
+        last_week_net = None
+
+    if not SEASON_WEEKS_REMAINING or SEASON_WEEKS_REMAINING <= 0:
+        return (
+            '<p class="block-note"><span class="tag tag-rec">Not configured</span> '
+            'This needs to know how many of the season\'s 13 Monday resets are left, and there\'s no way to '
+            'derive that from the API data this report already pulls. Set <code>season_weeks_remaining</code> '
+            'in this team\'s <code>config.json</code> (update it as the season progresses) and this section will '
+            'project end-of-season cash from the recent weekly run rate.</p>'
+        )
+
+    weeks_left = SEASON_WEEKS_REMAINING
+    projected_primary = current_cash + this_week_net * weeks_left
+    avg_net = (this_week_net + last_week_net) / 2 if last_week_net is not None else None
+    projected_avg = current_cash + avg_net * weeks_left if avg_net is not None else None
+    primary_class = "pos" if projected_primary >= 0 else "neg"
+
+    stat_row = (
+        '<div class="stat-row" style="margin-top:4px;">'
+        f'<div class="stat-card"><div class="label">Current cash</div><div class="value">{money_html(current_cash)}</div>'
+        f'<div class="foot">as of {esc(data["now"])}</div></div>'
+        f'<div class="stat-card"><div class="label">Weeks remaining</div><div class="value">{weeks_left}</div>'
+        f'<div class="foot">of {SEASON_TOTAL_MONDAYS} Monday resets this season</div></div>'
+        f'<div class="stat-card{" alert" if primary_class == "neg" else ""}"><div class="label">Projected season-end cash</div>'
+        f'<div class="value {primary_class}">{money_html(projected_primary)}</div>'
+        f'<div class="foot">at this week\'s run rate ({money_html(this_week_net)}/wk)</div></div>'
+    )
+    if projected_avg is not None:
+        avg_class = "pos" if projected_avg >= 0 else "neg"
+        stat_row += (
+            f'<div class="stat-card"><div class="label">…using the 2-week average instead</div>'
+            f'<div class="value {avg_class}">{money_html(projected_avg)}</div>'
+            f'<div class="foot">run rate {money_html(avg_net)}/wk</div></div>'
+        )
+    stat_row += '</div>'
+
+    caveat = (
+        '<p class="block-note" style="margin-top:10px;"><span class="tag tag-calc">Calculated</span> '
+        f'Projects forward at a flat weekly run rate across the {weeks_left} remaining Monday resets - this week\'s '
+        'net change is the primary estimate, the 2-week average shown alongside for context. Neither knows about '
+        'one-time events that haven\'t happened yet (a transfer, an arena expansion, a scouting spend) or ones '
+        'already reflected in a recent week that won\'t repeat (e.g. a capex payment). Treat this as a rough '
+        'steady-state extrapolation, not a guarantee.</p>'
+    )
+    return stat_row + caveat
 
 def auto_finance_weekly_html(data):
     weeks = data["economy"]["weeks"]
@@ -1481,6 +1553,7 @@ def build_fragments(data):
                   "TRAINING_CARDS": auto_training_cards_html,
                   "TRANSACTION_LEDGER": auto_transaction_ledger_html,
                   "SCHEDULE_STANDINGS": auto_schedule_standings_html, "FINANCE_WEEKLY": auto_finance_weekly_html,
+                  "SEASON_PROJECTION": auto_season_projection_html,
                   "ROSTER_CHANGES": auto_roster_changes_html,
                   "STAFF": auto_staff_html, "MINUTES_VS_MONEY": auto_minutes_vs_money_html,
                   "ARENA_GLANCE": auto_arena_glance_html, "ARENA_PRICE_BARS": auto_arena_price_bars_html,
