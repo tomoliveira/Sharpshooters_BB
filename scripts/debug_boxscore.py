@@ -31,6 +31,11 @@ def main():
                 out.append(m)
         return out
 
+    roster = lib.fetch(session, "roster.aspx")
+    one_player = roster.find(".//player")
+    if one_player is not None:
+        dump(one_player, "roster.aspx - one <player> element (own team)")
+
     schedule = lib.fetch(session, "schedule.aspx")
     finished = finished_matches(schedule)
     print(f"\nfound {len(finished)} finished matches for own team")
