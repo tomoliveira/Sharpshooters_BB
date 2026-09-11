@@ -525,12 +525,15 @@
       <span class="tag tag-rec">Reference · not auto-updated</span>
     </div>
     <p class="block-note">Two worked-through analyses of what actually pays off fastest, kept here as reference for future decisions rather than recomputed each run. Static — edit this section by hand if the underlying assumptions change.</p>
+    <details class="note"><summary>Season structure (both analyses below assume this)</summary>
+      <p class="block-note" style="margin-top:8px;"><span class="tag tag-official">Official · game schedule mechanics</span>&nbsp; A season runs <b style="color:var(--ink)">14 weeks</b>, but its two weekly resets don't both land 14 times: <b style="color:var(--ink)">13 Monday resets</b> (TV money, merchandise, and player salaries are all paid on this reset — this is what a "season" of salary cost actually means below) and <b style="color:var(--ink)">14 Friday resets</b> (training progress and weekly minutes tracking reset here instead). Any dollar figure below scaled per-season uses 13, not 14 — a season's salary bill is one payday short of what a flat 14-week count would suggest.</p>
+    </details>
 
     <div class="card" style="margin-top:16px;">
       <div class="eyebrow" style="margin-bottom:8px;">Bench-player acquisitions: which one is cheapest, long-run?</div>
       <p class="block-note" style="margin:0 0 12px;">A total-cost-of-ownership comparison of three hypothetical bench-player acquisitions, with salary <b style="color:var(--ink)">projected forward</b> rather than held flat — using a decay curve fit from 15 real players' actual season-by-season salary histories.</p>
       <details class="note"><summary>The decay model</summary>
-        <p class="block-note" style="margin-top:8px;">Player salaries peak around age 33–34, then decline. Fit from the 15-player sample (log-linear regression, R²=0.24 — larger salaries drop sharper): each season past the peak, <code>% change ≈ 14.1% − 4.02%×ln(salary)</code>. A $200/week floor applies (no tracked player was ever observed below it). 14-week season, age advances 1 year/season.</p>
+        <p class="block-note" style="margin-top:8px;">Player salaries peak around age 33–34, then decline. Fit from the 15-player sample (log-linear regression, R²=0.24 — larger salaries drop sharper): each season past the peak, <code>% change ≈ 14.1% − 4.02%×ln(salary)</code>. A $200/week floor applies (no tracked player was ever observed below it). Age advances 1 year/season; each season's salary cost is that season's rate × <b style="color:var(--ink)">13</b> (Monday paydays, not a flat 14 — see "Season structure" above).</p>
         <p class="block-note" style="margin-top:8px;"><span class="tag tag-rec">[Inference]</span> The $200 floor is empirical, drawn from the sample's observed minimum — not a documented game rule, and could be wrong for a large enough roster.</p>
       </details>
       <p class="block-note" style="margin-top:10px;"><b style="color:var(--ink)">The three options modeled:</b></p>
@@ -543,12 +546,12 @@
         <table>
           <thead><tr><th>Season</th><th class="num">A — cumulative cost</th><th class="num">B — cumulative cost</th><th class="num">C — cumulative cost</th></tr></thead>
           <tbody>
-            <tr><td>2</td><td class="num">$62,400</td><td class="num">$106,184</td><td class="num"><b style="color:var(--positive)">$57,000</b></td></tr>
-            <tr><td>5</td><td class="num"><b style="color:var(--positive)">$88,317</b></td><td class="num">$114,584</td><td class="num">$136,392</td></tr>
-            <tr><td>10</td><td class="num"><b style="color:var(--positive)">$115,689</b></td><td class="num">$128,584</td><td class="num">$210,286</td></tr>
-            <tr><td>15</td><td class="num"><b style="color:var(--positive)">$132,649</b></td><td class="num">$142,584</td><td class="num">$247,515</td></tr>
-            <tr><td>20</td><td class="num"><b style="color:var(--positive)">$146,649</b></td><td class="num">$156,584</td><td class="num">$269,170</td></tr>
-            <tr><td>30</td><td class="num"><b style="color:var(--positive)">$174,649</b></td><td class="num">$184,584</td><td class="num">$297,855</td></tr>
+            <tr><td>2</td><td class="num">$60,800</td><td class="num">$105,742</td><td class="num"><b style="color:var(--positive)">$53,000</b></td></tr>
+            <tr><td>5</td><td class="num"><b style="color:var(--positive)">$84,866</b></td><td class="num">$113,542</td><td class="num">$126,722</td></tr>
+            <tr><td>10</td><td class="num"><b style="color:var(--positive)">$110,283</b></td><td class="num">$126,542</td><td class="num">$195,337</td></tr>
+            <tr><td>15</td><td class="num"><b style="color:var(--positive)">$126,032</b></td><td class="num">$139,542</td><td class="num">$229,907</td></tr>
+            <tr><td>20</td><td class="num"><b style="color:var(--positive)">$139,032</b></td><td class="num">$152,542</td><td class="num">$250,015</td></tr>
+            <tr><td>30</td><td class="num"><b style="color:var(--positive)">$165,032</b></td><td class="num">$178,542</td><td class="num">$276,651</td></tr>
           </tbody>
         </table>
       </div>
@@ -564,7 +567,23 @@
         <div class="stat-card"><div class="label">Payback — deep-run season</div><div class="value">1.48 seasons</div><div class="foot">13 full-value-equivalent games/season</div></div>
       </div>
       <details class="note" style="margin-top:12px;"><summary>Where "11" and "13" games/season come from</summary>
-        <p class="block-note" style="margin-top:8px;">Modeled via a proxy schedule (Velotrol Metalizado, Season 72 — a completed league-finals-plus-tie-breaker season), broken down by the BuzzerBeater Game Manual's own revenue rules: Cup/Tournament and Scrimmage games earn zero arena revenue; Playoff/relegation games earn half (gate split with the visiting team); Private League and B3 games are excluded entirely. Of 28 home games in that schedule, 11 are full-value-equivalent in a baseline (regular-season-only) year, rising to 13 in a deep playoff run.</p>
+        <p class="block-note" style="margin-top:8px;">Modeled via a proxy schedule (Velotrol Metalizado, Season 72 — a completed league-finals-plus-tie-breaker season, i.e. a deep playoff run), broken down by home-game type and the BuzzerBeater Game Manual's own arena-revenue rules:</p>
+        <div class="tbl-scroll" style="margin-top:8px; box-shadow:none;">
+          <table style="min-width:0;">
+            <thead><tr><th>Type</th><th class="num">Home games</th><th>Arena revenue treatment</th></tr></thead>
+            <tbody>
+              <tr><td>Regular league (blank)</td><td class="num">9</td><td class="credit">Full — counts</td></tr>
+              <tr><td>TV</td><td class="num">2</td><td class="credit">Full — counts (treated as regular league)</td></tr>
+              <tr><td>Playoffs (PO, SF, F, TB)</td><td class="num">4</td><td>Half — split with visitors</td></tr>
+              <tr><td>Cup (C)</td><td class="num">6</td><td class="debit">Zero — excluded, confirmed by manual</td></tr>
+              <tr><td>Private League (PL)</td><td class="num">5</td><td class="debit">Zero — excluded</td></tr>
+              <tr><td>B3</td><td class="num">2</td><td class="debit">Zero — excluded</td></tr>
+              <tr><td>Scrimmage (SC)</td><td class="num">0</td><td class="debit">Zero — excluded (none occurred at home this season)</td></tr>
+              <tr class="total"><td>Total home games</td><td class="num">28</td><td></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="block-note" style="margin-top:8px;">Full-value-equivalent games/season: <b style="color:var(--ink)">9 + 2 + (4 × 0.5) = 13</b> in this deep-run season. A baseline season without a playoff run drops the 4 half-value playoff games, leaving <b style="color:var(--ink)">9 + 2 = 11</b>.</p>
         <p class="block-note" style="margin-top:8px;"><span class="tag tag-rec">[Inference]</span> That's a different team's schedule, used as a structural proxy — not the Sharpshooters' own game mix. The 96.1% fill rate is also assumed, not confirmed, to hold on the newly added seats specifically.</p>
       </details>
       <p class="block-note" style="margin-top:14px;"><b style="color:var(--ink)">Cumulative surplus</b> (cumulative incremental revenue − $205,800), assuming revenue grows at a flat annual rate:</p>
