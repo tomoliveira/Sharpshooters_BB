@@ -1381,8 +1381,7 @@ def _teams_to_watch_html(data):
                 gap = c["you_gap"]  # leader's value minus our average; positive = leader ahead of us
                 gap_color = "var(--negative)" if gap > 0 else "var(--positive)"
                 gap_desc = f'leader +{gap:.1f} ahead' if gap > 0 else f'you +{-gap:.1f} ahead'
-                since_note = f' since {esc(OWN_RATING_SINCE)}' if OWN_RATING_SINCE else ''
-                you_line = (f'<br><span style="color:var(--ink-faint);">You (avg{since_note}): {c["you_avg"]:.1f} '
+                you_line = (f'<br><span style="color:var(--ink-faint);">You (avg): {c["you_avg"]:.1f} '
                             f'<span style="color:{gap_color};">({gap_desc})</span></span>')
             return (
                 '<div class="stat-card">'

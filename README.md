@@ -243,7 +243,8 @@ fragment:
     competitive game since this date" instead - a one-season judgment
     call (per Tom, for the current season only), not a permanent rule,
     so it's left unset for a fresh season rather than defaulting to
-    always-on.
+    always-on. (The card label itself doesn't call out which window is
+    active - per Tom, that's not worth surfacing in the UI.)
 
 ## What's live vs. manual
 
