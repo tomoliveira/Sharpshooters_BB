@@ -74,6 +74,15 @@ TRAINEE_SCORE_POPS_SO_FAR = 2.5
 SEASON_TOTAL_MONDAYS = 13
 SEASON_WEEKS_REMAINING = None
 
+# "You (avg)" on the outlier rating cards (Overview tab) - our own team's
+# recent-form rating average. Per Tom, for this season only, that average
+# should be computed from every competitive game since this date, not the
+# same "last 5 games" window used for the other ranked teams. A team-config
+# value (own_rating_since) rather than a constant, since it's a one-season
+# judgment call, not a permanent rule - None means "not set," which falls
+# back to the same last-N-games window everyone else uses.
+OWN_RATING_SINCE = None
+
 def trainee_score(age, potential, tsp):
     """None if age/tsp aren't usable numbers. Otherwise 0-100+ (a player
     ahead of the age-scaled bar can and should score over 100 - that's a
@@ -167,13 +176,14 @@ def load_team_config(config_path):
     from these globals at call time, not at import time, so reassigning here
     is safe as long as it happens first."""
     global CURRENT_TRAINING_FOCUS, TRAINING_FOCUS_POSITIONS, TRAINING_COHORT_IDS
-    global LOGIN, CODE, TEAM_KEY, TRAINEE_SCORE_POPS_SO_FAR, SEASON_WEEKS_REMAINING
+    global LOGIN, CODE, TEAM_KEY, TRAINEE_SCORE_POPS_SO_FAR, SEASON_WEEKS_REMAINING, OWN_RATING_SINCE
     cfg = json.loads(Path(config_path).read_text(encoding="utf-8"))
     CURRENT_TRAINING_FOCUS = cfg.get("current_training_focus", CURRENT_TRAINING_FOCUS)
     TRAINING_FOCUS_POSITIONS = cfg.get("training_focus_positions", TRAINING_FOCUS_POSITIONS)
     TRAINING_COHORT_IDS = cfg.get("training_cohort", TRAINING_COHORT_IDS)
     TRAINEE_SCORE_POPS_SO_FAR = cfg.get("trainee_score_pops_so_far", TRAINEE_SCORE_POPS_SO_FAR)
     SEASON_WEEKS_REMAINING = cfg.get("season_weeks_remaining", SEASON_WEEKS_REMAINING)
+    OWN_RATING_SINCE = cfg.get("own_rating_since", OWN_RATING_SINCE)
     TEAM_KEY = cfg.get("team_key") or Path(config_path).stem
     # Separate env var names let one environment hold credentials for several
     # teams at once (each BuzzerBeater login owns exactly one team, so a
@@ -1371,7 +1381,8 @@ def _teams_to_watch_html(data):
                 gap = c["you_gap"]  # leader's value minus our average; positive = leader ahead of us
                 gap_color = "var(--negative)" if gap > 0 else "var(--positive)"
                 gap_desc = f'leader +{gap:.1f} ahead' if gap > 0 else f'you +{-gap:.1f} ahead'
-                you_line = (f'<br><span style="color:var(--ink-faint);">You (avg): {c["you_avg"]:.1f} '
+                since_note = f' since {esc(OWN_RATING_SINCE)}' if OWN_RATING_SINCE else ''
+                you_line = (f'<br><span style="color:var(--ink-faint);">You (avg{since_note}): {c["you_avg"]:.1f} '
                             f'<span style="color:{gap_color};">({gap_desc})</span></span>')
             return (
                 '<div class="stat-card">'
@@ -2364,17 +2375,24 @@ def compute_ratings_watchlist(rankings, our_overall_avg=None):
         })
     return {"cards": cards}
 
-def _rate_team_recent_form(session, conn, team, schedules, recent_n=5):
-    """Average boxscore ratings (+ W-L) over a team's last `recent_n`
-    finished games, from an already-fetched schedules dict (see
-    compute_top_group_by_head_to_head). Shared by fetch_division_power_
-    rankings (for the top-N group) and by build_report to rate our OWN
+def _rate_team_recent_form(session, conn, team, schedules, recent_n=5, since_date=None):
+    """Average boxscore ratings (+ W-L) over a team's finished games, from
+    an already-fetched schedules dict (see compute_top_group_by_head_to_
+    head). Shared by fetch_division_power_rankings (for the top-N group,
+    always the last `recent_n` games) and by build_report to rate our OWN
     team even when we're not in that top-N group - "vs. your average" in
     the watchlist needs something to compare against regardless of where
-    we sit in the standings. Returns None if no rated games are found."""
+    we sit in the standings. If `since_date` (YYYY-MM-DD) is given, it
+    overrides `recent_n` entirely: every competitive game on or after that
+    date counts, however many that is - per Tom, our own average should
+    reflect the whole (current) season from a chosen date, not a fixed
+    last-N window. Returns None if no rated games are found."""
     team_id = team["id"]
     finished = schedules.get(team_id, [])
-    recent_matches = finished[-recent_n:]
+    if since_date:
+        recent_matches = [m for m in finished if m["start"][:10] >= since_date]
+    else:
+        recent_matches = finished[-recent_n:]
     cached = load_cached_match_ratings(conn, team_id, [m["matchid"] for m in recent_matches])
     rows = []
     for m in recent_matches:
@@ -2451,16 +2469,19 @@ def build_report(session, conn, team_key):
     # Our own recent-form rating average, independent of whether we're
     # actually in the top-N power-rankings group above (we often aren't) -
     # per Tom, the outlier cards should show the category leader's rating
-    # against "my own average" regardless of standing.
-    our_rating = next((r for r in data["power_rankings"] if r.get("is_us")), None)
-    if our_rating is None:
-        try:
-            our_team_row = next((t for t in data["division_rows"] if t.get("is_us")), None)
-            if our_team_row:
-                our_schedule = {our_team_id: _fetch_finished_matches(session, our_team_id)}
-                our_rating = _rate_team_recent_form(session, conn, our_team_row, our_schedule)
-        except (BBApiError, requests.RequestException):
-            our_rating = None
+    # against "my own average" regardless of standing. Always computed
+    # fresh (not reused from the group's last-N-games entry even if we
+    # happen to be in it) since OWN_RATING_SINCE, when set, changes the
+    # window to "this whole season from a date" rather than "last 5
+    # games" - a different question from what the ranked table shows.
+    our_rating = None
+    try:
+        our_team_row = next((t for t in data["division_rows"] if t.get("is_us")), None)
+        if our_team_row:
+            our_schedule = {our_team_id: _fetch_finished_matches(session, our_team_id)}
+            our_rating = _rate_team_recent_form(session, conn, our_team_row, our_schedule, since_date=OWN_RATING_SINCE)
+    except (BBApiError, requests.RequestException):
+        our_rating = None
     our_cat_vals = [our_rating[k] for k in RATING_CATEGORY_KEYS if our_rating and our_rating.get(k) is not None] if our_rating else []
     our_overall_avg = sum(our_cat_vals) / len(our_cat_vals) if our_cat_vals else None
     data["ratings_watchlist"] = compute_ratings_watchlist(data["power_rankings"], our_overall_avg)

@@ -10,5 +10,6 @@
   },
   "bb_login_env": "BB_LOGIN",
   "bb_code_env": "BB_CODE",
-  "trainee_score_pops_so_far": 2.5
+  "trainee_score_pops_so_far": 2.5,
+  "own_rating_since": "2026-08-28"
 }

@@ -234,7 +234,16 @@ fragment:
     per-category data, `_teams_to_watch_html` renders the cards. Player
     injuries aren't exposed anywhere in the BuzzerBeater API, so they're
     not part of any of this - check a team's roster page by hand if that
-    matters.
+    matters. Each card also shows **"You (avg)"** - our own team's rating
+    in that category, averaged over our own recent games, so the
+    leader's number always has something of ours to compare against even
+    on weeks we're not in the top-6 group ourselves. Normally the same
+    last-5-games window as everyone else; `config.json`'s
+    `own_rating_since` (a `YYYY-MM-DD` string) overrides that to "every
+    competitive game since this date" instead - a one-season judgment
+    call (per Tom, for the current season only), not a permanent rule,
+    so it's left unset for a fresh season rather than defaulting to
+    always-on.
 
 ## What's live vs. manual
 
