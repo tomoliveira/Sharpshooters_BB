@@ -891,6 +891,50 @@
     el.style.color = isError ? "var(--negative)" : "var(--ink-faint)";
   }
 
+  function ssbbSleep(ms) {
+    return new Promise(function (resolve) { setTimeout(resolve, ms); });
+  }
+
+  // Polls one workflow's recent runs until a run created at/after `sinceMs`
+  // reaches status "completed", then reports its conclusion. Used for both
+  // daily-update.yml (the fetch+commit job) and pages-build-deployment
+  // (the follow-up job GitHub's own Pages system kicks off from that
+  // commit) - the live data isn't actually visible until BOTH finish, not
+  // just the first one, so auto-reload has to wait on both in sequence.
+  async function ssbbPollWorkflowRun(token, workflowFile, sinceMs, label) {
+    var url = "https://api.github.com/repos/" + GH_OWNER + "/" + GH_REPO + "/actions/workflows/" + workflowFile + "/runs?per_page=5";
+    var maxAttempts = 40; // ~40 * 8s ≈ 5.5min ceiling per workflow before giving up
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      var resp;
+      try {
+        resp = await fetch(url, {
+          headers: {
+            "Accept": "application/vnd.github+json",
+            "Authorization": "Bearer " + token,
+            "X-GitHub-Api-Version": "2022-11-28"
+          }
+        });
+      } catch (err) {
+        return { ok: false, message: "Network error checking " + label + ": " + err.message };
+      }
+      if (!resp.ok) {
+        return { ok: false, message: "Couldn't check " + label + " status (" + resp.status + ")" };
+      }
+      var json = await resp.json();
+      var run = (json.workflow_runs || []).find(function (r) { return new Date(r.created_at).getTime() >= sinceMs; });
+      if (run) {
+        if (run.status === "completed") {
+          return { ok: run.conclusion === "success", conclusion: run.conclusion };
+        }
+        ssbbSetRefreshStatus(label + ": " + run.status + "…");
+      } else {
+        ssbbSetRefreshStatus("Waiting for " + label + " to start…");
+      }
+      await ssbbSleep(8000);
+    }
+    return { ok: false, message: label + " is taking longer than expected — check the Actions tab on GitHub." };
+  }
+
   async function ssbbTriggerUpdate(forcePrompt) {
     var btn = document.getElementById("gh-refresh-btn");
     var token = ssbbGetGhToken(!!forcePrompt);
@@ -898,6 +942,7 @@
     if (btn) btn.disabled = true;
     ssbbSetRefreshStatus("Triggering…");
     try {
+      var dispatchedAt = Date.now();
       var resp = await fetch(
         "https://api.github.com/repos/" + GH_OWNER + "/" + GH_REPO + "/actions/workflows/" + GH_WORKFLOW + "/dispatches",
         {
@@ -911,9 +956,7 @@
           body: JSON.stringify({ ref: GH_REF })
         }
       );
-      if (resp.status === 204) {
-        ssbbSetRefreshStatus("Triggered — new data in ~1-2 min. Reload this page after that.");
-      } else {
+      if (resp.status !== 204) {
         var bodyText = await resp.text();
         var ghMessage = bodyText;
         try { ghMessage = JSON.parse(bodyText).message || bodyText; } catch (e) {}
@@ -923,7 +966,26 @@
         } else {
           ssbbSetRefreshStatus("Failed (" + resp.status + "): " + ghMessage.slice(0, 200), true);
         }
+        return;
       }
+
+      ssbbSetRefreshStatus("Triggered — waiting for the data update…");
+      var dataRun = await ssbbPollWorkflowRun(token, GH_WORKFLOW, dispatchedAt, "data update");
+      if (!dataRun.ok) {
+        ssbbSetRefreshStatus(dataRun.message || ("Data update finished with: " + dataRun.conclusion + " — not reloading."), true);
+        return;
+      }
+
+      ssbbSetRefreshStatus("Data update done — waiting for the page to redeploy…");
+      var pagesRun = await ssbbPollWorkflowRun(token, "pages-build-deployment", dispatchedAt, "Pages deployment");
+      if (!pagesRun.ok) {
+        ssbbSetRefreshStatus(pagesRun.message || ("Pages deployment finished with: " + pagesRun.conclusion + " — not reloading."), true);
+        return;
+      }
+
+      ssbbSetRefreshStatus("Done — reloading…");
+      await ssbbSleep(1000);
+      location.reload();
     } catch (err) {
       ssbbSetRefreshStatus("Network error: " + err.message, true);
     } finally {
