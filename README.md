@@ -216,7 +216,14 @@ fragment:
   TV-flagged league games, B3; friendlies and BBM scrimmages excluded).
   Each finished game's boxscore is fetched once and cached forever in the
   `match_ratings` table (keyed by matchid + team) - only matches played
-  since the last run ever trigger a new `boxscore.aspx` call.
+  since the last run ever trigger a new `boxscore.aspx` call. When our own
+  team isn't in the top 6, an extra row appears below the table (visually
+  set off with a top border) showing our own rating in the same columns,
+  so there's always a direct comparison point - built from `our_rating`
+  (the same figure "You (avg)" on the outlier cards uses, so it follows
+  `own_rating_since` when that's set, not necessarily the same last-5-games
+  window the ranked table itself uses - called out in the section's own
+  tooltip when that row is showing).
   - **Teams to watch**, above the ranked table, in priority order: **new
     big hires** first (there's no transfer/bidding API for other teams, so
     this is inferred by diffing each conference team's `roster.aspx`

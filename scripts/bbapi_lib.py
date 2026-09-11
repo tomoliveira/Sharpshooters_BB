@@ -1443,13 +1443,28 @@ def _power_rankings_html(data):
     fallback_note = (' Rows marked * hadn\'t yet played anyone else in this top group when selected, so they fell '
                       'back to season-long point differential instead of a head-to-head number.'
                       if any_fallback else '')
+    our_row_html = ""
+    our_rating = data.get("our_rating")
+    if our_rating is not None and not any(r["is_us"] for r in rankings):
+        our_row_html = (
+            f'<tr style="background:var(--surface-2); border-top:2px solid var(--line);">'
+            f'<td class="sub">&mdash;</td>'
+            f'<td>{esc(our_rating["name"])} <span class=sub>(you, not in top 6)</span></td>'
+            f'<td class="num">{esc(our_rating["recent_record"])}</td>'
+            f'<td class="num">{cell(our_rating["outside_scoring"])}</td><td class="num">{cell(our_rating["inside_scoring"])}</td>'
+            f'<td class="num">{cell(our_rating["outside_defense"])}</td><td class="num">{cell(our_rating["inside_defense"])}</td>'
+            f'<td class="num">{cell(our_rating["rebounding"])}</td><td class="num">{cell(our_rating["offensive_flow"])}</td>'
+            f'<td class="num">{cell(our_rating["composite"])}</td></tr>'
+        )
     rankings_tip = info_tip(
         '<span class="tag tag-calc">Calculated</span> '
         'Top 6 teams in your conference selected by head-to-head point differential among top teams (not season-wide '
         'diff, which top teams can pad by blowing out bottom-feeders), then ranked here by recent-form boxscore '
         'ratings (average over each team\'s last up to 5 competitive games - league, cup, playoffs, TV, B3; '
         'friendlies and BBM scrimmages excluded) - a different cut than the season-long standings shown elsewhere '
-        'on this page.' + fallback_note + ' '
+        'on this page.' + fallback_note + (' Your own row below the table (when you\'re not in the top 6) uses the '
+        'same rating window "You (avg)" uses above, which may differ from the top group\'s fixed last-5-games window.'
+        if our_row_html else '') + ' '
         '<span class="tag tag-rec">[Inference]</span> Player injuries aren\'t exposed anywhere in the BuzzerBeater '
         'API, so they\'re not reflected here - check a team\'s roster page manually if that matters.'
     )
@@ -1459,7 +1474,7 @@ def _power_rankings_html(data):
         '<div class="tbl-scroll"><table><thead><tr><th>#</th><th>Team</th><th class="num">Record</th>'
         '<th class="num">Out. Scoring</th><th class="num">In. Scoring</th><th class="num">Out. Defense</th>'
         '<th class="num">In. Defense</th><th class="num">Rebounding</th><th class="num">Flow</th>'
-        '<th class="num">Power</th></tr></thead><tbody>' + rows_html + '</tbody></table></div>'
+        '<th class="num">Power</th></tr></thead><tbody>' + rows_html + our_row_html + '</tbody></table></div>'
     )
 
 def auto_schedule_standings_html(data):
@@ -2484,6 +2499,7 @@ def build_report(session, conn, team_key):
         our_rating = None
     our_cat_vals = [our_rating[k] for k in RATING_CATEGORY_KEYS if our_rating and our_rating.get(k) is not None] if our_rating else []
     our_overall_avg = sum(our_cat_vals) / len(our_cat_vals) if our_cat_vals else None
+    data["our_rating"] = our_rating
     data["ratings_watchlist"] = compute_ratings_watchlist(data["power_rankings"], our_overall_avg)
     try:
         data["big_hires"] = detect_big_hires(session, conn, data["division_rows"], data["now"][:10])
