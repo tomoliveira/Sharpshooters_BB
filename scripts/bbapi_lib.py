@@ -1359,7 +1359,7 @@ def _teams_to_watch_html(data):
             )
         parts.append(
             '<p style="margin:0 0 4px;"><b>Outlier &amp; top ratings</b></p>'
-            '<div class="stat-row" style="margin:6px 0 14px; grid-template-columns: repeat(3, 1fr);">'
+            '<div class="watch-cards">'
             + "".join(card_html(c) for c in cards) + '</div>'
         )
     return "".join(parts)
@@ -1775,7 +1775,7 @@ def auto_arena_revenue_html(data):
     pre_html = ""
     if pre:
         pre_html = (
-            '<div class="price-bar" style="grid-template-columns: 1fr 140px;">'
+            '<div class="price-bar price-bar--lv">'
             f'<span class="lbl">Before automated tracking began <span class="sub">({len(pre)} home date{"s" if len(pre) != 1 else ""}, revenue only, capacity/prices at the time unknown)</span></span>'
             f'<span class="val mono">{money_html(arena["pre_tracking_avg"])}/date</span></div>'
         )

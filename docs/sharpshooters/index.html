@@ -113,6 +113,7 @@
     -webkit-font-smoothing: antialiased;
   }
   .wrap { max-width: 1600px; margin: 0 auto; padding: 40px 32px 80px; }
+  @media (max-width: 480px) { .wrap { padding: 20px 14px 56px; } }
 
   .mono, .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 
@@ -136,6 +137,7 @@
     color: var(--accent);
   }
   h1 { font-size: 42px; margin: 0; line-height: 1.05; color: var(--ink); }
+  @media (max-width: 480px) { h1 { font-size: 30px; } }
   .subhead { color: var(--ink-soft); font-size: 15.5px; max-width: 60ch; }
   .meta-row { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; font-size: 13.5px; color: var(--ink-faint); }
   .meta-row b { color: var(--ink-soft); font-weight: 600; }
@@ -269,11 +271,37 @@
   .price-track { position: relative; height: 10px; background: var(--surface-2); border-radius: 5px; border: 1px solid var(--line); }
   .price-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent2); border-radius: 5px; }
   .price-range { font-family: 'IBM Plex Mono'; font-size: 11.5px; color: var(--ink-faint); text-align: right; }
+  /* label + value only, no track (e.g. "before automated tracking began") */
+  .price-bar.price-bar--lv { grid-template-columns: 1fr 140px; }
+  @media (max-width: 480px) {
+    .price-bar.price-bar--lv { grid-template-columns: 1fr; grid-template-areas: none; row-gap: 2px; }
+    .price-bar.price-bar--lv .lbl { grid-area: auto; }
+  }
+
+  /* ---- rating-category cards (Teams to watch) ---- */
+  .watch-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 6px 0 14px; }
+  @media (max-width: 720px) { .watch-cards { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 480px) { .watch-cards { grid-template-columns: 1fr; } }
 
   /* ---- two col ---- */
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 720px) { .two-col, .stat-row { grid-template-columns: 1fr 1fr; } }
   @media (max-width: 520px) { .stat-row { grid-template-columns: 1fr; } }
+
+  /* ---- narrow phones: the fixed label/value columns on bar-row and
+     price-bar leave almost no room for the actual bar (e.g. 375px wide -
+     260px of fixed columns = a near-invisible sliver) - stack label+value
+     on one line and let the bar itself take the full row width below. ---- */
+  @media (max-width: 480px) {
+    .bar-row, .price-bar {
+      grid-template-columns: 1fr auto;
+      grid-template-areas: "lbl val" "track track";
+      row-gap: 6px;
+    }
+    .bar-row .lbl, .price-bar .lbl { grid-area: lbl; }
+    .bar-row .bar-track, .price-bar .price-track { grid-area: track; }
+    .bar-row .val, .price-bar .price-range { grid-area: val; }
+  }
 
   .staff-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
   @media (max-width: 720px) { .staff-grid { grid-template-columns: 1fr; } }
