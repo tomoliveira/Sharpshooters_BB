@@ -183,19 +183,25 @@ fragment:
   yesterday's snapshot (diffed against the previous row in `snapshots`,
   since the projection's numeric result is itself stored in each
   snapshot's `data_json` under `projection`).
-- **Training overview** - skill pops for the training cohort
-  (`config.json`'s `training_cohort`), tracked two ways: pops in the
-  current training week (since the most recent Friday 05:00:01 UTC reset -
-  not just "since the daily job last ran", which can span more or less
-  than a week if a run is missed or re-triggered), and a season-to-date
-  count broken down by which skills popped and how many times. Real pops,
-  diffed from each run's observed skill values (not the API's own `pop`
-  flag on `roster.aspx`, which is too transient to answer "how many this
-  season") and logged as a persistent per-player event log in the same
-  `state.ledger_json` blob as the investment ledger, under `skill_pops`
-  (`summarize_training_pops` buckets that log by training week at render
-  time). Season totals only cover time since this tracking started, not
-  retroactively.
+- **Training overview** - pops AND drops for the training cohort
+  (`config.json`'s `training_cohort`), tracked two ways: this training
+  week (since the most recent Friday 05:00:01 UTC reset), and a
+  season-to-date count broken down by which skills changed and how many
+  times. Reads roster.aspx's own live `pop` attribute on each skill (a
+  signed delta like `+1` or `-1`, net since the current training week's
+  reset) directly, rather than diffing our own previously-observed
+  values - an earlier version tried the diff approach and missed real
+  changes whenever the game's change had already landed before a
+  pre-change baseline was ever captured (including this tracking's own
+  first run), and could never see drops at all (a diff only fires on
+  increases). The live flag doesn't have either gap. Stored per (player,
+  training week) in `state.ledger_json`'s `skill_pops` key
+  (`update_skill_pop_tracking` writes it, overwriting - not
+  double-counting - if a later run the same week sees an updated value;
+  `summarize_training_pops` reads it back for display). Season totals
+  only cover training weeks observed since this tracking started
+  (2026-09-11) - the game's own flag resets every Friday, so a week that
+  finished before that has no way to be recovered after the fact.
 - **League power rankings** - the top 6 teams in your conference, selected
   by head-to-head point differential *among top teams only* rather than
   raw season diff (which a top team can pad by blowing out bottom-feeders).
@@ -212,18 +218,23 @@ fragment:
   `match_ratings` table (keyed by matchid + team) - only matches played
   since the last run ever trigger a new `boxscore.aspx` call.
   - **Teams to watch**, above the ranked table, in priority order: **new
-    big hires** (there's no transfer/bidding API for other teams, so this
-    is inferred by diffing each conference team's `roster.aspx` against
-    what was last seen and flagging a newly-appeared player paid at least
-    2x that team's prior roster median - disclaimed as inferred, not
-    confirmed, in the UI itself), then **outlier ratings** (a team's
-    category value more than 1.25 population standard deviations from the
-    ranked pool's mean in that category - a real standout strength or
-    weakness, not just that team's own best stat), then **category
-    leaders** (whichever team is simply #1 in each of the 6 rating
-    categories). Player injuries aren't exposed anywhere in the
-    BuzzerBeater API, so they're not part of any of this - check a team's
-    roster page by hand if that matters.
+    big hires** first (there's no transfer/bidding API for other teams, so
+    this is inferred by diffing each conference team's `roster.aspx`
+    against what was last seen and flagging a newly-appeared player paid
+    at least 2x that team's prior roster median - disclaimed as inferred,
+    not confirmed, in the UI itself), then **one card per rating
+    category** (icon + label header): the #1 team shown emphasized as the
+    card's headline value, the next two teams as smaller-font runners-up
+    below (reusing the site's existing `.stat-card`/`.foot` styling, so no
+    new CSS was needed), a lightning-bolt badge on the leader when it's a
+    genuine statistical outlier (more than 1.25 population standard
+    deviations above the ranked pool's mean in that category), and a
+    separate red "weakest" callout when some team is a severe *negative*
+    outlier in that category. `compute_ratings_watchlist` builds the
+    per-category data, `_teams_to_watch_html` renders the cards. Player
+    injuries aren't exposed anywhere in the BuzzerBeater API, so they're
+    not part of any of this - check a team's roster page by hand if that
+    matters.
 
 ## What's live vs. manual
 

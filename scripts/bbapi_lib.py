@@ -393,19 +393,24 @@ def build_training_cohort_cards(roster_root):
         })
     return cards
 
-def update_skill_pop_tracking(ledger, roster_root, run_date):
-    """Diffs each training-cohort player's rated-skill values against what
-    was observed on the previous run, and appends every detected pop to a
-    persistent per-player event log (ledger["skill_pops"][pid]["events"]).
-    Per Tom: this should reflect real pops observed over the season, not
-    just today's live roster.aspx 'pop' flag (that flag is transient - it
-    can't answer "how many pops so far this season"). Logging full events
-    (skill, from, to, date) instead of just a running total lets
-    summarize_training_pops bucket pops by the training week they actually
-    landed in (the Friday reset), not merely "since whenever this job last
-    happened to run" - not the same thing if a run is missed or re-run
-    mid-week. A player's first-ever observation only seeds the baseline;
-    nothing to diff against yet, so it can't count as a pop."""
+def update_skill_pop_tracking(ledger, roster_root, now_utc):
+    """Reads the game's OWN live signal for this training week's change per
+    skill - roster.aspx's `pop` attribute on each skill element (a signed
+    delta string like "+1" or "-1", net since the current training week's
+    Friday reset) - instead of diffing our own previously-observed values.
+    Per Tom: our own diff missed real changes whenever the game's change
+    had already landed before we ever captured a pre-change baseline (e.g.
+    this tracking's very first run, or any run on a week where a pop/drop
+    happened before that week's first check) - the live `pop` attribute
+    doesn't have that gap, since it's the game's own record of the week's
+    net change, not a diff against something we may not have observed.
+    Also correctly captures drops (skills going down), which a
+    strictly-increasing diff never could. Stored per (player, training
+    week) in ledger["skill_pops"][pid]["weeks"][week_start] = {skill:
+    delta} - a later run this same week with an updated value (say a
+    second pop lands, "+1" -> "+2") overwrites the stored value for that
+    week rather than double-counting, so running this daily is safe."""
+    week_start = most_recent_training_week_start(now_utc).strftime("%Y-%m-%d")
     pops_state = ledger.setdefault("skill_pops", {})
     for pid, known_name in TRAINING_COHORT_IDS.items():
         p = roster_root.find(f".//player[@id='{pid}']")
@@ -415,47 +420,50 @@ def update_skill_pop_tracking(ledger, roster_root, run_date):
         if skills is None:
             continue
         name = f"{p.findtext('firstName') or ''} {p.findtext('lastName') or ''}".strip() or known_name
-        entry = pops_state.setdefault(pid, {"name": name, "last_observed": {}, "events": []})
+        entry = pops_state.setdefault(pid, {"name": name, "weeks": {}})
         entry["name"] = name
-        entry.setdefault("events", [])
-        last_observed = entry["last_observed"]
+        week_bucket = entry.setdefault("weeks", {}).setdefault(week_start, {})
         for tag in SKILL_TAGS:
+            el = skills.find(tag)
+            pop_str = el.get("pop") if el is not None else None
+            if not pop_str:
+                continue
             try:
-                current = float(skills.findtext(tag))
+                delta = float(pop_str)
             except (TypeError, ValueError):
                 continue
-            prev = last_observed.get(tag)
-            if prev is not None and current > prev:
-                entry["events"].append({"skill": humanize(tag), "from": prev, "to": current,
-                                         "delta": current - prev, "date": run_date})
-            last_observed[tag] = current
+            if delta != 0:
+                week_bucket[humanize(tag)] = delta
 
 def summarize_training_pops(ledger, now_utc):
-    """Per Tom: "recent pops" should mean this training week (since the
-    most recent Friday 05:00:01 UTC reset - see
-    most_recent_training_week_start), not just "since the daily job last
-    ran." Also builds the season-to-date per-skill breakdown for each
-    cohort player, both derived from the same persistent event log
-    (ledger["skill_pops"][pid]["events"]) rather than a bare counter."""
+    """Per Tom: "recent" should mean this training week (since the most
+    recent Friday 05:00:01 UTC reset - see most_recent_training_week_start),
+    not just "since the daily job last ran." Also builds a season-to-date
+    per-skill breakdown for each cohort player, both derived from
+    ledger["skill_pops"][pid]["weeks"] (see update_skill_pop_tracking).
+    Season totals only cover training weeks observed since this tracking
+    started - a week that finished before this feature existed has no
+    record here (the game's own `pop` flag resets every Friday, so there's
+    no way to recover it after the fact)."""
     week_start = most_recent_training_week_start(now_utc).strftime("%Y-%m-%d")
-
-    def by_skill(events):
-        out = {}
-        for e in events:
-            out[e["skill"]] = out.get(e["skill"], 0) + e["delta"]
-        return out
-
     players = []
     for pid, entry in (ledger.get("skill_pops") or {}).items():
-        events = entry.get("events") or []
-        this_week_skills = by_skill([e for e in events if e["date"] >= week_start])
-        season_skills = by_skill(events)
+        weeks = entry.get("weeks") or {}
+        this_week_by_skill = weeks.get(week_start, {})
+        season_by_skill = {}
+        for wk_skills in weeks.values():
+            for skill, delta in wk_skills.items():
+                season_by_skill[skill] = season_by_skill.get(skill, 0) + delta
         players.append({
             "playerid": pid, "name": entry.get("name"),
-            "this_week_total": sum(this_week_skills.values()), "this_week_by_skill": this_week_skills,
-            "season_total": sum(season_skills.values()), "season_by_skill": season_skills,
+            "this_week_pops": sum(1 for d in this_week_by_skill.values() if d > 0),
+            "this_week_drops": sum(1 for d in this_week_by_skill.values() if d < 0),
+            "this_week_by_skill": this_week_by_skill,
+            "season_pops": sum(1 for wk in weeks.values() for d in wk.values() if d > 0),
+            "season_drops": sum(1 for wk in weeks.values() for d in wk.values() if d < 0),
+            "season_by_skill": season_by_skill,
         })
-    players.sort(key=lambda p: (-p["this_week_total"], -p["season_total"]))
+    players.sort(key=lambda p: (-(p["this_week_pops"] + p["this_week_drops"]), -p["season_pops"]))
     return {"week_start": week_start, "players": players}
 
 def build_roster_skills_table(roster_root):
@@ -878,9 +886,10 @@ def extract_data(conn, team_key, teaminfo, roster, economy, schedule, standings,
     data["economy"]["transactions"] = transactions
     ledger = load_investment_ledger(conn, team_key)
     ledger = update_investment_ledger(ledger, economy, roster, arena, data["now"][:10], our_team_id)
-    update_skill_pop_tracking(ledger, roster, data["now"][:10])
+    now_utc = datetime.now(timezone.utc)
+    update_skill_pop_tracking(ledger, roster, now_utc)
     save_investment_ledger(conn, team_key, ledger)
-    data["training_pops"] = summarize_training_pops(ledger, datetime.now(timezone.utc))
+    data["training_pops"] = summarize_training_pops(ledger, now_utc)
     data["investments"] = build_investments_summary(ledger)
     data["investments"]["arena"] = build_arena_investment_summary(ledger)
     current_roster_ids = {p.get("id") for p in roster.findall(".//player") if p.get("id")}
@@ -1247,58 +1256,68 @@ def _financial_changes_html(data):
     return html_out
 
 def _training_pops_html(data):
-    """This training week's pops (since the most recent Friday reset, not
-    just "since the last run") and a season-to-date per-skill breakdown per
-    training-cohort player - see summarize_training_pops."""
+    """This training week's pops and drops (since the most recent Friday
+    reset - the game's own live signal, see update_skill_pop_tracking) and
+    a season-to-date per-skill breakdown per training-cohort player."""
     pops = data.get("training_pops") or {}
     players = pops.get("players") or []
     week_start = pops.get("week_start")
 
     def skill_list(by_skill):
-        return ", ".join(f'{esc(skill)} +{amt:g}' for skill, amt in sorted(by_skill.items(), key=lambda kv: -kv[1]))
+        return ", ".join(f'{esc(skill)} {"+" if amt >= 0 else ""}{amt:g}'
+                          for skill, amt in sorted(by_skill.items(), key=lambda kv: -kv[1]))
 
-    this_week = [p for p in players if p["this_week_total"] > 0]
+    this_week = [p for p in players if p["this_week_pops"] or p["this_week_drops"]]
     if this_week:
+        def week_summary(p):
+            bits = []
+            if p["this_week_pops"]:
+                bits.append(f'{p["this_week_pops"]} pop{"" if p["this_week_pops"] == 1 else "s"}')
+            if p["this_week_drops"]:
+                bits.append(f'{p["this_week_drops"]} drop{"" if p["this_week_drops"] == 1 else "s"}')
+            return " and ".join(bits)
         items = "".join(
-            f'<li>{esc(p["name"])}: <b>{p["this_week_total"]:g}</b> pop{"" if p["this_week_total"] == 1 else "s"} '
-            f'&mdash; {skill_list(p["this_week_by_skill"])}</li>'
+            f'<li>{esc(p["name"])}: <b>{week_summary(p)}</b> &mdash; {skill_list(p["this_week_by_skill"])}</li>'
             for p in this_week
         )
         recent_block = (f'<p style="margin:0 0 6px;"><b>This training week</b> (since the {esc(week_start)} Friday reset):</p>'
                          f'<ul style="margin:0 0 10px; padding-left:18px;">{items}</ul>')
     else:
-        recent_block = f'<p class="block-note" style="margin:0 0 10px;">No pops yet this training week (since {esc(week_start)}).</p>'
+        recent_block = f'<p class="block-note" style="margin:0 0 10px;">No pops or drops yet this training week (since {esc(week_start)}).</p>'
 
-    season_players = [p for p in players if p["season_total"] > 0]
+    season_players = [p for p in players if p["season_pops"] or p["season_drops"]]
     if season_players:
         rows = "".join(
-            f'<tr><td>{esc(p["name"])}</td><td class="num">{p["season_total"]:g}</td><td>{skill_list(p["season_by_skill"])}</td></tr>'
+            f'<tr><td>{esc(p["name"])}</td><td class="num">{p["season_pops"]}</td>'
+            f'<td class="num">{p["season_drops"]}</td><td>{skill_list(p["season_by_skill"])}</td></tr>'
             for p in season_players
         )
         totals_block = ('<div class="tbl-scroll"><table style="min-width:0;"><thead><tr><th>Training cohort</th>'
-                         f'<th class="num">Pops this season</th><th>By skill</th></tr></thead><tbody>{rows}</tbody></table></div>')
+                         '<th class="num">Pops</th><th class="num">Drops</th><th>By skill (season)</th></tr></thead>'
+                         f'<tbody>{rows}</tbody></table></div>')
     else:
         totals_block = ""
     return (
         '<div class="eyebrow" style="margin:14px 0 6px;">Training overview</div>' + recent_block + totals_block
         + '<p class="block-note" style="margin-top:8px;"><span class="tag tag-rec">[Inference]</span> '
-        'Pops are counted by diffing each training-cohort player\'s rated skills against the previous run, then '
-        'bucketed into the training week (Friday 05:00:01 UTC reset) they landed in - not just "since the last '
-        'daily check," which can span more or less than a week if a run is missed or re-triggered. Season totals '
-        'only cover time since this tracking started, not pops from earlier in the season.</p>'
+        'Pops and drops come directly from roster.aspx\'s own live \'pop\' flag on each skill - a signed net change '
+        'since the current training week\'s Friday reset - bucketed by which training week they landed in, not '
+        'just "since the last daily check." Season totals only cover training weeks observed since this tracking '
+        'started (2026-09-11) - a week that finished before that has no record here, since the game\'s own flag '
+        'resets every Friday and can\'t be recovered after the fact.</p>'
     )
 
 def _teams_to_watch_html(data):
-    """Per Tom: outlier ratings are top priority, overall-high ratings are
-    the secondary view, and a big hire should put a team on the radar
-    immediately - so this sits above the main ranked table, in that order:
-    big hires first (time-sensitive), then rating outliers, then category
-    leaders."""
+    """Per Tom: a big hire should put a team on the radar immediately
+    (time-sensitive, shown first), and rating outliers are top priority -
+    so each category gets one card (icon + label) with the #1 team
+    emphasized as the "value" and the next two teams as smaller-font
+    runners-up in the card's "foot" (reusing the existing .stat-card
+    layout, whose .foot is already styled smaller/muted than .value) -
+    see compute_ratings_watchlist."""
     big_hires = data.get("big_hires") or []
-    watchlist = data.get("ratings_watchlist") or {}
-    outliers = watchlist.get("outliers") or []
-    leaders = watchlist.get("leaders") or []
-    if not big_hires and not outliers and not leaders:
+    cards = (data.get("ratings_watchlist") or {}).get("cards") or []
+    if not big_hires and not cards:
         return ""
     parts = ['<div class="eyebrow" style="margin:14px 0 6px;">Teams to watch</div>']
     if big_hires:
@@ -1316,21 +1335,33 @@ def _teams_to_watch_html(data):
             'marquee signing, a loan return, or a cleared draft pick - a lead worth checking, not a confirmed '
             'transfer.</p>'
         )
-    if outliers:
-        items = "".join(
-            f'<li><b>{esc(o["team"])}</b>{" <span class=sub>(you)</span>" if o["is_us"] else ""}: '
-            f'{"exceptionally strong" if o["z"] > 0 else "notably weak"} {esc(RATING_LABELS[o["category"]])} '
-            f'({o["value"]:.1f}, {o["z"]:+.1f}&sigma; vs. the pool)</li>'
-            for o in outliers
+    if cards:
+        def you_tag(is_us):
+            return ' <span class=sub>(you)</span>' if is_us else ''
+
+        def card_html(c):
+            leader = c["leader"]
+            runner_lines = "".join(
+                f'{i + 2}. {esc(r["team"])}{you_tag(r["is_us"])} {r["value"]:.1f}<br>'
+                for i, r in enumerate(c["runners_up"])
+            )
+            weak = c.get("weak_outlier")
+            weak_line = (
+                f'<span style="color:var(--negative);">&#9888; weakest: {esc(weak["team"])}{you_tag(weak["is_us"])} '
+                f'{weak["value"]:.1f} ({weak["z"]:+.1f}&sigma;)</span>' if weak else ''
+            )
+            return (
+                '<div class="stat-card">'
+                f'<div class="label">{RATING_ICONS.get(c["category"], "")} {esc(c["label"])}</div>'
+                f'<div class="value" style="font-size:18px;">{"&#9889; " if leader["is_outlier"] else ""}'
+                f'{esc(leader["team"])}{you_tag(leader["is_us"])} &middot; {leader["value"]:.1f}</div>'
+                f'<div class="foot">{runner_lines}{weak_line}</div></div>'
+            )
+        parts.append(
+            '<p style="margin:0 0 4px;"><b>Outlier &amp; top ratings</b></p>'
+            '<div class="stat-row" style="margin:6px 0 14px; grid-template-columns: repeat(3, 1fr);">'
+            + "".join(card_html(c) for c in cards) + '</div>'
         )
-        parts.append(f'<p style="margin:0 0 4px;"><b>Outlier ratings</b></p><ul style="margin:0 0 6px; padding-left:18px;">{items}</ul>')
-    if leaders:
-        items = "".join(
-            f'<li>{esc(RATING_LABELS[l["category"]])}: <b>{esc(l["team"])}</b>'
-            f'{" <span class=sub>(you)</span>" if l["is_us"] else ""} ({l["value"]:.1f})</li>'
-            for l in leaders
-        )
-        parts.append(f'<p style="margin:0 0 4px;"><b>Category leaders</b></p><ul style="margin:0 0 10px; padding-left:18px;">{items}</ul>')
     return "".join(parts)
 
 def _power_rankings_html(data):
@@ -2259,32 +2290,50 @@ RATING_LABELS = {"outside_scoring": "Outside Scoring", "inside_scoring": "Inside
                   "outside_defense": "Outside Defense", "inside_defense": "Inside Defense",
                   "rebounding": "Rebounding", "offensive_flow": "Offensive Flow"}
 OUTLIER_Z_THRESHOLD = 1.25
+RATING_ICONS = {"outside_scoring": "\U0001F3AF", "inside_scoring": "\U0001F3C0", "outside_defense": "\U0001F9F1",
+                 "inside_defense": "\U0001F6E1", "rebounding": "\U0001F504", "offensive_flow": "\U0001F30A"}
 
 def compute_ratings_watchlist(rankings):
-    """Two per-category views over the current power-rankings pool. Per
-    Tom, outliers are top priority: teams whose rating in one category is
-    unusual relative to the *other ranked teams* in that same category
-    (a z-score across the pool), not just their own strongest stat - a
-    real standout strength or weakness worth knowing about. Category
-    leaders (which team is simply #1 in each rating) are the secondary,
-    lower-priority view."""
-    outliers, leaders = [], []
+    """One card per rating category over the current power-rankings pool.
+    Per Tom: outliers are top priority - each card's leader is flagged as a
+    statistical outlier when its value is unusual relative to the *other
+    ranked teams* in that same category (a z-score across the pool), not
+    just that team's own strongest stat. Overall-high ratings are the
+    secondary view: the #1 team is shown emphasized with the next two
+    teams as runners-up. A team that's a severe NEGATIVE outlier in a
+    category (notably worse than the pool, not just last-place) is called
+    out too, separately from the leader/runners-up."""
+    cards = []
     for cat in RATING_CATEGORY_KEYS:
         vals = [(r, r[cat]) for r in rankings if r.get(cat) is not None]
-        if len(vals) < 2:
+        if not vals:
             continue
         mean = sum(v for _, v in vals) / len(vals)
-        variance = sum((v - mean) ** 2 for _, v in vals) / len(vals)
-        stdev = variance ** 0.5
-        if stdev > 0:
-            for r, v in vals:
-                z = (v - mean) / stdev
-                if abs(z) >= OUTLIER_Z_THRESHOLD:
-                    outliers.append({"team": r["name"], "is_us": r.get("is_us", False), "category": cat, "value": v, "z": z})
-        best_team, best_val = max(vals, key=lambda rv: rv[1])
-        leaders.append({"category": cat, "team": best_team["name"], "is_us": best_team.get("is_us", False), "value": best_val})
-    outliers.sort(key=lambda o: -abs(o["z"]))
-    return {"outliers": outliers[:6], "leaders": leaders}
+        stdev = 0.0
+        if len(vals) >= 2:
+            variance = sum((v - mean) ** 2 for _, v in vals) / len(vals)
+            stdev = variance ** 0.5
+
+        def z_of(v):
+            return (v - mean) / stdev if stdev > 0 else 0.0
+
+        ranked = sorted(vals, key=lambda rv: -rv[1])
+        leader_team, leader_val = ranked[0]
+        runners_up = [{"team": r["name"], "is_us": r.get("is_us", False), "value": v}
+                      for r, v in ranked[1:3]]
+        weak_team, weak_val = ranked[-1]
+        weak_z = z_of(weak_val)
+        weak_outlier = (
+            {"team": weak_team["name"], "is_us": weak_team.get("is_us", False), "value": weak_val, "z": weak_z}
+            if weak_z <= -OUTLIER_Z_THRESHOLD and weak_team is not leader_team else None
+        )
+        cards.append({
+            "category": cat, "label": RATING_LABELS[cat],
+            "leader": {"team": leader_team["name"], "is_us": leader_team.get("is_us", False), "value": leader_val,
+                       "is_outlier": z_of(leader_val) >= OUTLIER_Z_THRESHOLD},
+            "runners_up": runners_up, "weak_outlier": weak_outlier,
+        })
+    return {"cards": cards}
 
 def fetch_division_power_rankings(session, conn, division_rows, top_n=6, recent_n=5):
     """Recent-form power rankings for the top `top_n` teams in our
