@@ -1,0 +1,20 @@
+name: Debug boxscore dump
+on:
+  workflow_dispatch: {}
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    environment: github-pages
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install -r scripts/requirements.txt
+      - name: Dump raw XML
+        working-directory: scripts
+        env:
+          BB_LOGIN: ${{ secrets.BB_LOGIN }}
+          BB_CODE: ${{ secrets.BB_CODE }}
+        run: python debug_boxscore.py
