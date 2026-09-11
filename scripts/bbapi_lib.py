@@ -497,7 +497,32 @@ def init_db(conn):
         offensive_flow REAL,
         PRIMARY KEY (matchid, team_id)
     )""")
+    # Last-observed roster (pid -> name/salary) for OTHER teams in our
+    # conference - not the same as `state.roster_xml`, which only ever
+    # tracks our own team. Used to detect a team's newly-appeared,
+    # high-salary signing (a "big hire") by diffing against what was seen
+    # here last run - see detect_big_hires.
+    conn.execute("""CREATE TABLE IF NOT EXISTS opponent_rosters (
+        team_id TEXT PRIMARY KEY,
+        roster_json TEXT
+    )""")
     conn.commit()
+
+def load_opponent_roster(conn, team_id):
+    row = conn.execute("SELECT roster_json FROM opponent_rosters WHERE team_id=?", (team_id,)).fetchone()
+    if not row or not row[0]:
+        return None
+    try:
+        return json.loads(row[0])
+    except json.JSONDecodeError:
+        return None
+
+def save_opponent_roster(conn, team_id, roster_map):
+    conn.execute(
+        "INSERT INTO opponent_rosters (team_id, roster_json) VALUES (?, ?) "
+        "ON CONFLICT(team_id) DO UPDATE SET roster_json=excluded.roster_json",
+        (team_id, json.dumps(roster_map, ensure_ascii=False)),
+    )
 
 def load_cached_match_ratings(conn, team_id, matchids):
     if not matchids:
@@ -1225,22 +1250,68 @@ def _training_pops_html(data):
         'season totals only cover time since this tracking started, not pops from earlier in the season.</p>'
     )
 
+def _teams_to_watch_html(data):
+    """Per Tom: outlier ratings are top priority, overall-high ratings are
+    the secondary view, and a big hire should put a team on the radar
+    immediately - so this sits above the main ranked table, in that order:
+    big hires first (time-sensitive), then rating outliers, then category
+    leaders."""
+    big_hires = data.get("big_hires") or []
+    watchlist = data.get("ratings_watchlist") or {}
+    outliers = watchlist.get("outliers") or []
+    leaders = watchlist.get("leaders") or []
+    if not big_hires and not outliers and not leaders:
+        return ""
+    parts = ['<div class="eyebrow" style="margin:14px 0 6px;">Teams to watch</div>']
+    if big_hires:
+        items = "".join(
+            f'<li><b>{esc(h["team_name"])}</b> signed <b>{esc(h["player_name"])}</b> '
+            f'({money_html(h["salary"])}/wk vs. their own roster median of {money_html(h["roster_median_salary"])}/wk)</li>'
+            for h in big_hires
+        )
+        parts.append(
+            '<p style="margin:0 0 4px;"><b>New big hires</b></p>'
+            f'<ul style="margin:0 0 6px; padding-left:18px;">{items}</ul>'
+            '<p class="block-note" style="margin:0 0 10px;"><span class="tag tag-rec">[Inference]</span> '
+            'No transfer/bidding data exists for other teams in the BuzzerBeater API - this is inferred from a '
+            'newly-appeared, high-salary roster entry vs. that team\'s own previous roster. Could be a real '
+            'marquee signing, a loan return, or a cleared draft pick - a lead worth checking, not a confirmed '
+            'transfer.</p>'
+        )
+    if outliers:
+        items = "".join(
+            f'<li><b>{esc(o["team"])}</b>{" <span class=sub>(you)</span>" if o["is_us"] else ""}: '
+            f'{"exceptionally strong" if o["z"] > 0 else "notably weak"} {esc(RATING_LABELS[o["category"]])} '
+            f'({o["value"]:.1f}, {o["z"]:+.1f}&sigma; vs. the pool)</li>'
+            for o in outliers
+        )
+        parts.append(f'<p style="margin:0 0 4px;"><b>Outlier ratings</b></p><ul style="margin:0 0 6px; padding-left:18px;">{items}</ul>')
+    if leaders:
+        items = "".join(
+            f'<li>{esc(RATING_LABELS[l["category"]])}: <b>{esc(l["team"])}</b>'
+            f'{" <span class=sub>(you)</span>" if l["is_us"] else ""} ({l["value"]:.1f})</li>'
+            for l in leaders
+        )
+        parts.append(f'<p style="margin:0 0 4px;"><b>Category leaders</b></p><ul style="margin:0 0 10px; padding-left:18px;">{items}</ul>')
+    return "".join(parts)
+
 def _power_rankings_html(data):
     """Recent-form power rankings, built in fetch_division_power_rankings
     from real boxscore team ratings over each team's last few games -
     deliberately a different cut than the season-long standings table
     elsewhere on this page."""
     rankings = data.get("power_rankings") or []
+    watch_html = _teams_to_watch_html(data)
     if not rankings:
-        return ('<div class="eyebrow" style="margin:14px 0 6px;">League power rankings &middot; recent form</div>'
+        return (watch_html + '<div class="eyebrow" style="margin:14px 0 6px;">League power rankings &middot; recent form</div>'
                 '<p class="block-note">Not available this run.</p>')
 
     def cell(v):
         return f'{v:.1f}' if v is not None else '—'
 
     rows_html = "".join(
-        f'<tr class="{"us" if r["is_us"] else ""}"><td>{r["power_rank"]}</td><td>{esc(r["name"])}'
-        f'{" <span class=sub>(you)</span>" if r["is_us"] else ""}</td>'
+        f'<tr class="{"us" if r["is_us"] else ""}"><td>{r["power_rank"]}{"*" if r.get("used_fallback_diff") else ""}</td>'
+        f'<td>{esc(r["name"])}{" <span class=sub>(you)</span>" if r["is_us"] else ""}</td>'
         f'<td class="num">{esc(r["recent_record"])}</td>'
         f'<td class="num">{cell(r["outside_scoring"])}</td><td class="num">{cell(r["inside_scoring"])}</td>'
         f'<td class="num">{cell(r["outside_defense"])}</td><td class="num">{cell(r["inside_defense"])}</td>'
@@ -1248,18 +1319,25 @@ def _power_rankings_html(data):
         f'<td class="num">{cell(r["composite"])}</td></tr>'
         for r in rankings
     )
+    any_fallback = any(r.get("used_fallback_diff") for r in rankings)
+    fallback_note = (' Rows marked * hadn\'t yet played anyone else in this top group when selected, so they fell '
+                      'back to season-long point differential instead of a head-to-head number.'
+                      if any_fallback else '')
     return (
+        watch_html +
         '<div class="eyebrow" style="margin:14px 0 6px;">League power rankings &middot; last 5 games</div>'
         '<div class="tbl-scroll"><table><thead><tr><th>#</th><th>Team</th><th class="num">Record</th>'
         '<th class="num">Out. Scoring</th><th class="num">In. Scoring</th><th class="num">Out. Defense</th>'
         '<th class="num">In. Defense</th><th class="num">Rebounding</th><th class="num">Flow</th>'
         '<th class="num">Power</th></tr></thead><tbody>' + rows_html + '</tbody></table></div>'
         '<p class="block-note" style="margin-top:8px;"><span class="tag tag-calc">Calculated</span> '
-        'Top 6 teams in your conference by season point differential, ranked here instead by recent-form boxscore '
-        'ratings (average over each team\'s last up to 5 competitive games - league, cup, playoffs, TV, B3; '
-        'friendlies and BBM scrimmages excluded) - a different cut than the season-long standings shown elsewhere '
-        'on this page. <span class="tag tag-rec">[Inference]</span> Player injuries aren\'t exposed anywhere in the '
-        'BuzzerBeater API, so they\'re not reflected here - check a team\'s roster page manually if that matters.</p>'
+        'Top 6 teams in your conference selected by head-to-head point differential among top teams (not season-wide '
+        'diff, which top teams can pad by blowing out bottom-feeders - see compute_top_group_by_head_to_head), then '
+        'ranked here by recent-form boxscore ratings (average over each team\'s last up to 5 competitive games - '
+        'league, cup, playoffs, TV, B3; friendlies and BBM scrimmages excluded) - a different cut than the '
+        'season-long standings shown elsewhere on this page.' + fallback_note + ' '
+        '<span class="tag tag-rec">[Inference]</span> Player injuries aren\'t exposed anywhere in the BuzzerBeater '
+        'API, so they\'re not reflected here - check a team\'s roster page manually if that matters.</p>'
     )
 
 def auto_schedule_standings_html(data):
@@ -2002,53 +2080,205 @@ def _parse_boxscore_team_rating(box_root, team_id, match_type):
         "rebounding": ratings["rebounding"], "offensive_flow": ratings["offensiveFlow"],
     }
 
-def fetch_division_power_rankings(session, conn, division_rows, top_n=6, recent_n=5):
-    """Recent-form power rankings for the top `top_n` teams in our
-    division/conference by season point differential, built from each
-    team's actual boxscore ratings (scoring/defense/rebounding/flow) over
-    their last `recent_n` finished games - a recent-form signal, distinct
-    from the season-long standings table shown elsewhere. Boxscores are
-    fetched once per (matchid, team) and cached in match_ratings forever
-    after (a finished game's ratings never change), so a team's history
-    only grows by the handful of matches played since the last run, not
-    re-fetched from scratch every day."""
-    candidates = [r for r in division_rows if r.get("id")][:top_n]
-    rankings = []
-    for team in candidates:
-        team_id = team["id"]
+def _fetch_finished_matches(session, team_id):
+    """A team's finished, competitive (non-excluded-type) matches this
+    season, each with the opponent's id and both scores - shared raw
+    material for both the head-to-head point-diff ranking below and the
+    recent-form boxscore ratings, from a single schedule.aspx call (it
+    already carries final scores for played games; no boxscore needed for
+    this part)."""
+    try:
+        sched = fetch(session, "schedule.aspx", {"teamid": team_id})
+    except (BBApiError, requests.RequestException):
+        return []
+    out = []
+    for m in sched.findall(".//match"):
+        if m.get("type") in POWER_RANKING_EXCLUDED_MATCH_TYPES:
+            continue
+        away, home = m.find("awayTeam"), m.find("homeTeam")
+        if away is None or home is None:
+            continue
+        away_score, home_score = away.findtext("score"), home.findtext("score")
+        if away_score is None or home_score is None:
+            continue
+        matchid = m.get("id")
+        if not matchid:
+            continue
+        is_home = home.get("id") == team_id
+        team_score, opp_score = (home_score, away_score) if is_home else (away_score, home_score)
+        opp_id = away.get("id") if is_home else home.get("id")
         try:
-            sched = fetch(session, "schedule.aspx", {"teamid": team_id})
+            team_score, opp_score = int(team_score), int(opp_score)
+        except (TypeError, ValueError):
+            continue
+        out.append({"start": m.get("start", ""), "matchid": matchid, "type": m.get("type"),
+                     "opp_id": opp_id, "team_score": team_score, "opp_score": opp_score})
+    out.sort(key=lambda r: r["start"])
+    return out
+
+def compute_top_group_by_head_to_head(session, division_rows, top_n=6, max_iterations=5):
+    """Per Tom: season point differential should only count games between
+    top teams, not padding from blowouts against bottom-feeders. Bootstrapped
+    iteratively, since "who's a top team" and "diff against top teams only"
+    are circular: seed an initial group from naive season diff (already in
+    division_rows), recompute each team's average point diff using only
+    games against the CURRENT group's members, re-rank, and repeat until the
+    group stops changing - conferences here are small, so this converges in
+    a pass or two. A team with no games yet against the current group falls
+    back to its naive season diff, ranked strictly below every team that
+    does have a real head-to-head number (never blended into the same
+    number - a per-game head-to-head diff and a season cumulative diff are
+    different units). Each team's full-season match list is fetched once
+    and reused across every iteration and by the caller (no repeated API
+    calls). Returns (ranked_team_dicts, schedules_by_team_id)."""
+    teams = [r for r in division_rows if r.get("id")]
+    schedules = {t["id"]: _fetch_finished_matches(session, t["id"]) for t in teams}
+    by_id = {t["id"]: t for t in teams}
+
+    def group_diff(team_id, current_group):
+        games = [m for m in schedules.get(team_id, []) if m["opp_id"] in current_group]
+        if not games:
+            return None
+        return sum(m["team_score"] - m["opp_score"] for m in games) / len(games)
+
+    def rank_key(team_id, current_group):
+        d = group_diff(team_id, current_group)
+        if d is not None:
+            return (1, d)
+        naive = by_id[team_id].get("diff")
+        return (0, naive if naive is not None else -9999)
+
+    naive_ranked = sorted(teams, key=lambda t: t.get("diff_rank") if t.get("diff_rank") is not None else 999)
+    group = {t["id"] for t in naive_ranked[:top_n]}
+    for _ in range(max_iterations):
+        keyed = {t["id"]: rank_key(t["id"], group) for t in teams}
+        new_group = {tid for tid, _ in sorted(keyed.items(), key=lambda kv: kv[1], reverse=True)[:top_n]}
+        if new_group == group:
+            break
+        group = new_group
+
+    final_keyed = {tid: rank_key(tid, group) for tid in group}
+    ranked_ids = sorted(final_keyed, key=lambda tid: final_keyed[tid], reverse=True)
+    out = []
+    for tid in ranked_ids:
+        used_fallback, value = final_keyed[tid]
+        out.append({**by_id[tid], "head_to_head_diff": value if used_fallback == 1 else None,
+                     "used_fallback_diff": used_fallback == 0})
+    return out, schedules
+
+BIG_HIRE_SALARY_MULTIPLIER = 2.0
+
+def detect_big_hires(session, conn, division_rows, run_date):
+    """Per Tom: a team making a big-money signing should show up on the
+    radar immediately, even before it shows up in results. There's no
+    transfer/bidding endpoint in the BuzzerBeater API for other teams'
+    activity, so this is inferred indirectly - diffing each conference
+    team's roster.aspx against what was last observed here, and flagging
+    any newly-appeared player whose salary is at least
+    BIG_HIRE_SALARY_MULTIPLIER times that team's own PRE-signing median
+    salary (the previous snapshot's roster, not the post-signing one - using
+    the post-signing roster would let a marquee hire dilute its own
+    baseline). A team's first-ever observation only seeds the baseline -
+    nothing to diff against yet - same as the own-team roster tracker."""
+    events = []
+    for team in division_rows:
+        team_id = team.get("id")
+        if not team_id:
+            continue
+        try:
+            roster_root = fetch(session, "roster.aspx", {"teamid": team_id})
         except (BBApiError, requests.RequestException):
             continue
-        finished = []
-        for m in sched.findall(".//match"):
-            if m.get("type") in POWER_RANKING_EXCLUDED_MATCH_TYPES:
+        current = {}
+        for p in roster_root.findall(".//player"):
+            pid = p.get("id")
+            if not pid:
                 continue
-            away, home = m.find("awayTeam"), m.find("homeTeam")
-            away_score = away.findtext("score") if away is not None else None
-            home_score = home.findtext("score") if home is not None else None
-            if away_score is None or home_score is None:
-                continue
-            matchid = m.get("id")
-            if not matchid:
-                continue
-            finished.append((m.get("start", ""), matchid, m.get("type")))
-        finished.sort()
+            try: salary = float(p.findtext("salary"))
+            except (TypeError, ValueError): salary = None
+            name = f"{p.findtext('firstName') or ''} {p.findtext('lastName') or ''}".strip()
+            current[pid] = {"name": name, "salary": salary}
+        previous = load_opponent_roster(conn, team_id)
+        if previous is not None:
+            baseline = sorted(v["salary"] for v in previous.values() if v.get("salary") is not None)
+            if len(baseline) >= 3:
+                mid = len(baseline) // 2
+                median_salary = baseline[mid] if len(baseline) % 2 else (baseline[mid - 1] + baseline[mid]) / 2
+                if median_salary > 0:
+                    for pid, info in current.items():
+                        if pid in previous or info["salary"] is None:
+                            continue
+                        if info["salary"] >= BIG_HIRE_SALARY_MULTIPLIER * median_salary:
+                            events.append({"team_id": team_id, "team_name": team.get("name"),
+                                           "player_name": info["name"], "salary": info["salary"],
+                                           "roster_median_salary": median_salary, "date": run_date})
+        save_opponent_roster(conn, team_id, current)
+    conn.commit()
+    return events
+
+RATING_CATEGORY_KEYS = ("outside_scoring", "inside_scoring", "outside_defense", "inside_defense", "rebounding", "offensive_flow")
+RATING_LABELS = {"outside_scoring": "Outside Scoring", "inside_scoring": "Inside Scoring",
+                  "outside_defense": "Outside Defense", "inside_defense": "Inside Defense",
+                  "rebounding": "Rebounding", "offensive_flow": "Offensive Flow"}
+OUTLIER_Z_THRESHOLD = 1.25
+
+def compute_ratings_watchlist(rankings):
+    """Two per-category views over the current power-rankings pool. Per
+    Tom, outliers are top priority: teams whose rating in one category is
+    unusual relative to the *other ranked teams* in that same category
+    (a z-score across the pool), not just their own strongest stat - a
+    real standout strength or weakness worth knowing about. Category
+    leaders (which team is simply #1 in each rating) are the secondary,
+    lower-priority view."""
+    outliers, leaders = [], []
+    for cat in RATING_CATEGORY_KEYS:
+        vals = [(r, r[cat]) for r in rankings if r.get(cat) is not None]
+        if len(vals) < 2:
+            continue
+        mean = sum(v for _, v in vals) / len(vals)
+        variance = sum((v - mean) ** 2 for _, v in vals) / len(vals)
+        stdev = variance ** 0.5
+        if stdev > 0:
+            for r, v in vals:
+                z = (v - mean) / stdev
+                if abs(z) >= OUTLIER_Z_THRESHOLD:
+                    outliers.append({"team": r["name"], "is_us": r.get("is_us", False), "category": cat, "value": v, "z": z})
+        best_team, best_val = max(vals, key=lambda rv: rv[1])
+        leaders.append({"category": cat, "team": best_team["name"], "is_us": best_team.get("is_us", False), "value": best_val})
+    outliers.sort(key=lambda o: -abs(o["z"]))
+    return {"outliers": outliers[:6], "leaders": leaders}
+
+def fetch_division_power_rankings(session, conn, division_rows, top_n=6, recent_n=5):
+    """Recent-form power rankings for the top `top_n` teams in our
+    division/conference, selected by head-to-head point differential among
+    top teams (see compute_top_group_by_head_to_head), then rated using
+    each team's actual boxscore ratings (scoring/defense/rebounding/flow)
+    over their last `recent_n` finished games - a recent-form signal,
+    distinct from the season-long standings table shown elsewhere.
+    Boxscores are fetched once per (matchid, team) and cached in
+    match_ratings forever after (a finished game's ratings never change),
+    so a team's history only grows by the handful of matches played since
+    the last run, not re-fetched from scratch every day."""
+    group, schedules = compute_top_group_by_head_to_head(session, division_rows, top_n=top_n)
+    rankings = []
+    for team in group:
+        team_id = team["id"]
+        finished = schedules.get(team_id, [])
         recent_matches = finished[-recent_n:]
-        cached = load_cached_match_ratings(conn, team_id, [mid for _, mid, _ in recent_matches])
+        cached = load_cached_match_ratings(conn, team_id, [m["matchid"] for m in recent_matches])
         rows = []
-        for start, matchid, mtype in recent_matches:
-            row = cached.get(matchid)
+        for m in recent_matches:
+            row = cached.get(m["matchid"])
             if row is None:
                 try:
-                    box = fetch(session, "boxscore.aspx", {"matchid": matchid})
+                    box = fetch(session, "boxscore.aspx", {"matchid": m["matchid"]})
                 except (BBApiError, requests.RequestException):
                     continue
-                parsed = _parse_boxscore_team_rating(box, team_id, mtype)
+                parsed = _parse_boxscore_team_rating(box, team_id, m["type"])
                 if parsed is None:
                     continue
-                row = {**parsed, "match_date": start[:10]}
-                save_match_rating(conn, matchid, team_id, row)
+                row = {**parsed, "match_date": m["start"][:10]}
+                save_match_rating(conn, m["matchid"], team_id, row)
             rows.append(row)
         if not rows:
             continue
@@ -2057,15 +2287,15 @@ def fetch_division_power_rankings(session, conn, division_rows, top_n=6, recent_
             vals = [r[key] for r in rows if r.get(key) is not None]
             return sum(vals) / len(vals) if vals else None
 
-        cat_avgs = {tag: avg(tag) for tag in
-                    ("outside_scoring", "inside_scoring", "outside_defense", "inside_defense", "rebounding", "offensive_flow")}
+        cat_avgs = {tag: avg(tag) for tag in RATING_CATEGORY_KEYS}
         composite_vals = [v for v in cat_avgs.values() if v is not None]
         composite = sum(composite_vals) / len(composite_vals) if composite_vals else None
         wins = sum(1 for r in rows if r.get("team_score") is not None and r.get("opp_score") is not None and r["team_score"] > r["opp_score"])
         losses = sum(1 for r in rows if r.get("team_score") is not None and r.get("opp_score") is not None and r["team_score"] < r["opp_score"])
         rankings.append({
             "team_id": team_id, "name": team["name"], "is_us": team.get("is_us", False),
-            "season_diff_rank": team.get("diff_rank"), "games_used": len(rows),
+            "season_diff_rank": team.get("diff_rank"), "head_to_head_diff": team.get("head_to_head_diff"),
+            "used_fallback_diff": team.get("used_fallback_diff"), "games_used": len(rows),
             "recent_record": f"{wins}-{losses}", "composite": composite, **cat_avgs,
         })
     rankings.sort(key=lambda r: (r["composite"] if r["composite"] is not None else -999), reverse=True)
@@ -2090,6 +2320,11 @@ def build_report(session, conn, team_key):
         data["power_rankings"] = fetch_division_power_rankings(session, conn, data["division_rows"])
     except (BBApiError, requests.RequestException):
         data["power_rankings"] = []
+    data["ratings_watchlist"] = compute_ratings_watchlist(data["power_rankings"])
+    try:
+        data["big_hires"] = detect_big_hires(session, conn, data["division_rows"], data["now"][:10])
+    except (BBApiError, requests.RequestException):
+        data["big_hires"] = []
     # Only overwrite the persisted roster snapshot after a fully successful
     # run, so a failed run can't corrupt the diff baseline for next time.
     save_roster_xml(conn, team_key, roster)

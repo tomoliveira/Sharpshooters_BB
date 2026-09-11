@@ -191,18 +191,34 @@ fragment:
   season") - persisted in the same `state.ledger_json` blob as the
   investment ledger, under `skill_pops`. Season totals only cover time
   since this tracking started, not retroactively.
-- **League power rankings** - the top 6 teams in your conference by season
-  point differential, re-ranked by recent-form boxscore ratings (outside/
-  inside scoring, outside/inside defense, rebounding, offensive flow -
-  averaged over each team's last up to 5 competitive games: league, cup,
-  playoffs, TV-flagged league games, B3; friendlies and BBM scrimmages
-  excluded). A different cut than the season-long standings shown
-  elsewhere. Each finished game's boxscore is fetched once and cached
-  forever in the `match_ratings` table (keyed by matchid + team) - only
-  matches played since the last run ever trigger a new `boxscore.aspx`
-  call. Player injuries aren't exposed anywhere in the BuzzerBeater API, so
-  they're not part of this - check a team's roster page by hand if that
-  matters.
+- **League power rankings** - the top 6 teams in your conference, selected
+  by head-to-head point differential *among top teams only* rather than
+  raw season diff (which a top team can pad by blowing out bottom-feeders).
+  Bootstrapped iteratively in `compute_top_group_by_head_to_head`: seed a
+  group from naive season diff, recompute each team's average point diff
+  using only games against the current group, re-rank, repeat until the
+  group stops changing. A team with no games yet against the group falls
+  back to its season diff (flagged with a `*` in the table). The selected
+  group is then rated by recent-form boxscore ratings (outside/inside
+  scoring, outside/inside defense, rebounding, offensive flow - averaged
+  over each team's last up to 5 competitive games: league, cup, playoffs,
+  TV-flagged league games, B3; friendlies and BBM scrimmages excluded).
+  Each finished game's boxscore is fetched once and cached forever in the
+  `match_ratings` table (keyed by matchid + team) - only matches played
+  since the last run ever trigger a new `boxscore.aspx` call.
+  - **Teams to watch**, above the ranked table, in priority order: **new
+    big hires** (there's no transfer/bidding API for other teams, so this
+    is inferred by diffing each conference team's `roster.aspx` against
+    what was last seen and flagging a newly-appeared player paid at least
+    2x that team's prior roster median - disclaimed as inferred, not
+    confirmed, in the UI itself), then **outlier ratings** (a team's
+    category value more than 1.25 population standard deviations from the
+    ranked pool's mean in that category - a real standout strength or
+    weakness, not just that team's own best stat), then **category
+    leaders** (whichever team is simply #1 in each of the 6 rating
+    categories). Player injuries aren't exposed anywhere in the
+    BuzzerBeater API, so they're not part of any of this - check a team's
+    roster page by hand if that matters.
 
 ## What's live vs. manual
 
