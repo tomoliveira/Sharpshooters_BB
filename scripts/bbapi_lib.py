@@ -1209,7 +1209,11 @@ def auto_recommendations_html(data):
 def _financial_changes_html(data):
     """This week vs. last week's category-level revenue/expense movers, plus
     (once a prior snapshot exists to diff against) how the season-end
-    projection has moved since yesterday's run."""
+    projection has moved since yesterday's run. Per Tom: one-time capital
+    categories (player/staff acquisitions, arena expansions) don't belong
+    here - they're investments, tracked in full on the Investments tab -
+    so they're excluded the same way the season projection's run rate
+    already excludes them (see PROJECTION_EXCLUDED_CATEGORIES/KEYWORDS)."""
     weeks = data["economy"]["weeks"]
     this_week = next((w for w in weeks if w["label"] == "This week"), None)
     last_week = next((w for w in weeks if w["label"] == "Last week"), None)
@@ -1218,6 +1222,11 @@ def _financial_changes_html(data):
     cats = set(this_week["totals"]) | set(last_week["totals"])
     deltas = []
     for cat in cats:
+        if cat in PROJECTION_EXCLUDED_CATEGORIES:
+            continue
+        label = humanize(cat)
+        if any(kw in label for kw in PROJECTION_EXCLUDED_KEYWORDS):
+            continue
         try:
             cur = float(this_week["totals"].get(cat, 0.0))
             prev = float(last_week["totals"].get(cat, 0.0))
