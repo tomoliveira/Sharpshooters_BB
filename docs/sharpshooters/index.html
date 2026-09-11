@@ -273,7 +273,7 @@
   .price-range { font-family: 'IBM Plex Mono'; font-size: 11.5px; color: var(--ink-faint); text-align: right; }
   /* label + value only, no track (e.g. "before automated tracking began") */
   .price-bar.price-bar--lv { grid-template-columns: 1fr 140px; }
-  @media (max-width: 480px) {
+  @media (max-width: 640px) {
     .price-bar.price-bar--lv { grid-template-columns: 1fr; grid-template-areas: none; row-gap: 2px; }
     .price-bar.price-bar--lv .lbl { grid-area: auto; }
   }
@@ -291,8 +291,9 @@
   /* ---- narrow phones: the fixed label/value columns on bar-row and
      price-bar leave almost no room for the actual bar (e.g. 375px wide -
      260px of fixed columns = a near-invisible sliver) - stack label+value
-     on one line and let the bar itself take the full row width below. ---- */
-  @media (max-width: 480px) {
+     on one line and let the bar itself take the full row width below.
+     640px (not 480px) so this also covers larger phones. ---- */
+  @media (max-width: 640px) {
     .bar-row, .price-bar {
       grid-template-columns: 1fr auto;
       grid-template-areas: "lbl val" "track track";
