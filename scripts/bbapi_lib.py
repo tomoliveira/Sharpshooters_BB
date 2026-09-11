@@ -1273,17 +1273,22 @@ def _training_pops_html(data):
     week_start = pops.get("week_start")
 
     def skill_list(by_skill):
-        return ", ".join(f'{esc(skill)} {"+" if amt >= 0 else ""}{amt:g}'
-                          for skill, amt in sorted(by_skill.items(), key=lambda kv: -kv[1]))
+        return ", ".join(
+            f'<span style="color:var({"--positive" if amt >= 0 else "--negative"});">'
+            f'{esc(skill)} {"+" if amt >= 0 else ""}{amt:g}</span>'
+            for skill, amt in sorted(by_skill.items(), key=lambda kv: -kv[1])
+        )
 
     this_week = [p for p in players if p["this_week_pops"] or p["this_week_drops"]]
     if this_week:
         def week_summary(p):
             bits = []
             if p["this_week_pops"]:
-                bits.append(f'{p["this_week_pops"]} pop{"" if p["this_week_pops"] == 1 else "s"}')
+                bits.append(f'<span style="color:var(--positive);">{p["this_week_pops"]} '
+                            f'pop{"" if p["this_week_pops"] == 1 else "s"}</span>')
             if p["this_week_drops"]:
-                bits.append(f'{p["this_week_drops"]} drop{"" if p["this_week_drops"] == 1 else "s"}')
+                bits.append(f'<span style="color:var(--negative);">{p["this_week_drops"]} '
+                            f'drop{"" if p["this_week_drops"] == 1 else "s"}</span>')
             return " and ".join(bits)
         items = "".join(
             f'<li>{esc(p["name"])}: <b>{week_summary(p)}</b> &mdash; {skill_list(p["this_week_by_skill"])}</li>'
@@ -1297,8 +1302,10 @@ def _training_pops_html(data):
     season_players = [p for p in players if p["season_pops"] or p["season_drops"]]
     if season_players:
         rows = "".join(
-            f'<tr><td>{esc(p["name"])}</td><td class="num">{p["season_pops"]}</td>'
-            f'<td class="num">{p["season_drops"]}</td><td>{skill_list(p["season_by_skill"])}</td></tr>'
+            f'<tr><td>{esc(p["name"])}</td>'
+            f'<td class="num" style="color:var(--positive);">{p["season_pops"]}</td>'
+            f'<td class="num" style="color:var(--negative);">{p["season_drops"]}</td>'
+            f'<td>{skill_list(p["season_by_skill"])}</td></tr>'
             for p in season_players
         )
         totals_block = ('<div class="tbl-scroll"><table style="min-width:0;"><thead><tr><th>Training cohort</th>'
@@ -1359,12 +1366,19 @@ def _teams_to_watch_html(data):
                 f'<span style="color:var(--negative);">&#9888; weakest: {esc(weak["team"])}{you_tag(weak["is_us"])} '
                 f'{weak["value"]:.1f} ({weak["z"]:+.1f}&sigma;)</span>' if weak else ''
             )
+            you_line = ""
+            if c.get("you_avg") is not None and not leader["is_us"]:
+                gap = c["you_gap"]  # leader's value minus our average; positive = leader ahead of us
+                gap_color = "var(--negative)" if gap > 0 else "var(--positive)"
+                gap_desc = f'leader +{gap:.1f} ahead' if gap > 0 else f'you +{-gap:.1f} ahead'
+                you_line = (f'<br><span style="color:var(--ink-faint);">You (avg): {c["you_avg"]:.1f} '
+                            f'<span style="color:{gap_color};">({gap_desc})</span></span>')
             return (
                 '<div class="stat-card">'
                 f'<div class="label">{RATING_ICONS.get(c["category"], "")} {esc(c["label"])}</div>'
                 f'<div class="value" style="font-size:18px;">{"&#9889; " if leader["is_outlier"] else ""}'
                 f'{esc(leader["team"])}{you_tag(leader["is_us"])} &middot; {leader["value"]:.1f}</div>'
-                f'<div class="foot">{runner_lines}{weak_line}</div></div>'
+                f'<div class="foot">{runner_lines}{weak_line}{you_line}</div></div>'
             )
         parts.append(
             '<p style="margin:0 0 4px;"><b>Outlier &amp; top ratings</b></p>'
@@ -2302,7 +2316,7 @@ OUTLIER_Z_THRESHOLD = 1.25
 RATING_ICONS = {"outside_scoring": "\U0001F3AF", "inside_scoring": "\U0001F3C0", "outside_defense": "\U0001F9F1",
                  "inside_defense": "\U0001F6E1", "rebounding": "\U0001F504", "offensive_flow": "\U0001F30A"}
 
-def compute_ratings_watchlist(rankings):
+def compute_ratings_watchlist(rankings, our_overall_avg=None):
     """One card per rating category over the current power-rankings pool.
     Per Tom: outliers are top priority - each card's leader is flagged as a
     statistical outlier when its value is unusual relative to the *other
@@ -2311,7 +2325,11 @@ def compute_ratings_watchlist(rankings):
     secondary view: the #1 team is shown emphasized with the next two
     teams as runners-up. A team that's a severe NEGATIVE outlier in a
     category (notably worse than the pool, not just last-place) is called
-    out too, separately from the leader/runners-up."""
+    out too, separately from the leader/runners-up. `our_overall_avg` -
+    our own team's average rating across all 6 categories, over our own
+    last few games, computed independently of whether we're even in this
+    ranked pool (see build_report) - is attached to every card so the
+    leader's value always has something of ours to compare against."""
     cards = []
     for cat in RATING_CATEGORY_KEYS:
         vals = [(r, r[cat]) for r in rankings if r.get(cat) is not None]
@@ -2341,8 +2359,55 @@ def compute_ratings_watchlist(rankings):
             "leader": {"team": leader_team["name"], "is_us": leader_team.get("is_us", False), "value": leader_val,
                        "is_outlier": z_of(leader_val) >= OUTLIER_Z_THRESHOLD},
             "runners_up": runners_up, "weak_outlier": weak_outlier,
+            "you_avg": our_overall_avg,
+            "you_gap": (leader_val - our_overall_avg) if our_overall_avg is not None else None,
         })
     return {"cards": cards}
+
+def _rate_team_recent_form(session, conn, team, schedules, recent_n=5):
+    """Average boxscore ratings (+ W-L) over a team's last `recent_n`
+    finished games, from an already-fetched schedules dict (see
+    compute_top_group_by_head_to_head). Shared by fetch_division_power_
+    rankings (for the top-N group) and by build_report to rate our OWN
+    team even when we're not in that top-N group - "vs. your average" in
+    the watchlist needs something to compare against regardless of where
+    we sit in the standings. Returns None if no rated games are found."""
+    team_id = team["id"]
+    finished = schedules.get(team_id, [])
+    recent_matches = finished[-recent_n:]
+    cached = load_cached_match_ratings(conn, team_id, [m["matchid"] for m in recent_matches])
+    rows = []
+    for m in recent_matches:
+        row = cached.get(m["matchid"])
+        if row is None:
+            try:
+                box = fetch(session, "boxscore.aspx", {"matchid": m["matchid"]})
+            except (BBApiError, requests.RequestException):
+                continue
+            parsed = _parse_boxscore_team_rating(box, team_id, m["type"])
+            if parsed is None:
+                continue
+            row = {**parsed, "match_date": m["start"][:10]}
+            save_match_rating(conn, m["matchid"], team_id, row)
+        rows.append(row)
+    if not rows:
+        return None
+
+    def avg(key):
+        vals = [r[key] for r in rows if r.get(key) is not None]
+        return sum(vals) / len(vals) if vals else None
+
+    cat_avgs = {tag: avg(tag) for tag in RATING_CATEGORY_KEYS}
+    composite_vals = [v for v in cat_avgs.values() if v is not None]
+    composite = sum(composite_vals) / len(composite_vals) if composite_vals else None
+    wins = sum(1 for r in rows if r.get("team_score") is not None and r.get("opp_score") is not None and r["team_score"] > r["opp_score"])
+    losses = sum(1 for r in rows if r.get("team_score") is not None and r.get("opp_score") is not None and r["team_score"] < r["opp_score"])
+    return {
+        "team_id": team_id, "name": team["name"], "is_us": team.get("is_us", False),
+        "season_diff_rank": team.get("diff_rank"), "head_to_head_diff": team.get("head_to_head_diff"),
+        "used_fallback_diff": team.get("used_fallback_diff"), "games_used": len(rows),
+        "recent_record": f"{wins}-{losses}", "composite": composite, **cat_avgs,
+    }
 
 def fetch_division_power_rankings(session, conn, division_rows, top_n=6, recent_n=5):
     """Recent-form power rankings for the top `top_n` teams in our
@@ -2358,42 +2423,9 @@ def fetch_division_power_rankings(session, conn, division_rows, top_n=6, recent_
     group, schedules = compute_top_group_by_head_to_head(session, division_rows, top_n=top_n)
     rankings = []
     for team in group:
-        team_id = team["id"]
-        finished = schedules.get(team_id, [])
-        recent_matches = finished[-recent_n:]
-        cached = load_cached_match_ratings(conn, team_id, [m["matchid"] for m in recent_matches])
-        rows = []
-        for m in recent_matches:
-            row = cached.get(m["matchid"])
-            if row is None:
-                try:
-                    box = fetch(session, "boxscore.aspx", {"matchid": m["matchid"]})
-                except (BBApiError, requests.RequestException):
-                    continue
-                parsed = _parse_boxscore_team_rating(box, team_id, m["type"])
-                if parsed is None:
-                    continue
-                row = {**parsed, "match_date": m["start"][:10]}
-                save_match_rating(conn, m["matchid"], team_id, row)
-            rows.append(row)
-        if not rows:
-            continue
-
-        def avg(key):
-            vals = [r[key] for r in rows if r.get(key) is not None]
-            return sum(vals) / len(vals) if vals else None
-
-        cat_avgs = {tag: avg(tag) for tag in RATING_CATEGORY_KEYS}
-        composite_vals = [v for v in cat_avgs.values() if v is not None]
-        composite = sum(composite_vals) / len(composite_vals) if composite_vals else None
-        wins = sum(1 for r in rows if r.get("team_score") is not None and r.get("opp_score") is not None and r["team_score"] > r["opp_score"])
-        losses = sum(1 for r in rows if r.get("team_score") is not None and r.get("opp_score") is not None and r["team_score"] < r["opp_score"])
-        rankings.append({
-            "team_id": team_id, "name": team["name"], "is_us": team.get("is_us", False),
-            "season_diff_rank": team.get("diff_rank"), "head_to_head_diff": team.get("head_to_head_diff"),
-            "used_fallback_diff": team.get("used_fallback_diff"), "games_used": len(rows),
-            "recent_record": f"{wins}-{losses}", "composite": composite, **cat_avgs,
-        })
+        rated = _rate_team_recent_form(session, conn, team, schedules, recent_n)
+        if rated is not None:
+            rankings.append(rated)
     rankings.sort(key=lambda r: (r["composite"] if r["composite"] is not None else -999), reverse=True)
     for i, r in enumerate(rankings, start=1):
         r["power_rank"] = i
@@ -2416,7 +2448,22 @@ def build_report(session, conn, team_key):
         data["power_rankings"] = fetch_division_power_rankings(session, conn, data["division_rows"])
     except (BBApiError, requests.RequestException):
         data["power_rankings"] = []
-    data["ratings_watchlist"] = compute_ratings_watchlist(data["power_rankings"])
+    # Our own recent-form rating average, independent of whether we're
+    # actually in the top-N power-rankings group above (we often aren't) -
+    # per Tom, the outlier cards should show the category leader's rating
+    # against "my own average" regardless of standing.
+    our_rating = next((r for r in data["power_rankings"] if r.get("is_us")), None)
+    if our_rating is None:
+        try:
+            our_team_row = next((t for t in data["division_rows"] if t.get("is_us")), None)
+            if our_team_row:
+                our_schedule = {our_team_id: _fetch_finished_matches(session, our_team_id)}
+                our_rating = _rate_team_recent_form(session, conn, our_team_row, our_schedule)
+        except (BBApiError, requests.RequestException):
+            our_rating = None
+    our_cat_vals = [our_rating[k] for k in RATING_CATEGORY_KEYS if our_rating and our_rating.get(k) is not None] if our_rating else []
+    our_overall_avg = sum(our_cat_vals) / len(our_cat_vals) if our_cat_vals else None
+    data["ratings_watchlist"] = compute_ratings_watchlist(data["power_rankings"], our_overall_avg)
     try:
         data["big_hires"] = detect_big_hires(session, conn, data["division_rows"], data["now"][:10])
     except (BBApiError, requests.RequestException):
