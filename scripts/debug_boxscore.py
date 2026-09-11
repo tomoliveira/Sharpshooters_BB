@@ -21,14 +21,23 @@ def main():
     our_team_id = teaminfo.find(".//team").get("id")
     dump(teaminfo, "teaminfo.aspx (own team)")
 
+    def finished_matches(schedule_root):
+        out = []
+        for m in schedule_root.findall(".//match"):
+            away, home = m.find("awayTeam"), m.find("homeTeam")
+            away_score = away.findtext("score") if away is not None else None
+            home_score = home.findtext("score") if home is not None else None
+            if away_score is not None and home_score is not None:
+                out.append(m)
+        return out
+
     schedule = lib.fetch(session, "schedule.aspx")
-    matches = schedule.findall(".//match")
-    finished = [m for m in matches if m.findtext("homeScore") not in (None, "")]
+    finished = finished_matches(schedule)
     print(f"\nfound {len(finished)} finished matches for own team")
     if finished:
         last = finished[-1]
-        matchid = last.get("id") or last.findtext("id")
-        print(f"last finished match id={matchid} start={last.get('start')}")
+        matchid = last.get("id")
+        print(f"last finished match id={matchid} start={last.get('start')} type={last.get('type')}")
         box = lib.fetch(session, "boxscore.aspx", {"matchid": matchid})
         dump(box, f"boxscore.aspx matchid={matchid} (own team's match)")
 
@@ -45,12 +54,12 @@ def main():
         print(f"\nusing other team id={other_team_id} ({other_team_name}) for schedule.aspx?teamid=")
         other_schedule = lib.fetch(session, "schedule.aspx", {"teamid": other_team_id})
         dump(other_schedule, f"schedule.aspx teamid={other_team_id}")
-        other_matches = other_schedule.findall(".//match")
-        other_finished = [m for m in other_matches if m.findtext("homeScore") not in (None, "")]
+        other_finished = finished_matches(other_schedule)
+        print(f"found {len(other_finished)} finished matches for other team")
         if other_finished:
             om = other_finished[-1]
-            omid = om.get("id") or om.findtext("id")
-            print(f"other team's last finished match id={omid}")
+            omid = om.get("id")
+            print(f"other team's last finished match id={omid} type={om.get('type')}")
             obox = lib.fetch(session, "boxscore.aspx", {"matchid": omid})
             dump(obox, f"boxscore.aspx matchid={omid} (OTHER team's match)")
 
