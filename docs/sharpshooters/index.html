@@ -405,7 +405,7 @@
   .masthead-btn:hover { color: var(--ink); border-color: var(--accent); }
   .masthead-btn:disabled { opacity: 0.6; cursor: default; }
   .masthead-btn .icon { font-size: 13px; line-height: 1; }
-  #gh-refresh-status { font-size: 11.5px; max-width: 300px; text-align: right; min-height: 1.4em; }
+  #gh-refresh-status { font-size: 11.5px; max-width: 380px; text-align: right; min-height: 1.4em; line-height: 1.4; }
 </style>
 </head>
 <body>
@@ -913,12 +913,16 @@
       );
       if (resp.status === 204) {
         ssbbSetRefreshStatus("Triggered — new data in ~1-2 min. Reload this page after that.");
-      } else if (resp.status === 401 || resp.status === 403) {
-        try { localStorage.removeItem(GH_TOKEN_KEY); } catch (e) {}
-        ssbbSetRefreshStatus("Token rejected (" + resp.status + ") - it's been cleared. Click Update now again to enter a new one.", true);
       } else {
         var bodyText = await resp.text();
-        ssbbSetRefreshStatus("Failed (" + resp.status + "): " + bodyText.slice(0, 150), true);
+        var ghMessage = bodyText;
+        try { ghMessage = JSON.parse(bodyText).message || bodyText; } catch (e) {}
+        if (resp.status === 401 || resp.status === 403) {
+          try { localStorage.removeItem(GH_TOKEN_KEY); } catch (e) {}
+          ssbbSetRefreshStatus("Rejected (" + resp.status + "): " + ghMessage.slice(0, 200) + " — token cleared, click Update now to try a different one.", true);
+        } else {
+          ssbbSetRefreshStatus("Failed (" + resp.status + "): " + ghMessage.slice(0, 200), true);
+        }
       }
     } catch (err) {
       ssbbSetRefreshStatus("Network error: " + err.message, true);
