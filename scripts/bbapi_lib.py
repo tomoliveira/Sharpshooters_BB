@@ -1060,6 +1060,38 @@ def auto_schedule_standings_html(data):
                        f'<th class="num">W-L</th></tr></thead><tbody>{rows_html}</tbody></table></div>')
     return schedule_html + standings_html
 
+# Categories excluded from the season-end projection's run rate: one-time
+# capital costs (per Tom) rather than steady-state weekly finances - a
+# player/staff hiring bonus or an arena expansion shouldn't be treated as
+# "this is what a typical week costs from here on." Matched by exact tag
+# where known, plus a keyword catch-all for any hiring-bonus-style category
+# whose exact tag hasn't been observed yet (only "transfer" and
+# "arenaExpansion" have actually shown up in this team's ledger so far).
+PROJECTION_EXCLUDED_CATEGORIES = {"transfer", "arenaExpansion"}
+PROJECTION_EXCLUDED_KEYWORDS = ("bonus",)
+
+def _recurring_net_change(week):
+    """Sum of a week's category totals, excluding one-time capital
+    categories - NOT the same as final-initial (which includes them); that
+    real total is still shown elsewhere (e.g. the weekly breakdown cards)
+    unfiltered. Returns None if the week has no usable totals at all."""
+    if not week:
+        return None
+    total = 0.0
+    seen_any = False
+    for cat, amt in (week.get("totals") or {}).items():
+        if cat in PROJECTION_EXCLUDED_CATEGORIES:
+            continue
+        label = humanize(cat)
+        if any(kw in label for kw in PROJECTION_EXCLUDED_KEYWORDS):
+            continue
+        try:
+            total += float(amt)
+            seen_any = True
+        except (TypeError, ValueError):
+            continue
+    return total if seen_any else None
+
 def auto_season_projection_html(data):
     weeks = data["economy"]["weeks"]
     this_week = next((w for w in weeks if w["label"] == "This week"), None)
@@ -1068,13 +1100,12 @@ def auto_season_projection_html(data):
         return '<p class="block-note">No economy data returned.</p>'
     try:
         current_cash = float(this_week["final"])
-        this_week_net = float(this_week["final"]) - float(this_week["initial"])
     except (TypeError, ValueError):
         return '<p class="block-note">Current cash balance not available.</p>'
-    try:
-        last_week_net = (float(last_week["final"]) - float(last_week["initial"])) if last_week else None
-    except (TypeError, ValueError):
-        last_week_net = None
+    this_week_net = _recurring_net_change(this_week)
+    last_week_net = _recurring_net_change(last_week)
+    if this_week_net is None:
+        return '<p class="block-note">No usable category breakdown for this week yet.</p>'
 
     # Derived from the schedule's last currently-known match (see
     # extract_data) - falls back to a hand-maintained config value only if
@@ -1108,24 +1139,27 @@ def auto_season_projection_html(data):
         f'<div class="foot">of {SEASON_TOTAL_MONDAYS} Monday resets — {source_note}</div></div>'
         f'<div class="stat-card{" alert" if primary_class == "neg" else ""}"><div class="label">Projected season-end cash</div>'
         f'<div class="value {primary_class}">{money_html(projected_primary)}</div>'
-        f'<div class="foot">at this week\'s run rate ({money_html(this_week_net)}/wk)</div></div>'
+        f'<div class="foot">at this week\'s recurring run rate ({money_html(this_week_net)}/wk)</div></div>'
     )
     if projected_avg is not None:
         avg_class = "pos" if projected_avg >= 0 else "neg"
         stat_row += (
             f'<div class="stat-card"><div class="label">…using the 2-week average instead</div>'
             f'<div class="value {avg_class}">{money_html(projected_avg)}</div>'
-            f'<div class="foot">run rate {money_html(avg_net)}/wk</div></div>'
+            f'<div class="foot">recurring run rate {money_html(avg_net)}/wk</div></div>'
         )
     stat_row += '</div>'
 
     caveat = (
         '<p class="block-note" style="margin-top:10px;"><span class="tag tag-calc">Calculated</span> '
         f'Projects forward at a flat weekly run rate across the {weeks_left} remaining Monday resets - this week\'s '
-        'net change is the primary estimate, the 2-week average shown alongside for context. Neither knows about '
-        'one-time events that haven\'t happened yet (a transfer, an arena expansion, a scouting spend) or ones '
-        'already reflected in a recent week that won\'t repeat (e.g. a capex payment). Treat this as a rough '
-        'steady-state extrapolation, not a guarantee. '
+        'recurring net change is the primary estimate, the 2-week average shown alongside for context. '
+        '<b style="color:var(--ink)">Excludes player/staff hiring bonuses (transfers) and arena expansion costs</b> '
+        'from the run rate itself - those are one-time capital events, not representative of a typical week, and '
+        'would otherwise badly skew the projection (they still show up in full in the weekly breakdown and ledger '
+        'above, just not counted toward this rate). It still doesn\'t know about one-time events that haven\'t '
+        'happened yet (a new transfer, another expansion, a scouting spend). Treat this as a rough steady-state '
+        'extrapolation, not a guarantee. '
         '<span class="tag tag-rec">[Inference]</span> Weeks remaining reflects only matches already listed on the '
         'schedule as of this run - if the league adds more fixtures later (e.g. a deep cup or playoff run extending '
         'the season), this number will grow to match on the next refresh, and today\'s projection would have been '
