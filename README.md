@@ -81,6 +81,22 @@ Actions tab → "Daily BuzzerBeater update" → Run workflow (or just wait for
 the daily cron). Check `docs/report.db` got committed, then load the Pages
 URL.
 
+### 5. (Optional) Set up the "Update now" button's token
+
+The report page has an "Update now" button (top-right, next to Dark mode)
+that triggers `daily-update.yml` directly from the browser via GitHub's
+REST API. Since the repo and page are public, it can't ship a credential of
+its own - the first click prompts for a personal access token, which is
+saved only in that browser's `localStorage`, never committed anywhere.
+
+To create one: GitHub → Settings → Developer settings → Personal access
+tokens → **Fine-grained tokens** → Generate new token, scoped to just this
+repository, with **Actions: Read and write** permission and nothing else.
+Paste it when the button prompts. Shift-click the button to replace a
+saved token later (e.g. after rotating it). A rejected token (expired,
+revoked, wrong scope) clears itself automatically rather than silently
+retrying.
+
 ## Running the update script by hand
 
 ```bash
