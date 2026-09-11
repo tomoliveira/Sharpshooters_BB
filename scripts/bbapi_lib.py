@@ -1198,14 +1198,6 @@ def auto_recommendations_html(data):
             items.append((False, "Expenses outpaced income this week", "Net change: <b class=\"mono\" style=\"color:var(--negative)\">-" + money_html(abs(net_change)) + "</b>, balance now " + money_html(cash_now) + "."))
         else:
             items.append((False, "Cash position improved this week", "Net change: <b class=\"mono\" style=\"color:var(--positive)\">+" + money_html(net_change) + "</b>, balance now " + money_html(cash_now) + "."))
-    next_game = data["schedule"]["upcoming"][0] if data["schedule"]["upcoming"] else None
-    if next_game:
-        date = next_game["start"][:10]
-        is_home = next_game["home"] == data["team"]["name"]
-        if is_home:
-            items.append((False, "Home game coming up", esc(next_game["away"]) + " @ " + esc(next_game["home"]) + " on " + date + " — home gate revenue should help this week's finances."))
-        else:
-            items.append((False, "No home gate this week", "Next game (" + date + ") is away at " + esc(next_game["away"]) + " — confirmed revenue stays limited to TV until the next home date."))
     roster = data["roster"]
     if not roster["baseline"]:
         if roster["added"]:
