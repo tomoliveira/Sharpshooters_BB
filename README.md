@@ -172,6 +172,38 @@ more fixtures later (a deep cup or playoff run). A `season_weeks_remaining`
 value in team config is only consulted as a fallback, if the schedule ever
 returns no usable match date.
 
+## What I'd look at next
+
+Overview tab, below the flagged alert/recommendations list. Three
+auto-updated sub-sections, all part of the same `AUTO:RECOMMENDATIONS`
+fragment:
+
+- **Financial changes** - this week vs. last week's biggest revenue/expense
+  category movers, plus how the season-end projection has moved since
+  yesterday's snapshot (diffed against the previous row in `snapshots`,
+  since the projection's numeric result is itself stored in each
+  snapshot's `data_json` under `projection`).
+- **Training overview** - skill pops for the training cohort
+  (`config.json`'s `training_cohort`), tracked two ways: pops since the
+  last run, and a running season-to-date count per player. Real pops,
+  diffed from each run's observed skill values (not the API's own `pop`
+  flag on `roster.aspx`, which is too transient to answer "how many this
+  season") - persisted in the same `state.ledger_json` blob as the
+  investment ledger, under `skill_pops`. Season totals only cover time
+  since this tracking started, not retroactively.
+- **League power rankings** - the top 6 teams in your conference by season
+  point differential, re-ranked by recent-form boxscore ratings (outside/
+  inside scoring, outside/inside defense, rebounding, offensive flow -
+  averaged over each team's last up to 5 competitive games: league, cup,
+  playoffs, TV-flagged league games, B3; friendlies and BBM scrimmages
+  excluded). A different cut than the season-long standings shown
+  elsewhere. Each finished game's boxscore is fetched once and cached
+  forever in the `match_ratings` table (keyed by matchid + team) - only
+  matches played since the last run ever trigger a new `boxscore.aspx`
+  call. Player injuries aren't exposed anywhere in the BuzzerBeater API, so
+  they're not part of this - check a team's roster page by hand if that
+  matters.
+
 ## What's live vs. manual
 
 Every section tagged **"Auto-updated daily"** on the report page is filled

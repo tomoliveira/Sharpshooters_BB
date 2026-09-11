@@ -393,6 +393,42 @@ def build_training_cohort_cards(roster_root):
         })
     return cards
 
+def update_skill_pop_tracking(ledger, roster_root, run_date):
+    """Diffs each training-cohort player's rated-skill values against what
+    was observed on the previous run, and accumulates a running season-total
+    pop count in the ledger. Per Tom: this should reflect real pops observed
+    over the season, not just today's live roster.aspx 'pop' flag (that flag
+    is transient - it can't answer "how many pops so far this season"). A
+    player's first-ever observation only seeds the baseline; nothing to diff
+    against yet, so it can't count as a pop. Returns this run's pop events
+    (empty on a baseline-only run) for the "recent pops" summary."""
+    pops_state = ledger.setdefault("skill_pops", {})
+    recent_events = []
+    for pid, known_name in TRAINING_COHORT_IDS.items():
+        p = roster_root.find(f".//player[@id='{pid}']")
+        if p is None:
+            continue
+        skills = p.find("skills")
+        if skills is None:
+            continue
+        name = f"{p.findtext('firstName') or ''} {p.findtext('lastName') or ''}".strip() or known_name
+        entry = pops_state.setdefault(pid, {"name": name, "last_observed": {}, "season_total": 0})
+        entry["name"] = name
+        last_observed = entry["last_observed"]
+        for tag in SKILL_TAGS:
+            try:
+                current = float(skills.findtext(tag))
+            except (TypeError, ValueError):
+                continue
+            prev = last_observed.get(tag)
+            if prev is not None and current > prev:
+                delta = current - prev
+                entry["season_total"] += delta
+                recent_events.append({"playerid": pid, "name": name, "skill": humanize(tag),
+                                       "from": prev, "to": current, "date": run_date})
+            last_observed[tag] = current
+    return recent_events
+
 def build_roster_skills_table(roster_root):
     rows = []
     for p in roster_root.findall(".//player"):
@@ -439,7 +475,54 @@ def init_db(conn):
         roster_xml TEXT,
         ledger_json TEXT
     )""")
+    # One row per (matchid, team) - a finished league match's team ratings,
+    # indexed once and reused forever after (per Tom: don't re-fetch a
+    # finished game's boxscore on every daily run just to recompute the
+    # power rankings - only ever fetch matchids not already in here).
+    conn.execute("""CREATE TABLE IF NOT EXISTS match_ratings (
+        matchid TEXT NOT NULL,
+        team_id TEXT NOT NULL,
+        team_name TEXT,
+        opponent_name TEXT,
+        match_date TEXT,
+        match_type TEXT,
+        is_home INTEGER,
+        team_score INTEGER,
+        opp_score INTEGER,
+        outside_scoring REAL,
+        inside_scoring REAL,
+        outside_defense REAL,
+        inside_defense REAL,
+        rebounding REAL,
+        offensive_flow REAL,
+        PRIMARY KEY (matchid, team_id)
+    )""")
     conn.commit()
+
+def load_cached_match_ratings(conn, team_id, matchids):
+    if not matchids:
+        return {}
+    placeholders = ",".join("?" for _ in matchids)
+    rows = conn.execute(
+        f"SELECT matchid, team_name, opponent_name, match_date, match_type, is_home, team_score, opp_score, "
+        f"outside_scoring, inside_scoring, outside_defense, inside_defense, rebounding, offensive_flow "
+        f"FROM match_ratings WHERE team_id = ? AND matchid IN ({placeholders})",
+        [team_id, *matchids],
+    ).fetchall()
+    cols = ["team_name", "opponent_name", "match_date", "match_type", "is_home", "team_score", "opp_score",
+            "outside_scoring", "inside_scoring", "outside_defense", "inside_defense", "rebounding", "offensive_flow"]
+    return {r[0]: dict(zip(cols, r[1:])) for r in rows}
+
+def save_match_rating(conn, matchid, team_id, rating_row):
+    conn.execute(
+        "INSERT OR REPLACE INTO match_ratings (matchid, team_id, team_name, opponent_name, match_date, match_type, "
+        "is_home, team_score, opp_score, outside_scoring, inside_scoring, outside_defense, inside_defense, "
+        "rebounding, offensive_flow) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (matchid, team_id, rating_row["team_name"], rating_row["opponent_name"], rating_row["match_date"],
+         rating_row["match_type"], int(rating_row["is_home"]), rating_row["team_score"], rating_row["opp_score"],
+         rating_row["outside_scoring"], rating_row["inside_scoring"], rating_row["outside_defense"],
+         rating_row["inside_defense"], rating_row["rebounding"], rating_row["offensive_flow"]),
+    )
 
 def load_investment_ledger(conn, team_key):
     row = conn.execute("SELECT ledger_json FROM state WHERE team_key=?", (team_key,)).fetchone()
@@ -453,6 +536,7 @@ def load_investment_ledger(conn, team_key):
     ledger.setdefault("player_snapshots", {})
     ledger.setdefault("match_revenue", [])
     ledger.setdefault("arena_snapshots", [])
+    ledger.setdefault("skill_pops", {})
     return ledger
 
 def save_investment_ledger(conn, team_key, ledger):
@@ -740,7 +824,13 @@ def extract_data(conn, team_key, teaminfo, roster, economy, schedule, standings,
     data["economy"]["transactions"] = transactions
     ledger = load_investment_ledger(conn, team_key)
     ledger = update_investment_ledger(ledger, economy, roster, arena, data["now"][:10], our_team_id)
+    recent_pop_events = update_skill_pop_tracking(ledger, roster, data["now"][:10])
     save_investment_ledger(conn, team_key, ledger)
+    data["training_pops"] = {
+        "recent": recent_pop_events,
+        "season_totals": [{"playerid": pid, "name": e["name"], "season_total": round(e["season_total"], 1)}
+                           for pid, e in ledger["skill_pops"].items()],
+    }
     data["investments"] = build_investments_summary(ledger)
     data["investments"]["arena"] = build_arena_investment_summary(ledger)
     current_roster_ids = {p.get("id") for p in roster.findall(".//player") if p.get("id")}
@@ -802,7 +892,7 @@ def extract_data(conn, team_key, teaminfo, roster, economy, schedule, standings,
         for t in conf.findall("team"):
             try: diff = int(t.findtext("pf")) - int(t.findtext("pa"))
             except (TypeError, ValueError): diff = None
-            division_rows.append({"name": team_name(t), "wins": t.findtext("wins"), "losses": t.findtext("losses"),
+            division_rows.append({"id": t.get("id"), "name": team_name(t), "wins": t.findtext("wins"), "losses": t.findtext("losses"),
                                    "diff": diff, "is_us": t.get("id") == our_team_id})
     division_rows_ranked = sorted((r for r in division_rows if r["diff"] is not None), key=lambda r: -r["diff"])
     for i, r in enumerate(division_rows_ranked, start=1):
@@ -820,6 +910,26 @@ def extract_data(conn, team_key, teaminfo, roster, economy, schedule, standings,
         data["roster"]["baseline"] = True
         data["roster"]["added"] = []
         data["roster"]["removed"] = []
+
+    # Season-end projection, computed once here (not at render time) so its
+    # numeric result is itself persisted in this snapshot's data_json - that
+    # lets tomorrow's run diff against it to show "projection moved by $X
+    # since yesterday" without needing a separate history table.
+    data["projection"] = compute_season_projection(data)
+    prev_row = conn.execute(
+        "SELECT data_json FROM snapshots WHERE team_key = ? ORDER BY id DESC LIMIT 1", (team_key,)
+    ).fetchone()
+    if prev_row:
+        try:
+            prev_data = json.loads(prev_row[0])
+        except json.JSONDecodeError:
+            prev_data = None
+        if prev_data:
+            prev_proj = (prev_data.get("projection") or {}).get("projected_primary")
+            if prev_proj is not None and data["projection"].get("projected_primary") is not None:
+                data["projection"]["prev_primary"] = prev_proj
+                data["projection"]["change_vs_prev"] = data["projection"]["projected_primary"] - prev_proj
+
     return data
 
 def sorted_totals(totals):
@@ -1032,8 +1142,125 @@ def auto_recommendations_html(data):
     if items[0][0]:
         alert_html = '<div class="alert-card"><div class="eyebrow">' + esc(items[0][1]) + '</div><p><span class="tag tag-calc">Calculated</span>&nbsp; ' + items[0][2] + '</p></div>'
     rec_html = "".join('<div class="rec' + (' urgent' if urgent else '') + '"><div class="idx">' + str(i) + '</div><div><h3>' + esc(title) + '</h3><p><span class="tag tag-calc">Calculated</span> ' + body + '</p></div></div>' for i, (urgent, title, body) in enumerate(items, start=1))
-    return alert_html + '<section class="block" style="margin-top:8px;"><div class="block-head"><h2>What I\'d look at next</h2><span class="auto-badge">Auto-updated daily</span></div><div class="rec-list">' + rec_html + '</div></section>'
+    extras = _financial_changes_html(data) + _training_pops_html(data) + _power_rankings_html(data)
+    return (alert_html + '<section class="block" style="margin-top:8px;"><div class="block-head">'
+            '<h2>What I\'d look at next</h2><span class="auto-badge">Auto-updated daily</span></div>'
+            '<div class="rec-list">' + rec_html + '</div>' + extras + '</section>')
 
+def _financial_changes_html(data):
+    """This week vs. last week's category-level revenue/expense movers, plus
+    (once a prior snapshot exists to diff against) how the season-end
+    projection has moved since yesterday's run."""
+    weeks = data["economy"]["weeks"]
+    this_week = next((w for w in weeks if w["label"] == "This week"), None)
+    last_week = next((w for w in weeks if w["label"] == "Last week"), None)
+    if not this_week or not last_week:
+        return ""
+    cats = set(this_week["totals"]) | set(last_week["totals"])
+    deltas = []
+    for cat in cats:
+        try:
+            cur = float(this_week["totals"].get(cat, 0.0))
+            prev = float(last_week["totals"].get(cat, 0.0))
+        except (TypeError, ValueError):
+            continue
+        delta = cur - prev
+        if abs(delta) < 1:
+            continue
+        deltas.append((cat, prev, cur, delta))
+    deltas.sort(key=lambda d: -abs(d[3]))
+    top = deltas[:6]
+    if not top:
+        rows_html = '<tr><td colspan="3" class="sub">no significant week-over-week category changes</td></tr>'
+    else:
+        rows_html = "".join(
+            f'<tr><td>{esc(humanize(cat))}</td>'
+            f'<td class="num">{money_html(prev)} &rarr; {money_html(cur)}</td>'
+            f'<td class="num {"credit" if delta >= 0 else "debit"}">{"+" if delta >= 0 else "-"}{money_html(abs(delta)).lstrip("$")}</td></tr>'
+            for cat, prev, cur, delta in top
+        )
+    html_out = (
+        '<div class="eyebrow" style="margin:14px 0 6px;">Financial changes &middot; this week vs. last week</div>'
+        '<div class="tbl-scroll"><table style="min-width:0;"><thead><tr><th>Category</th>'
+        '<th class="num">Last &rarr; This week</th><th class="num">Change</th></tr></thead>'
+        f'<tbody>{rows_html}</tbody></table></div>'
+    )
+    proj = data.get("projection") or {}
+    change = proj.get("change_vs_prev")
+    if change is not None:
+        change_color = "var(--positive)" if change >= 0 else "var(--negative)"
+        html_out += (
+            '<p class="block-note" style="margin-top:8px;">Season-end projection: '
+            f'<b style="color:{change_color};">{"+$" if change >= 0 else "-$"}{abs(change):,.0f}</b> vs. yesterday\'s '
+            f'snapshot (now {money_html(proj.get("projected_primary"))}).</p>'
+        )
+    return html_out
+
+def _training_pops_html(data):
+    """Recent skill pops (since the last run) and a season-to-date pop count
+    per training-cohort player - see update_skill_pop_tracking. Season
+    totals only cover time since this tracking started, not the whole
+    season retroactively."""
+    pops = data.get("training_pops") or {}
+    recent = pops.get("recent") or []
+    totals = sorted(pops.get("season_totals") or [], key=lambda t: -t["season_total"])
+    if recent:
+        recent_html = "".join(
+            f'<li>{esc(e["name"])}: {esc(e["skill"])} {e["from"]:g} &rarr; {e["to"]:g}</li>' for e in recent
+        )
+        recent_block = (f'<p style="margin:0 0 6px;"><b>Since last check:</b></p>'
+                         f'<ul style="margin:0 0 10px; padding-left:18px;">{recent_html}</ul>')
+    else:
+        recent_block = '<p class="block-note" style="margin:0 0 10px;">No new pops observed since the last run.</p>'
+    if totals:
+        totals_html = "".join(f'<tr><td>{esc(t["name"])}</td><td class="num">{t["season_total"]:g}</td></tr>' for t in totals)
+        totals_block = ('<div class="tbl-scroll"><table style="min-width:0;"><thead><tr><th>Training cohort</th>'
+                         f'<th class="num">Pops this season</th></tr></thead><tbody>{totals_html}</tbody></table></div>')
+    else:
+        totals_block = ""
+    return (
+        '<div class="eyebrow" style="margin:14px 0 6px;">Training overview</div>' + recent_block + totals_block
+        + '<p class="block-note" style="margin-top:8px;"><span class="tag tag-rec">[Inference]</span> '
+        'Pops are counted by diffing each training-cohort player\'s rated skills against the previous run - '
+        'season totals only cover time since this tracking started, not pops from earlier in the season.</p>'
+    )
+
+def _power_rankings_html(data):
+    """Recent-form power rankings, built in fetch_division_power_rankings
+    from real boxscore team ratings over each team's last few games -
+    deliberately a different cut than the season-long standings table
+    elsewhere on this page."""
+    rankings = data.get("power_rankings") or []
+    if not rankings:
+        return ('<div class="eyebrow" style="margin:14px 0 6px;">League power rankings &middot; recent form</div>'
+                '<p class="block-note">Not available this run.</p>')
+
+    def cell(v):
+        return f'{v:.1f}' if v is not None else '—'
+
+    rows_html = "".join(
+        f'<tr class="{"us" if r["is_us"] else ""}"><td>{r["power_rank"]}</td><td>{esc(r["name"])}'
+        f'{" <span class=sub>(you)</span>" if r["is_us"] else ""}</td>'
+        f'<td class="num">{esc(r["recent_record"])}</td>'
+        f'<td class="num">{cell(r["outside_scoring"])}</td><td class="num">{cell(r["inside_scoring"])}</td>'
+        f'<td class="num">{cell(r["outside_defense"])}</td><td class="num">{cell(r["inside_defense"])}</td>'
+        f'<td class="num">{cell(r["rebounding"])}</td><td class="num">{cell(r["offensive_flow"])}</td>'
+        f'<td class="num">{cell(r["composite"])}</td></tr>'
+        for r in rankings
+    )
+    return (
+        '<div class="eyebrow" style="margin:14px 0 6px;">League power rankings &middot; last 5 games</div>'
+        '<div class="tbl-scroll"><table><thead><tr><th>#</th><th>Team</th><th class="num">Record</th>'
+        '<th class="num">Out. Scoring</th><th class="num">In. Scoring</th><th class="num">Out. Defense</th>'
+        '<th class="num">In. Defense</th><th class="num">Rebounding</th><th class="num">Flow</th>'
+        '<th class="num">Power</th></tr></thead><tbody>' + rows_html + '</tbody></table></div>'
+        '<p class="block-note" style="margin-top:8px;"><span class="tag tag-calc">Calculated</span> '
+        'Top 6 teams in your conference by season point differential, ranked here instead by recent-form boxscore '
+        'ratings (average over each team\'s last up to 5 competitive games - league, cup, playoffs, TV, B3; '
+        'friendlies and BBM scrimmages excluded) - a different cut than the season-long standings shown elsewhere '
+        'on this page. <span class="tag tag-rec">[Inference]</span> Player injuries aren\'t exposed anywhere in the '
+        'BuzzerBeater API, so they\'re not reflected here - check a team\'s roster page manually if that matters.</p>'
+    )
 
 def auto_schedule_standings_html(data):
     def sched_rows(entries, with_score):
@@ -1092,32 +1319,57 @@ def _recurring_net_change(week):
             continue
     return total if seen_any else None
 
-def auto_season_projection_html(data):
+def compute_season_projection(data):
+    """Pure version of the season-end cash projection - split out from the
+    HTML renderer so the numeric result can also be stashed on `data` itself
+    (see extract_data) and diffed against tomorrow's run to show how the
+    projection is moving day over day, not just its current value."""
     weeks = data["economy"]["weeks"]
     this_week = next((w for w in weeks if w["label"] == "This week"), None)
     last_week = next((w for w in weeks if w["label"] == "Last week"), None)
     if not this_week:
-        return '<p class="block-note">No economy data returned.</p>'
+        return {"error": "no_economy_data"}
     try:
         current_cash = float(this_week["final"])
     except (TypeError, ValueError):
-        return '<p class="block-note">Current cash balance not available.</p>'
+        return {"error": "no_current_cash"}
     this_week_net = _recurring_net_change(this_week)
     last_week_net = _recurring_net_change(last_week)
     if this_week_net is None:
-        return '<p class="block-note">No usable category breakdown for this week yet.</p>'
+        return {"error": "no_category_breakdown"}
 
     # Derived from the schedule's last currently-known match (see
     # extract_data) - falls back to a hand-maintained config value only if
     # the schedule didn't yield one (e.g. no matches returned at all).
     season = data.get("season") or {}
     weeks_left = season.get("weeks_remaining")
-    source_note = f'derived from the schedule - last currently-listed match {esc(season.get("last_match_date"))}'
+    from_schedule = weeks_left is not None
     if weeks_left is None:
         weeks_left = SEASON_WEEKS_REMAINING
-        source_note = 'from this team\'s config.json (the schedule didn\'t yield a match date to derive it from)'
 
     if not weeks_left or weeks_left <= 0:
+        return {"error": "no_weeks_remaining"}
+
+    projected_primary = current_cash + this_week_net * weeks_left
+    avg_net = (this_week_net + last_week_net) / 2 if last_week_net is not None else None
+    projected_avg = current_cash + avg_net * weeks_left if avg_net is not None else None
+    return {
+        "current_cash": current_cash, "weeks_left": weeks_left, "from_schedule": from_schedule,
+        "last_match_date": season.get("last_match_date"),
+        "this_week_net": this_week_net, "avg_net": avg_net,
+        "projected_primary": projected_primary, "projected_avg": projected_avg,
+    }
+
+def auto_season_projection_html(data):
+    proj = data.get("projection") or {}
+    err = proj.get("error")
+    if err == "no_economy_data":
+        return '<p class="block-note">No economy data returned.</p>'
+    if err == "no_current_cash":
+        return '<p class="block-note">Current cash balance not available.</p>'
+    if err == "no_category_breakdown":
+        return '<p class="block-note">No usable category breakdown for this week yet.</p>'
+    if err == "no_weeks_remaining":
         return (
             '<p class="block-note"><span class="tag tag-rec">Not available</span> '
             'Couldn\'t work out how many of the season\'s 13 Monday resets are left - the schedule returned no '
@@ -1126,9 +1378,12 @@ def auto_season_projection_html(data):
             'those is available.</p>'
         )
 
-    projected_primary = current_cash + this_week_net * weeks_left
-    avg_net = (this_week_net + last_week_net) / 2 if last_week_net is not None else None
-    projected_avg = current_cash + avg_net * weeks_left if avg_net is not None else None
+    current_cash, weeks_left = proj["current_cash"], proj["weeks_left"]
+    this_week_net, avg_net = proj["this_week_net"], proj["avg_net"]
+    projected_primary, projected_avg = proj["projected_primary"], proj["projected_avg"]
+    source_note = (f'derived from the schedule - last currently-listed match {esc(proj.get("last_match_date"))}'
+                    if proj.get("from_schedule")
+                    else 'from this team\'s config.json (the schedule didn\'t yield a match date to derive it from)')
     primary_class = "pos" if projected_primary >= 0 else "neg"
 
     stat_row = (
@@ -1147,6 +1402,14 @@ def auto_season_projection_html(data):
             f'<div class="stat-card"><div class="label">…using the 2-week average instead</div>'
             f'<div class="value {avg_class}">{money_html(projected_avg)}</div>'
             f'<div class="foot">recurring run rate {money_html(avg_net)}/wk</div></div>'
+        )
+    change = proj.get("change_vs_prev")
+    if change is not None:
+        change_class = "pos" if change >= 0 else "neg"
+        stat_row += (
+            f'<div class="stat-card"><div class="label">Since yesterday</div>'
+            f'<div class="value {change_class}">{"+$" if change >= 0 else "-$"}{abs(change):,.0f}</div>'
+            f'<div class="foot">projection moved vs. the previous snapshot</div></div>'
         )
     stat_row += '</div>'
 
@@ -1704,6 +1967,113 @@ def fetch_weekly_position_minutes(session, schedule_root, our_team_id):
 def total_minutes(position_minutes, positions=ALL_POSITIONS):
     return sum(position_minutes.get(pos, 0) for pos in positions)
 
+# Match types that don't reflect real competitive form for the power
+# rankings below - friendlies and BBM (bot/practice) games. Per Tom,
+# everything else (league, cup, TV-flagged league games, playoffs, B3,
+# private league) should count. Excluded via a small blocklist rather than
+# an allowlist, so a game type not seen yet isn't silently dropped.
+POWER_RANKING_EXCLUDED_MATCH_TYPES = {"friendly", "bbm"}
+RATING_TAGS = ["outsideScoring", "insideScoring", "outsideDefense", "insideDefense", "rebounding", "offensiveFlow"]
+
+def _parse_boxscore_team_rating(box_root, team_id, match_type):
+    away_el, home_el = box_root.find(".//awayTeam"), box_root.find(".//homeTeam")
+    if away_el is not None and away_el.get("id") == team_id:
+        team_el, opp_el, is_home = away_el, home_el, False
+    elif home_el is not None and home_el.get("id") == team_id:
+        team_el, opp_el, is_home = home_el, away_el, True
+    else:
+        return None
+    ratings_el = team_el.find("ratings")
+    if ratings_el is None:
+        return None
+    try: team_score = int(team_el.findtext("score"))
+    except (TypeError, ValueError): team_score = None
+    try: opp_score = int(opp_el.findtext("score")) if opp_el is not None else None
+    except (TypeError, ValueError): opp_score = None
+    ratings = {}
+    for tag in RATING_TAGS:
+        try: ratings[tag] = float(ratings_el.findtext(tag))
+        except (TypeError, ValueError): ratings[tag] = None
+    return {
+        "team_name": team_name(team_el), "opponent_name": team_name(opp_el) if opp_el is not None else None,
+        "match_type": match_type, "is_home": is_home, "team_score": team_score, "opp_score": opp_score,
+        "outside_scoring": ratings["outsideScoring"], "inside_scoring": ratings["insideScoring"],
+        "outside_defense": ratings["outsideDefense"], "inside_defense": ratings["insideDefense"],
+        "rebounding": ratings["rebounding"], "offensive_flow": ratings["offensiveFlow"],
+    }
+
+def fetch_division_power_rankings(session, conn, division_rows, top_n=6, recent_n=5):
+    """Recent-form power rankings for the top `top_n` teams in our
+    division/conference by season point differential, built from each
+    team's actual boxscore ratings (scoring/defense/rebounding/flow) over
+    their last `recent_n` finished games - a recent-form signal, distinct
+    from the season-long standings table shown elsewhere. Boxscores are
+    fetched once per (matchid, team) and cached in match_ratings forever
+    after (a finished game's ratings never change), so a team's history
+    only grows by the handful of matches played since the last run, not
+    re-fetched from scratch every day."""
+    candidates = [r for r in division_rows if r.get("id")][:top_n]
+    rankings = []
+    for team in candidates:
+        team_id = team["id"]
+        try:
+            sched = fetch(session, "schedule.aspx", {"teamid": team_id})
+        except (BBApiError, requests.RequestException):
+            continue
+        finished = []
+        for m in sched.findall(".//match"):
+            if m.get("type") in POWER_RANKING_EXCLUDED_MATCH_TYPES:
+                continue
+            away, home = m.find("awayTeam"), m.find("homeTeam")
+            away_score = away.findtext("score") if away is not None else None
+            home_score = home.findtext("score") if home is not None else None
+            if away_score is None or home_score is None:
+                continue
+            matchid = m.get("id")
+            if not matchid:
+                continue
+            finished.append((m.get("start", ""), matchid, m.get("type")))
+        finished.sort()
+        recent_matches = finished[-recent_n:]
+        cached = load_cached_match_ratings(conn, team_id, [mid for _, mid, _ in recent_matches])
+        rows = []
+        for start, matchid, mtype in recent_matches:
+            row = cached.get(matchid)
+            if row is None:
+                try:
+                    box = fetch(session, "boxscore.aspx", {"matchid": matchid})
+                except (BBApiError, requests.RequestException):
+                    continue
+                parsed = _parse_boxscore_team_rating(box, team_id, mtype)
+                if parsed is None:
+                    continue
+                row = {**parsed, "match_date": start[:10]}
+                save_match_rating(conn, matchid, team_id, row)
+            rows.append(row)
+        if not rows:
+            continue
+
+        def avg(key):
+            vals = [r[key] for r in rows if r.get(key) is not None]
+            return sum(vals) / len(vals) if vals else None
+
+        cat_avgs = {tag: avg(tag) for tag in
+                    ("outside_scoring", "inside_scoring", "outside_defense", "inside_defense", "rebounding", "offensive_flow")}
+        composite_vals = [v for v in cat_avgs.values() if v is not None]
+        composite = sum(composite_vals) / len(composite_vals) if composite_vals else None
+        wins = sum(1 for r in rows if r.get("team_score") is not None and r.get("opp_score") is not None and r["team_score"] > r["opp_score"])
+        losses = sum(1 for r in rows if r.get("team_score") is not None and r.get("opp_score") is not None and r["team_score"] < r["opp_score"])
+        rankings.append({
+            "team_id": team_id, "name": team["name"], "is_us": team.get("is_us", False),
+            "season_diff_rank": team.get("diff_rank"), "games_used": len(rows),
+            "recent_record": f"{wins}-{losses}", "composite": composite, **cat_avgs,
+        })
+    rankings.sort(key=lambda r: (r["composite"] if r["composite"] is not None else -999), reverse=True)
+    for i, r in enumerate(rankings, start=1):
+        r["power_rank"] = i
+    conn.commit()
+    return rankings
+
 def build_report(session, conn, team_key):
     teaminfo = fetch(session, "teaminfo.aspx")
     roster = fetch(session, "roster.aspx")
@@ -1716,6 +2086,10 @@ def build_report(session, conn, team_key):
     staff_list = fetch_staff(session)
     data = extract_data(conn, team_key, teaminfo, roster, economy, schedule, standings, arena,
                          our_team_id, position_minutes, staff_list)
+    try:
+        data["power_rankings"] = fetch_division_power_rankings(session, conn, data["division_rows"])
+    except (BBApiError, requests.RequestException):
+        data["power_rankings"] = []
     # Only overwrite the persisted roster snapshot after a fully successful
     # run, so a failed run can't corrupt the diff baseline for next time.
     save_roster_xml(conn, team_key, roster)
