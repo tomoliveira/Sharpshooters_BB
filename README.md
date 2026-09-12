@@ -223,7 +223,11 @@ fragment:
   (the same figure "You (avg)" on the outlier cards uses, so it follows
   `own_rating_since` when that's set, not necessarily the same last-5-games
   window the ranked table itself uses - called out in the section's own
-  tooltip when that row is showing).
+  tooltip when that row is showing). Every rating cell in the table
+  (including that extra row's own cells) is colored against
+  `compute_overall_avg(our_rating)` - the same single number "You (avg)"
+  shows - red above it (an opponent that outguns us in that category),
+  green below it (a category we're already ahead in).
   - **Teams to watch**, above the ranked table, in priority order: **new
     big hires** first (there's no transfer/bidding API for other teams, so
     this is inferred by diffing each conference team's `roster.aspx`

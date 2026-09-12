@@ -1426,8 +1426,19 @@ def _power_rankings_html(data):
         return (watch_html + '<div class="eyebrow" style="margin:14px 0 6px;">League power rankings &middot; recent form</div>'
                 '<p class="block-note">Not available this run.</p>')
 
+    # Per Tom: color each rating cell red if it's above our own average
+    # (a category where an opponent outguns us) and green if it's below
+    # (a category where we're already ahead) - same our_overall_avg number
+    # "You (avg)" uses on the outlier cards above, so the two stay consistent.
+    our_overall_avg = data.get("our_overall_avg")
+
     def cell(v):
-        return f'{v:.1f}' if v is not None else '—'
+        if v is None:
+            return '—'
+        if our_overall_avg is None:
+            return f'{v:.1f}'
+        color = "var(--negative)" if v > our_overall_avg else ("var(--positive)" if v < our_overall_avg else "var(--ink)")
+        return f'<span style="color:{color};">{v:.1f}</span>'
 
     rows_html = "".join(
         f'<tr class="{"us" if r["is_us"] else ""}"><td>{r["power_rank"]}{"*" if r.get("used_fallback_diff") else ""}</td>'
@@ -1464,7 +1475,10 @@ def _power_rankings_html(data):
         'friendlies and BBM scrimmages excluded) - a different cut than the season-long standings shown elsewhere '
         'on this page.' + fallback_note + (' Your own row below the table (when you\'re not in the top 6) uses the '
         'same rating window "You (avg)" uses above, which may differ from the top group\'s fixed last-5-games window.'
-        if our_row_html else '') + ' '
+        if our_row_html else '') + ' Each rating cell is colored against your own overall average '
+        f'({f"{our_overall_avg:.1f}" if our_overall_avg is not None else "n/a"}) - '
+        '<span style="color:var(--negative);">red</span> above it (they outgun you there), '
+        '<span style="color:var(--positive);">green</span> below it (you\'re already ahead). '
         '<span class="tag tag-rec">[Inference]</span> Player injuries aren\'t exposed anywhere in the BuzzerBeater '
         'API, so they\'re not reflected here - check a team\'s roster page manually if that matters.'
     )
@@ -2339,6 +2353,16 @@ RATING_LABELS = {"outside_scoring": "Outside Scoring", "inside_scoring": "Inside
                   "outside_defense": "Outside Defense", "inside_defense": "Inside Defense",
                   "rebounding": "Rebounding", "offensive_flow": "Offensive Flow"}
 OUTLIER_Z_THRESHOLD = 1.25
+
+def compute_overall_avg(rating):
+    """Our own single "You (avg)" number: rating's 6 category values,
+    averaged. Shared by build_report (which computes `rating` via
+    _rate_team_recent_form) and _power_rankings_html (which uses the same
+    number to color each rating cell in the ranked table - see Tom's
+    request to color above/below our own average). None if `rating` is
+    None or has no usable category values."""
+    vals = [rating[k] for k in RATING_CATEGORY_KEYS if rating and rating.get(k) is not None] if rating else []
+    return sum(vals) / len(vals) if vals else None
 RATING_ICONS = {"outside_scoring": "\U0001F3AF", "inside_scoring": "\U0001F3C0", "outside_defense": "\U0001F9F1",
                  "inside_defense": "\U0001F6E1", "rebounding": "\U0001F504", "offensive_flow": "\U0001F30A"}
 
@@ -2497,9 +2521,9 @@ def build_report(session, conn, team_key):
             our_rating = _rate_team_recent_form(session, conn, our_team_row, our_schedule, since_date=OWN_RATING_SINCE)
     except (BBApiError, requests.RequestException):
         our_rating = None
-    our_cat_vals = [our_rating[k] for k in RATING_CATEGORY_KEYS if our_rating and our_rating.get(k) is not None] if our_rating else []
-    our_overall_avg = sum(our_cat_vals) / len(our_cat_vals) if our_cat_vals else None
+    our_overall_avg = compute_overall_avg(our_rating)
     data["our_rating"] = our_rating
+    data["our_overall_avg"] = our_overall_avg
     data["ratings_watchlist"] = compute_ratings_watchlist(data["power_rankings"], our_overall_avg)
     try:
         data["big_hires"] = detect_big_hires(session, conn, data["division_rows"], data["now"][:10])
