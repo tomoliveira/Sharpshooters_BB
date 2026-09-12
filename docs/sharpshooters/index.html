@@ -382,10 +382,7 @@
   #r-roster:checked ~ .panels #panel-roster,
   #r-staff:checked ~ .panels #panel-staff,
   #r-byposition:checked ~ .panels #panel-byposition,
-  #r-training:checked ~ .panels #panel-training,
-  #r-schedule:checked ~ .panels #panel-schedule,
-  #r-division:checked ~ .panels #panel-division,
-  #r-fans:checked ~ .panels #panel-fans { display: block; }
+  #r-training:checked ~ .panels #panel-training { display: block; }
 
   #r-overview:checked ~ .tabs-nav label[for="r-overview"],
   #r-investments:checked ~ .tabs-nav label[for="r-investments"],
@@ -394,10 +391,7 @@
   #r-roster:checked ~ .tabs-nav label[for="r-roster"],
   #r-staff:checked ~ .tabs-nav label[for="r-staff"],
   #r-byposition:checked ~ .tabs-nav label[for="r-byposition"],
-  #r-training:checked ~ .tabs-nav label[for="r-training"],
-  #r-schedule:checked ~ .tabs-nav label[for="r-schedule"],
-  #r-division:checked ~ .tabs-nav label[for="r-division"],
-  #r-fans:checked ~ .tabs-nav label[for="r-fans"] { color: var(--accent); border-bottom-color: var(--accent); border-left-color: var(--accent); }
+  #r-training:checked ~ .tabs-nav label[for="r-training"] { color: var(--accent); border-bottom-color: var(--accent); border-left-color: var(--accent); }
 
   #r-overview:focus-visible ~ .tabs-nav label[for="r-overview"],
   #r-investments:focus-visible ~ .tabs-nav label[for="r-investments"],
@@ -406,10 +400,7 @@
   #r-roster:focus-visible ~ .tabs-nav label[for="r-roster"],
   #r-staff:focus-visible ~ .tabs-nav label[for="r-staff"],
   #r-byposition:focus-visible ~ .tabs-nav label[for="r-byposition"],
-  #r-training:focus-visible ~ .tabs-nav label[for="r-training"],
-  #r-schedule:focus-visible ~ .tabs-nav label[for="r-schedule"],
-  #r-division:focus-visible ~ .tabs-nav label[for="r-division"],
-  #r-fans:focus-visible ~ .tabs-nav label[for="r-fans"] { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #r-training:focus-visible ~ .tabs-nav label[for="r-training"] { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   /* ---- automated-section badge ---- */
   .auto-badge { display: inline-flex; align-items: center; gap: 5px; font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; padding: 2.5px 8px 3px; border-radius: 100px; white-space: nowrap; background: var(--accent2); color: var(--accent-ink); }
@@ -500,9 +491,6 @@
     <input type="radio" name="ss-tabs" id="r-staff" class="tab-radio">
     <input type="radio" name="ss-tabs" id="r-byposition" class="tab-radio">
     <input type="radio" name="ss-tabs" id="r-training" class="tab-radio">
-    <input type="radio" name="ss-tabs" id="r-schedule" class="tab-radio">
-    <input type="radio" name="ss-tabs" id="r-division" class="tab-radio">
-    <input type="radio" name="ss-tabs" id="r-fans" class="tab-radio">
 
     <div class="tabs-nav">
       <label class="tab-btn" for="r-overview">Overview</label>
@@ -515,10 +503,6 @@
       <label class="tab-btn" for="r-staff">Staff</label>
       <label class="tab-btn" for="r-byposition">Roster by Position</label>
       <label class="tab-btn" for="r-training">Training Strategy</label>
-      <span class="tab-divider"></span>
-      <label class="tab-btn" for="r-schedule">Schedule &amp; Standings</label>
-      <label class="tab-btn" for="r-division">Division Comparison</label>
-      <label class="tab-btn" for="r-fans">Fan Sentiment</label>
     </div>
 
     <div class="panels">
@@ -661,22 +645,6 @@
       <p class="block-note" style="margin-top:8px;"><span class="tag tag-rec">[Inference]</span> Growth rates (0/3/5/8/10%) are illustrative, not verified against any real trend. Two of the four current price tiers are already near their game-imposed ceiling, which caps how much of that growth could plausibly come from further price increases rather than attendance/demand growth.</p>
     </div>
   </section>
-
-  </div>
-
-  <!-- ================= PANEL: SCHEDULE & STANDINGS ================= -->
-  <div class="tab-panel" id="panel-schedule">
-
-  <div class="block-head" style="margin-top:20px;">
-    <h2>Schedule &amp; standings</h2>
-    <span class="auto-badge">Auto-updated daily</span>
-  </div>
-  <details class="note"><summary>About this section</summary>
-        <p class="block-note">Straight from the official API — upcoming fixtures, recent results, and your conference standings. Refreshed automatically every day, no manual step required.</p>
-      </details>
-  <!-- AUTO:SCHEDULE_STANDINGS -->
-  <p class="block-note">Loading live data…</p>
-  <!-- /AUTO:SCHEDULE_STANDINGS -->
 
   </div>
 
@@ -833,42 +801,6 @@
       <!-- AUTO:ROSTER_BY_POSITION -->
       <p class="block-note">Loading live data…</p>
       <!-- /AUTO:ROSTER_BY_POSITION -->
-    </section>
-
-  </div>
-
-  <!-- ================= PANEL: DIVISION COMPARISON ================= -->
-  <div class="tab-panel" id="panel-division">
-
-    <section class="block" style="margin-top:20px;">
-      <div class="block-head">
-        <h2>Live standings context</h2>
-        <span class="auto-badge">Auto-updated daily</span>
-      </div>
-      <details class="note" open><summary>Standings context</summary>
-        <!-- AUTO:DIVISION_STANDINGS -->
-        <p class="block-note">Loading live data…</p>
-        <!-- /AUTO:DIVISION_STANDINGS -->
-        <p class="block-note" style="margin-top:8px;">A per-team $/player comparison against the rest of the division needs a third-party tool (Buzzer Manager) with a live browser session, which this automated pipeline doesn't have — add that manually here when you refresh it by hand.</p>
-      </details>
-    </section>
-
-  </div>
-
-  <!-- ================= PANEL: FAN SENTIMENT ================= -->
-  <div class="tab-panel" id="panel-fans">
-
-    <section class="block" style="margin-top:20px;">
-      <div class="block-head">
-        <h2>Fan sentiment</h2>
-        <span class="tag tag-official">Official · read manually from in-game survey</span>
-      </div>
-      <details class="note"><summary>About this survey</summary>
-        <p class="block-note">Read from the in-game dot scale (out of 5) — there's no API endpoint for this, so it's updated by hand whenever you check it, not by the daily job.</p>
-      </details>
-      <div class="card">
-        <p class="block-note" style="margin:0;">Not yet filled in for this report — open buzzerbeater.com/team/&lt;id&gt;/fanSurvey.aspx and add the current dots here.</p>
-      </div>
     </section>
 
   </div>
@@ -1500,8 +1432,8 @@
 (async function () {
   var TEAM_KEY = "sharpshooters";
   var AUTO_MARKERS = ["META", "OVERVIEW_STATS", "RECOMMENDATIONS", "INVESTMENTS", "ROSTER_SKILLS",
-    "ROSTER_BY_POSITION", "TRAINING_CARDS", "TRANSACTION_LEDGER", "SCHEDULE_STANDINGS", "FINANCE_WEEKLY",
-    "SEASON_PROJECTION", "ROSTER_CHANGES", "STAFF", "MINUTES_VS_MONEY", "ARENA_GLANCE", "ARENA_PRICE_BARS", "DIVISION_STANDINGS"];
+    "ROSTER_BY_POSITION", "TRAINING_CARDS", "TRANSACTION_LEDGER", "FINANCE_WEEKLY",
+    "SEASON_PROJECTION", "ROSTER_CHANGES", "STAFF", "MINUTES_VS_MONEY", "ARENA_GLANCE", "ARENA_PRICE_BARS"];
 
   function patch(sourceHtml, fragments) {
     var out = sourceHtml;

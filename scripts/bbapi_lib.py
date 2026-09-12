@@ -1046,8 +1046,8 @@ def render_text(data):
     return "\n".join(lines)
 
 AUTO_MARKERS = ["META", "OVERVIEW_STATS", "RECOMMENDATIONS", "INVESTMENTS", "ROSTER_SKILLS", "ROSTER_BY_POSITION",
-                "TRAINING_CARDS", "TRANSACTION_LEDGER", "SCHEDULE_STANDINGS", "FINANCE_WEEKLY", "SEASON_PROJECTION",
-                "ROSTER_CHANGES", "STAFF", "MINUTES_VS_MONEY", "ARENA_GLANCE", "ARENA_PRICE_BARS", "DIVISION_STANDINGS"]
+                "TRAINING_CARDS", "TRANSACTION_LEDGER", "FINANCE_WEEKLY", "SEASON_PROJECTION",
+                "ROSTER_CHANGES", "STAFF", "MINUTES_VS_MONEY", "ARENA_GLANCE", "ARENA_PRICE_BARS"]
 
 def esc(v):
     return html.escape(str(v)) if v is not None else ""
@@ -1496,31 +1496,6 @@ def _power_rankings_html(data):
         '<th class="num">Power</th></tr></thead><tbody>' + rows_html + our_row_html + '</tbody></table></div>'
     )
 
-def auto_schedule_standings_html(data):
-    def sched_rows(entries, with_score):
-        if not entries: return '<tr><td colspan="{}" class="sub">none</td></tr>'.format(3 if with_score else 2)
-        out = []
-        for r in entries:
-            if with_score:
-                out.append(f'<tr><td>{r["start"][:10]}</td><td>{esc(r["away"])} @ {esc(r["home"])}</td>'
-                            f'<td class="num">{esc(r["away_score"])}-{esc(r["home_score"])}</td></tr>')
-            else:
-                out.append(f'<tr><td>{r["start"][:16].replace("T", " ")}</td><td>{esc(r["away"])} @ {esc(r["home"])}</td></tr>')
-        return "".join(out)
-    schedule_html = (f'<div class="two-col"><div><div class="eyebrow" style="margin-bottom:10px;">Upcoming</div>'
-                      f'<div class="tbl-scroll"><table style="min-width:0;"><tbody>{sched_rows(data["schedule"]["upcoming"], False)}</tbody></table></div></div>'
-                      f'<div><div class="eyebrow" style="margin-bottom:10px;">Recent results</div>'
-                      f'<div class="tbl-scroll"><table style="min-width:0;"><tbody>{sched_rows(data["schedule"]["recent"], True)}</tbody></table></div></div></div>')
-    if data["standings"]["found"]:
-        rows_html = "".join(f'<tr class="{"us" if r["is_us"] else ""}"><td>{r["rank"]}</td><td>{esc(r["name"])}'
-                             f'{" <span class=sub>(you)</span>" if r["is_us"] else ""}</td>'
-                             f'<td class="num">{esc(r["wins"])}-{esc(r["losses"])}</td></tr>' for r in data["standings"]["rows"])
-    else:
-        rows_html = '<tr><td colspan="3" class="sub">could not locate your team in the standings response</td></tr>'
-    standings_html = (f'<div class="tbl-scroll" style="margin-top:20px;"><table><thead><tr><th>#</th><th>Team</th>'
-                       f'<th class="num">W-L</th></tr></thead><tbody>{rows_html}</tbody></table></div>')
-    return schedule_html + standings_html
-
 # Categories excluded from the season-end projection's run rate: one-time
 # capital costs (per Tom) rather than steady-state weekly finances - a
 # player/staff hiring bonus or an arena expansion shouldn't be treated as
@@ -1681,27 +1656,6 @@ def auto_roster_changes_html(data):
     else: note = "No roster changes since last run."
     return (f'<div class="card"><div class="eyebrow" style="margin-bottom:8px;">{roster["size"]} players on roster</div>'
             f'<div class="block-note" style="margin:0;">{note}</div></div>')
-
-def auto_division_standings_html(data):
-    rows = data["division_rows"]
-    us = next((r for r in rows if r["is_us"]), None)
-    if not us:
-        return '<p class="block-note">Could not locate this team in the standings response.</p>'
-    total = len(rows)
-    next_worst = next((r for r in reversed(rows) if not r["is_us"]), None)
-    is_worst = us["diff_rank"] == total
-    worst_str = (f' — worst in the {total}-team league (next-worst is {esc(next_worst["name"])} at {next_worst["diff"]:+d})'
-                 if is_worst and next_worst else f' — {ordinal(us["diff_rank"])} of {total} teams by point differential')
-    return (
-        f'<p class="block-note" style="margin-top:8px;"><span class="tag tag-official">Official · standings.aspx, live</span>&nbsp; '
-        f'{esc(data["team"]["name"])} is <b style="color:var(--ink)">{esc(us["wins"])}–{esc(us["losses"])}</b> with a '
-        f'<b style="color:var(--negative)">{us["diff"]:+d}</b> point differential{worst_str}.</p>'
-    )
-
-def ordinal(n):
-    if 10 <= n % 100 <= 20: suffix = "th"
-    else: suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
-    return f"{n}{suffix}"
 
 def auto_staff_html(data):
     staff = data["staff"]
@@ -2116,12 +2070,11 @@ def build_fragments(data):
                   "ROSTER_BY_POSITION": auto_roster_by_position_html,
                   "TRAINING_CARDS": auto_training_cards_html,
                   "TRANSACTION_LEDGER": auto_transaction_ledger_html,
-                  "SCHEDULE_STANDINGS": auto_schedule_standings_html, "FINANCE_WEEKLY": auto_finance_weekly_html,
+                  "FINANCE_WEEKLY": auto_finance_weekly_html,
                   "SEASON_PROJECTION": auto_season_projection_html,
                   "ROSTER_CHANGES": auto_roster_changes_html,
                   "STAFF": auto_staff_html, "MINUTES_VS_MONEY": auto_minutes_vs_money_html,
-                  "ARENA_GLANCE": auto_arena_glance_html, "ARENA_PRICE_BARS": auto_arena_price_bars_html,
-                  "DIVISION_STANDINGS": auto_division_standings_html}
+                  "ARENA_GLANCE": auto_arena_glance_html, "ARENA_PRICE_BARS": auto_arena_price_bars_html}
     return {name: generators[name](data) for name in AUTO_MARKERS}
 
 def most_recent_training_week_start(now_utc):
