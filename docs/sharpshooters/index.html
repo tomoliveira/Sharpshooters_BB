@@ -644,6 +644,67 @@
       <p class="block-note" style="margin-top:10px;"><span class="tag tag-calc">Calculated</span> The expansion <b style="color:var(--ink)">pays for itself within its second season in every scenario tested</b>. Growth rate barely moves the payback timing (it's a near-term, low-compounding effect at that horizon) but compounds long-run surplus substantially — the 20-season gap between 0% and 10% growth is roughly 3x the baseline surplus itself.</p>
       <p class="block-note" style="margin-top:8px;"><span class="tag tag-rec">[Inference]</span> Growth rates (0/3/5/8/10%) are illustrative, not verified against any real trend. Two of the four current price tiers are already near their game-imposed ceiling, which caps how much of that growth could plausibly come from further price increases rather than attendance/demand growth.</p>
     </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="eyebrow" style="margin-bottom:8px;">Training priority: which skills are cheapest to develop, salary-wise</div>
+      <p class="block-note" style="margin:0 0 12px;">Every point in a skill costs a different amount in weekly salary. Ground-truth curves pulled from buzzer-manager.com's salary estimator (each of the 12 rated skills queried at every rating 1&ndash;20, holding age/nationality/potential and the other 11 skills fixed at 10) &mdash; cross-validated against a separate 266-player real-market regression, which independently ranked the same skills the same way. Full data: <code>salary-model/skill-curves-reference.md</code> and <code>salary-model/formula-history.md</code> in the GitHub repo.</p>
+      <div class="tbl-scroll">
+        <table style="min-width:0;">
+          <thead><tr><th>Skill</th><th class="num">1&rarr;20 salary multiplier</th><th>Shape</th></tr></thead>
+          <tbody>
+            <tr><td>Jump Shot</td><td class="num debit">5.21&times;</td><td>Steep past ~rating 8</td></tr>
+            <tr><td>Rebounding</td><td class="num debit">4.42&times;</td><td>Only skill with a real floor slope &mdash; costs something even at low ratings</td></tr>
+            <tr><td>Passing</td><td class="num debit">3.39&times;</td><td>Steep past ~rating 11</td></tr>
+            <tr><td>Inside Def</td><td class="num debit">3.28&times;</td><td>Steep past ~rating 9</td></tr>
+            <tr><td>Inside Shot</td><td class="num">2.93&times;</td><td>Steep past ~rating 9</td></tr>
+            <tr><td>Outside Def</td><td class="num">2.45&times;</td><td>Steep past ~rating 10</td></tr>
+            <tr><td>Jump Range</td><td class="num">2.38&times;</td><td>Three-stage &mdash; a mid-rate step around 10&ndash;14</td></tr>
+            <tr><td>Handling</td><td class="num credit">1.70&times;</td><td>Steep only past ~rating 12</td></tr>
+            <tr><td>Shot Blocking</td><td class="num credit">1.65&times;</td><td>Gentle throughout</td></tr>
+            <tr><td>Driving</td><td class="num credit">1.23&times;</td><td>Gentle throughout</td></tr>
+            <tr><td>Stamina</td><td class="num credit">1.00&times;</td><td>Zero salary effect at any rating</td></tr>
+            <tr><td>Free Throw</td><td class="num credit">1.00&times;</td><td>Zero salary effect at any rating</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="block-note" style="margin-top:10px;"><span class="tag tag-calc">Calculated</span> Every skill except Stamina/Free Throw follows the same <b style="color:var(--ink)">two-regime shape</b> &mdash; a nearly flat "low regime" up to a per-skill breakpoint, then a much steeper "high regime" for the rest of the range (not a smooth power law). Baseline weekly salary with everything at rating 10 is <b class="mono">$17,609</b> &mdash; every curve passes through that exact value, confirming the isolated-skill queries are internally consistent.</p>
+      <p class="block-note" style="margin-top:8px;"><span class="tag tag-rec">[Inference]</span> Stamina and Free Throw training is essentially "free" salary-wise &mdash; push those to the 6&ndash;8 / 7+ targets already in this team's training doctrine without hesitation. Jump Shot and Rebounding are the two skills where a big push has the largest, most convex salary consequence &mdash; worth being deliberate about timing (e.g. concentrated pushes rather than a slow drip once past each skill's breakpoint). The separate 266-player market regression (pooled model, R&sup2;=0.891) found <b style="color:var(--ink)">Age has no real effect</b> on salary once current skills are controlled for &mdash; BuzzerBeater recalculates salary once per season from current skills only, so an apparent "age discount" on a young, still-training player is really just salary that hasn't been recalculated since their last training gains, not a market age premium.</p>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="eyebrow" style="margin-bottom:8px;">Arena pricing: where we sit vs. our real Division III peers</div>
+      <p class="block-note" style="margin:0 0 12px;">336 Brazil teams scraped from public buzzerbeater.com pages (Liga Nacional + Div II + all 16 Div III conferences) &mdash; Sharpshooters' actual peer group, not a top-division benchmark. Full data and scripts: <code>arena-model/</code> in the GitHub repo (<code>brazil_leagues_all.csv</code>, <code>brazil_league_analysis.py</code>, <code>sharpshooters_arena_optimizer.py</code>).</p>
+      <div class="stat-row" style="margin-top:4px;">
+        <div class="stat-card"><div class="label">Revenue/game percentile</div><div class="value pos">55th</div><div class="foot">of 256 Division III teams &mdash; $92,273/game vs. $80,520 median</div></div>
+        <div class="stat-card"><div class="label">Win% percentile</div><div class="value">22nd</div><div class="foot">3&ndash;7 record &mdash; revenue is outperforming results</div></div>
+        <div class="stat-card"><div class="label">Bleachers price</div><div class="value">$12</div><div class="foot">Div III median $10, mean $11.0</div></div>
+        <div class="stat-card"><div class="label">Courtside price</div><div class="value">$119</div><div class="foot">Div III median $100, mean $119.1</div></div>
+      </div>
+      <p class="block-note" style="margin-top:10px;"><span class="tag tag-rec">[Inference]</span> A same-snapshot check across all 336 teams found win% and fill rate <b style="color:var(--ink)">negatively</b> correlated (&minus;0.17 to &minus;0.18) &mdash; losing teams (win% &le; 0.4) average 90.3% fill vs. 84.5% for winning teams (win% &ge; 0.6), a &minus;5.9 point gap. Plausible confound: winning teams tend to run bigger arenas that are harder to fill 100%, while many bottom-table teams sit at the 6,000-seat capacity floor and sell out easily regardless of form. Fill rate alone is not a clean price-demand signal without controlling for capacity and form.</p>
+      <div class="tbl-scroll" style="margin-top:10px;">
+        <table style="min-width:0;">
+          <thead><tr><th>Tier</th><th class="num">Current fill</th><th>Top price scenario tested</th><th class="num">Est. revenue/game</th><th class="num">Est. delta</th></tr></thead>
+          <tbody>
+            <tr><td>Bleachers</td><td class="num">82.1%</td><td>$12 &rarr; $16 (+33%)</td><td class="num">$68,526</td><td class="num credit">+$9,225</td></tr>
+            <tr><td>Courtside</td><td class="num">100.0%</td><td>$119 &rarr; $155 (+30%)</td><td class="num">$16,740</td><td class="num credit">+$3,888</td></tr>
+            <tr><td>Lower Tier</td><td class="num">96.8%</td><td>$44 &rarr; $57 (+30%)</td><td class="num">$27,243</td><td class="num credit">+$3,395</td></tr>
+            <tr><td>Luxury</td><td class="num">62.5%</td><td colspan="3" class="sub">Excluded &mdash; fill already dropped after the last expansion; not recommended to add more or raise price until it recovers</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="block-note" style="margin-top:8px;"><span class="tag tag-calc">Calculated</span> Ranked expansion scenarios by budget, from the optimizer's own recommendation engine:</p>
+      <div class="tbl-scroll" style="margin-top:6px;">
+        <table style="min-width:0;">
+          <thead><tr><th>Budget</th><th>Recommended allocation</th><th class="num">Est. added revenue/game</th></tr></thead>
+          <tbody>
+            <tr><td>$50,000</td><td>+25 courtside seats</td><td class="num credit">+$2,975</td></tr>
+            <tr><td>$150,000</td><td>+40 courtside, +100 lower tier</td><td class="num credit">+$9,019</td></tr>
+            <tr><td>$500,000 (only $185,000 usefully spent)</td><td>+40 courtside, +150 lower tier</td><td class="num credit">+$11,148</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="block-note" style="margin-top:8px;"><span class="tag tag-rec">[Inference]</span> Price-change and expansion estimates assume a flat &minus;0.4 elasticity (not fitted from real data) and, for the percentile comparisons, use the closer 256-team Division III comp set rather than the top-division benchmark used earlier in this guide's arena-expansion payback analysis above. Re-run <code>sharpshooters_arena_optimizer.py</code> / <code>brazil_league_analysis.py</code> periodically &mdash; prices, capacity, and the comp set all drift as the season progresses.</p>
+    </div>
   </section>
 
   </div>
