@@ -1432,6 +1432,9 @@ def _power_rankings_html(data):
     # "You (avg)" uses on the outlier cards above, so the two stay consistent.
     our_overall_avg = data.get("our_overall_avg")
 
+    def plain_cell(v):
+        return f'{v:.1f}' if v is not None else '—'
+
     def cell(v):
         if v is None:
             return '—'
@@ -1462,10 +1465,10 @@ def _power_rankings_html(data):
             f'<td class="sub">&mdash;</td>'
             f'<td>{esc(our_rating["name"])} <span class=sub>(you, not in top 6)</span></td>'
             f'<td class="num">{esc(our_rating["recent_record"])}</td>'
-            f'<td class="num">{cell(our_rating["outside_scoring"])}</td><td class="num">{cell(our_rating["inside_scoring"])}</td>'
-            f'<td class="num">{cell(our_rating["outside_defense"])}</td><td class="num">{cell(our_rating["inside_defense"])}</td>'
-            f'<td class="num">{cell(our_rating["rebounding"])}</td><td class="num">{cell(our_rating["offensive_flow"])}</td>'
-            f'<td class="num">{cell(our_rating["composite"])}</td></tr>'
+            f'<td class="num">{plain_cell(our_rating["outside_scoring"])}</td><td class="num">{plain_cell(our_rating["inside_scoring"])}</td>'
+            f'<td class="num">{plain_cell(our_rating["outside_defense"])}</td><td class="num">{plain_cell(our_rating["inside_defense"])}</td>'
+            f'<td class="num">{plain_cell(our_rating["rebounding"])}</td><td class="num">{plain_cell(our_rating["offensive_flow"])}</td>'
+            f'<td class="num">{plain_cell(our_rating["composite"])}</td></tr>'
         )
     rankings_tip = info_tip(
         '<span class="tag tag-calc">Calculated</span> '
@@ -1474,8 +1477,10 @@ def _power_rankings_html(data):
         'ratings (average over each team\'s last up to 5 competitive games - league, cup, playoffs, TV, B3; '
         'friendlies and BBM scrimmages excluded) - a different cut than the season-long standings shown elsewhere '
         'on this page.' + fallback_note + (' Your own row below the table (when you\'re not in the top 6) uses the '
-        'same rating window "You (avg)" uses above, which may differ from the top group\'s fixed last-5-games window.'
-        if our_row_html else '') + ' Each rating cell is colored against your own overall average '
+        'same rating window "You (avg)" uses above, which may differ from the top group\'s fixed last-5-games window - '
+        'shown in plain color, not red/green, since comparing your own values to your own average isn\'t a threat '
+        'signal the way an opponent\'s rating is.'
+        if our_row_html else '') + ' Each ranked team\'s rating cell is colored against your own overall average '
         f'({f"{our_overall_avg:.1f}" if our_overall_avg is not None else "n/a"}) - '
         '<span style="color:var(--negative);">red</span> above it (they outgun you there), '
         '<span style="color:var(--positive);">green</span> below it (you\'re already ahead). '
