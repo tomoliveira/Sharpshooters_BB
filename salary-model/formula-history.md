@@ -1,3 +1,31 @@
+## 2026-09-11 — Position-split test, N=266 (no new players; same dataset as the first entry)
+
+**Direction confirmed: future models should be fit per position, not pooled.** Following the bb-salary-calc spreadsheet lead (see `skill-curves-reference.md` and below), tested whether splitting the regression by position (PG/SG/SF/PF/C) improves the fit versus pooling everyone together.
+
+**Also: Age is dropped from this and all future primary models** — confirmed by Tom (2026-09-11) to have zero effect on the real salary formula, along with Potential and Nationality. Any prior Age coefficient was a recalculation-lag artifact, not a real predictor.
+
+### Simple TSP-only model (`log(Salary) = a + b·TSP`), pooled vs. per-position
+
+| Scope | N | R² | obs/predictor |
+|---|---|---|---|
+| Pooled (no split) | 266 | 0.749 | 133.0 |
+| PG | 77 | 0.869 | 38.5 |
+| SG | 53 | 0.913 | 26.5 |
+| SF | 58 | 0.895 | 29.0 |
+| PF | 41 | 0.646 | 20.5 |
+| C | 37 | 0.650 | 18.5 |
+
+Splitting by position lifts R² substantially for guards and small forwards (0.75 pooled → 0.87–0.91 split) — real evidence that different positions price Total Skill Points differently, consistent with the bb-salary-calc spreadsheet's position-dependent weight tables. Bigs (PF/C) didn't improve, most likely smaller-N variance rather than a real "position doesn't matter for bigs" effect.
+
+### Full 10-skill model per position — attempted, result discarded as overfit
+
+Fitting the full 10-skill linear model (no Stamina/Free Throw, no Age) separately per position produced R²=0.987–0.995, but with obs/predictor ratios of only 3.4–7.0 (well under the 10× rule of thumb) — this is overfitting on noise, not a real result, and should **not** be treated as evidence of anything. Don't re-attempt a full per-position skill model until N is much larger — target roughly 500+ rows per position (2500+ total) before trying this again.
+
+### Bottom line / what changes going forward
+
+- Primary reference model stays the **pooled** 10-skill linear model (Stamina/Free Throw/Age excluded) until per-position sample sizes are large enough to support a full per-position skill model without overfitting.
+- The **simple per-position TSP model** is now a legitimate secondary reference — report it alongside the pooled model, not as a replacement for it.
+- As more players get added, re-run the per-position full-skill-model check periodically (it only makes sense once N/position climbs well past 10× the predictor count) — this is a placeholder for when that threshold is reached.
 ## 2026-09-11 — N=266 (first GitHub sync)
 
 **⚠️ Age is not a real market driver.** BuzzerBeater recalculates salaries automatically once per season (at season start), purely from a player's current skills — there is no in-season "age premium." Younger/still-training players can look underpaid relative to current skills simply because their salary hasn't been recalculated since they trained up. Read the Age coefficient below as a proxy for *time since last recalculation*, not a real price the market pays for age.
