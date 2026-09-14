@@ -46,6 +46,19 @@ Skills: all 1 except Free Throw 15. TSP 10 (6 off + 4 def). Weekly Salary $208 (
 | 65–72 | $228 → $227 | still near-floor |
 | 73 (current) | **$208** | **−8.37%** |
 
+## Fortunato Ravagnin (43354311) — C, age 52 (near-floor, third confirmation)
+
+Skills: mostly 1, Rebounding 2, Stamina 2 (near-zero/zero-effect), Free Throw 14. TSP 11 (6 off + 5 def). Weekly Salary $349 (secondary $417). Owner: Minuto 92:48. Not fully flat yet, but close.
+
+| Season | Salary | Change |
+|---|---|---|
+| 39–40 | $6,229 | flat |
+| 41–55 | $10,307 → $19,613 (peak) | rising through prime |
+| 56–72 | $17,480 → $384 | steady decelerating decline |
+| 73 (current) | **$349** | **−9.11%** |
+
+Decomposing out the ~8.4% deflation (same method as above): `(1 − 0.0911) / (1 − 0.084) − 1 ≈ −0.76%` implied skill-only change — his own decay has nearly flattened too, consistent with Sandoval's decomposed −7.2% and the general pattern of decay decelerating as a player's skills approach the floor.
+
 ## The finding: a season-73 game-wide deflation, not skill decay
 
 Both players' skills are at the absolute minimum rating (1) and physically cannot decline further, yet **both** show an almost identical drop at season 73: Gintaras −8.41%, Costante −8.37%. Since neither player's skills changed, this cannot be skill-based decay — it points to a **periodic, game-wide salary deflation** applied at season 73, independent of any individual player's stats. This matches the general concept (though not necessarily the exact coefficients) in the bb-salary-calc spreadsheet's "Deflation" section (Normal1/Normal2/Monster1/Monster2 constants) — see `skill-curves-reference.md` in this same folder.
@@ -63,4 +76,4 @@ A −7.2% skill-only decline for Sandoval that season is consistent with the dec
 
 ## Implication for the model going forward
 
-**Any season-over-season salary comparison must account for this deflation before attributing a change to skill decay.** A single confirmed data point (season 73, ~−8.4%) isn't enough to know if this is a one-off adjustment, a recurring per-season deflation, or tied to some other game event — flag this as an open question and watch for it recurring in future season-history pulls. If it recurs with a different magnitude each time, the deflation coefficient itself would need to be estimated per season rather than assumed constant.
+**Any season-over-season salary comparison must account for this deflation before attributing a change to skill decay.** Three independent players (two at the pure skill floor, one near it) all decompose cleanly to a ~8.4% season-73 deflation plus a small, individually-plausible residual skill-only change — this is now a reasonably well-triangulated finding, not a single coincidence. Still open: whether this is a one-off adjustment, a recurring per-season deflation, or tied to some other game event. Watch for it recurring (or not) in future season-history pulls — if it recurs with a different magnitude each time, the deflation coefficient would need to be estimated per season rather than assumed constant.
