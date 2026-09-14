@@ -1187,12 +1187,9 @@ def auto_recommendations_html(data):
     except (TypeError, ValueError): cash_val = None
     try: net_change = float(this_week["final"]) - float(this_week["initial"]) if this_week else None
     except (TypeError, ValueError): net_change = None
-    weekly_expenses = sum(-v for v in this_week["totals"].values() if v < 0) if this_week else None
     items = []
     if cash_val is not None and cash_val < 0:
         items.append((True, "Cash balance is negative", "Current balance is <b class=\"mono\" style=\"color:var(--negative)\">" + money_html(cash_now) + "</b>. Hold off on any new spending — bids, signings, staff changes — until this recovers."))
-    elif cash_val is not None and weekly_expenses and cash_val < weekly_expenses:
-        items.append((True, "Cash reserves are thin", "Cash on hand (<b class=\"mono\">" + money_html(cash_now) + "</b>) is less than one week's confirmed expenses (<b class=\"mono\">" + money_html(weekly_expenses) + "</b>). Worth watching before any new commitment."))
     if net_change is not None:
         if net_change < 0:
             items.append((False, "Expenses outpaced income this week", "Net change: <b class=\"mono\" style=\"color:var(--negative)\">-" + money_html(abs(net_change)) + "</b>, balance now " + money_html(cash_now) + "."))
