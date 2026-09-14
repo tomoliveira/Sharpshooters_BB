@@ -282,6 +282,30 @@ furniture:
   that Python already controls within that section, rather than the
   static `<h2>` it can't reach.
 
+## Per-item reports (Investments tab)
+
+Each player row and each facility/capex row has a **Report** link
+(`.report-link`, handled by a delegated click listener in index.html that
+opens and scrolls to the matching `<details>`) leading to a collapsed
+report further down the page:
+
+- **Player reports** (`_player_reports_html`, one `<details id="player-
+  report-<playerid>">` per player with a tracked purchase) - acquisition
+  cost plus every individual salary payment recorded for that player
+  (date + amount), not just the summed total already shown in the main
+  table. Built from `payments` on each investments row (the same
+  `salary_payments` list `record_weekly_salary_payments` already
+  maintains per player in the ledger).
+- **Expansion reports** (`_expansion_reports_html`, one `<details
+  id="expansion-report-<i>">` per capex entry, index assigned in
+  date-ascending order) - the expansion's cost plus every individual home
+  game's gate revenue since it took effect. Pairs each capex entry with
+  the arena capacity "regime" it opened (`build_arena_investment_summary`
+  already groups `match_revenue` by capacity window; this just renders
+  the per-game rows that summary only aggregates elsewhere). The regime
+  before any tracked expansion (the original capacity) has no capex entry
+  to pair with, so it's excluded.
+
 ## What's live vs. manual
 
 Every section tagged **"Auto-updated daily"** on the report page is filled

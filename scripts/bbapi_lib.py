@@ -838,7 +838,7 @@ def build_investments_summary(ledger):
         rows.append({"name": t["name"], "playerid": pid, "date": t["date"], "price": price,
                      "salary_paid": salary_paid, "tco": tco, "tco_per_week": tco_per_week,
                      "skill_now": skill_now, "tco_per_skill": tco_per_skill, "baseline": baseline,
-                     "latest": latest, "sale": sale, "acquisition": t.get("acquisition")})
+                     "latest": latest, "sale": sale, "acquisition": t.get("acquisition"), "payments": payments})
     return {"rows": rows, "total_buys": total_buys, "total_sells": total_sells,
             "total_capex": total_capex, "capex": list(ledger["capex"]), "count": len(rows)}
 
@@ -1720,6 +1720,87 @@ def auto_arena_price_bars_html(data):
         )
     return bars
 
+def _player_report_id(pid):
+    return f"player-report-{pid}"
+
+def _player_reports_html(rows):
+    """Per Tom: each player row in the investments table should link to a
+    report of its own - acquisition cost and every individual salary
+    payment recorded for that player (not just the summed total already
+    shown in the main table). One collapsed <details> per player with a
+    purchase on record, opened via the row's "Report" link (see the
+    a.report-link click handler in index.html)."""
+    blocks = []
+    for r in rows:
+        payments = sorted(r.get("payments") or [], key=lambda p: p["date"], reverse=True)
+        pay_rows = "".join(
+            f'<tr><td>{esc(p["date"])}</td><td class="num">{money_html(p["amount"])}</td></tr>' for p in payments
+        ) or '<tr><td colspan="2" class="sub">no salary payments recorded yet</td></tr>'
+        acquired_note = ' <span class="sub">(estimated)</span>' if r.get("acquisition") == "drafted" else ''
+        blocks.append(
+            f'<details class="note" style="margin-bottom:10px;" id="{_player_report_id(r["playerid"])}">'
+            f'<summary>{esc(r["name"])} &middot; acquired {esc(r["date"][:10])}{acquired_note}</summary>'
+            '<div class="block-note" style="margin:8px 0;">'
+            f'Acquisition cost <b style="color:var(--ink)">{money_html(r["price"])}</b> &middot; '
+            f'{len(payments)} salary payment{"" if len(payments) == 1 else "s"} totaling '
+            f'<b style="color:var(--ink)">{money_html(r["salary_paid"])}</b> &middot; TCO '
+            f'<b style="color:var(--ink)">{money_html(r["tco"])}</b></div>'
+            '<div class="tbl-scroll" style="box-shadow:none;"><table style="min-width:0;">'
+            '<thead><tr><th>Payday</th><th class="num">Salary paid</th></tr></thead>'
+            f'<tbody>{pay_rows}</tbody></table></div>'
+            '</details>'
+        )
+    if not blocks:
+        return ""
+    return (
+        '<div class="card" style="margin-top:16px;">'
+        '<div class="eyebrow" style="margin-bottom:10px;">Player acquisition reports</div>'
+        + "".join(blocks) + '</div>'
+    )
+
+def _expansion_report_id(i):
+    return f"expansion-report-{i}"
+
+def _expansion_reports_html(capex_list, regimes):
+    """Per Tom: each expansion row should link to a report of its own -
+    the expansion's cost and every individual home game's gate revenue
+    since that expansion took effect. Pairs each capex entry (sorted by
+    date) with the arena capacity "regime" it opened (regimes[0] is the
+    baseline capacity that predates any tracked expansion, so it's
+    excluded here) - regimes already group match_revenue by capacity
+    window in build_arena_investment_summary, so this just renders that
+    per-game breakdown instead of only the aggregate shown elsewhere."""
+    if not capex_list or len(regimes) < 2:
+        return ""
+    capex_sorted = sorted(capex_list, key=lambda c: c["date"])
+    following_regimes = regimes[1:]
+    blocks = []
+    for i, (c, regime) in enumerate(zip(capex_sorted, following_regimes)):
+        matches = sorted(regime["matches"], key=lambda m: m["date"], reverse=True)
+        match_rows = "".join(
+            f'<tr><td>{esc(m["date"][:10])}</td><td class="num">{money_html(m["amount"])}</td></tr>' for m in matches
+        ) or '<tr><td colspan="2" class="sub">no home games recorded since this expansion yet</td></tr>'
+        window = f'{esc(c["date"][:10])} &rarr; {esc(regime["end"][:10]) if regime["end"] else "now"}'
+        avg_note = f' &middot; avg {money_html(regime["avg"])}/game' if regime.get("avg") is not None else ''
+        blocks.append(
+            f'<details class="note" style="margin-bottom:10px;" id="{_expansion_report_id(i)}">'
+            f'<summary>{esc(c["label"])} &middot; {esc(c["date"][:10])} &middot; {money_html(c["amount"])}</summary>'
+            '<div class="block-note" style="margin:8px 0;">'
+            f'Window {window} &middot; {regime["count"]} home game{"" if regime["count"] == 1 else "s"} &middot; '
+            f'total gate revenue <b style="color:var(--ink)">{money_html(regime["total"])}</b>{avg_note}</div>'
+            '<div class="tbl-scroll" style="box-shadow:none;"><table style="min-width:0;">'
+            '<thead><tr><th>Home date</th><th class="num">Gate revenue</th></tr></thead>'
+            f'<tbody>{match_rows}</tbody></table></div>'
+            '</details>'
+        )
+    if not blocks:
+        return ""
+    return (
+        '<div class="card" style="margin-top:16px;">'
+        '<div class="eyebrow" style="margin-bottom:10px;">Expansion reports</div>'
+        + "".join(blocks) + '</div>'
+    )
+
 def auto_investments_html(data):
     inv = data["investments"]
     rows = inv["rows"]
@@ -1758,8 +1839,9 @@ def auto_investments_html(data):
             acquired_cell = esc(r["date"][:10])
             if r.get("acquisition") == "drafted":
                 acquired_cell += ' <span class="sub" title="Drafted/home-grown - BuzzerBeater has no official transfer record for these, so this date is the best available estimate (a manually-supplied date, or failing that the day this ledger first tracked them), not an official acquisition date.">(estimated)</span>'
+            report_link = f' <a href="#{_player_report_id(r["playerid"])}" class="report-link">Report</a>'
             body += (
-                f'<tr><td class="name-cell">{esc(r["name"])}</td><td>{acquired_cell}</td>'
+                f'<tr><td class="name-cell">{esc(r["name"])}{report_link}</td><td>{acquired_cell}</td>'
                 f'<td class="num">{money_html(r["price"])}</td>'
                 f'<td class="num">{money_html(r["salary_paid"])}</td>'
                 f'<td class="num">{money_html(r["tco"])}</td>'
@@ -1778,9 +1860,17 @@ def auto_investments_html(data):
     else:
         table = '<p class="block-note">No player purchases captured in the ledger yet.</p>'
 
+    # Report ids are assigned by date-ascending order (matching how
+    # _expansion_reports_html pairs each capex entry with the arena regime
+    # it opened), independent of whatever order the table itself displays.
+    capex_ascending = sorted(inv["capex"], key=lambda c: c["date"])
+    capex_report_index = {id(c): i for i, c in enumerate(capex_ascending)}
+
     if inv["capex"]:
         capex_rows = "".join(
-            f'<tr><td>{esc(c["date"][:10])}</td><td>{esc(c["label"])}</td><td class="num debit">{money_html(c["amount"])}</td></tr>'
+            f'<tr><td>{esc(c["date"][:10])}</td><td>{esc(c["label"])} '
+            f'<a href="#{_expansion_report_id(capex_report_index[id(c)])}" class="report-link">Report</a></td>'
+            f'<td class="num debit">{money_html(c["amount"])}</td></tr>'
             for c in sorted(inv["capex"], key=lambda c: c["date"], reverse=True)
         )
         capex_html = (
@@ -1791,7 +1881,10 @@ def auto_investments_html(data):
     else:
         capex_html = ""
 
-    return stat_row + '<div style="margin-top:16px;">' + table + '</div>' + capex_html + auto_arena_revenue_html(data)
+    regimes = data["investments"]["arena"].get("regimes", [])
+    return (stat_row + '<div style="margin-top:16px;">' + table + '</div>' + capex_html
+            + _player_reports_html(rows) + _expansion_reports_html(inv["capex"], regimes)
+            + auto_arena_revenue_html(data))
 
 def auto_arena_revenue_html(data):
     arena = data["investments"]["arena"]
