@@ -209,7 +209,12 @@ fragment:
   group from naive season diff, recompute each team's average point diff
   using only games against the current group, re-rank, repeat until the
   group stops changing. A team with no games yet against the group falls
-  back to its season diff (flagged with a `*` in the table). The selected
+  back to its season diff (flagged with a `*` in the table). Eligible
+  candidates are capped to the top `max(top_n * 2, 10)` teams by naive
+  season diff, not the whole conference - without that cap, a team with a
+  genuinely poor record could still enter the "top 6" on one small/noisy
+  head-to-head sample (caught live 2026-09-17: a team ranked 13th of 16
+  briefly displaced a much stronger team on a single game). The selected
   group is then rated by recent-form boxscore ratings (outside/inside
   scoring, outside/inside defense, rebounding, offensive flow - averaged
   over each team's last up to 5 competitive games: league, cup, playoffs,

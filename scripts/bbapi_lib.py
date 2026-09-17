@@ -2308,10 +2308,28 @@ def compute_top_group_by_head_to_head(session, division_rows, top_n=6, max_itera
     back to its naive season diff, ranked strictly below every team that
     does have a real head-to-head number (never blended into the same
     number - a per-game head-to-head diff and a season cumulative diff are
-    different units). Each team's full-season match list is fetched once
-    and reused across every iteration and by the caller (no repeated API
-    calls). Returns (ranked_team_dicts, schedules_by_team_id)."""
-    teams = [r for r in division_rows if r.get("id")]
+    different units).
+
+    Eligible candidates are capped to the top `max(top_n * 2, 10)` teams by
+    naive season diff, not the whole division - caught live (2026-09-17):
+    without this cap, a team with a terrible overall record could still
+    enter the "top 6" on the strength of one lucky/noisy game against a
+    current group member (group_diff averages over however few games a
+    team has actually played against that group, which can be just 1) -
+    e.g. a team ranked 13th of 16 by season diff briefly displaced a much
+    stronger team on a single head-to-head data point. Capping the pool
+    keeps the iterative re-ranking doing its job (correcting for blowout-
+    padded season diff among genuinely competitive teams) without letting
+    it be fooled by small-sample noise from teams that were never in
+    contention to begin with.
+
+    Each team's full-season match list is fetched once and reused across
+    every iteration and by the caller (no repeated API calls). Returns
+    (ranked_team_dicts, schedules_by_team_id)."""
+    all_teams = [r for r in division_rows if r.get("id")]
+    naive_ranked = sorted(all_teams, key=lambda t: t.get("diff_rank") if t.get("diff_rank") is not None else 999)
+    pool_size = min(len(naive_ranked), max(top_n * 2, 10))
+    teams = naive_ranked[:pool_size]
     schedules = {t["id"]: _fetch_finished_matches(session, t["id"]) for t in teams}
     by_id = {t["id"]: t for t in teams}
 
@@ -2328,8 +2346,7 @@ def compute_top_group_by_head_to_head(session, division_rows, top_n=6, max_itera
         naive = by_id[team_id].get("diff")
         return (0, naive if naive is not None else -9999)
 
-    naive_ranked = sorted(teams, key=lambda t: t.get("diff_rank") if t.get("diff_rank") is not None else 999)
-    group = {t["id"] for t in naive_ranked[:top_n]}
+    group = {t["id"] for t in teams[:top_n]}  # teams is already naive-diff-rank sorted, from the pool cap above
     for _ in range(max_iterations):
         keyed = {t["id"]: rank_key(t["id"], group) for t in teams}
         new_group = {tid for tid, _ in sorted(keyed.items(), key=lambda kv: kv[1], reverse=True)[:top_n]}
