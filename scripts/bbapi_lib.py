@@ -921,11 +921,14 @@ def extract_data(conn, team_key, teaminfo, roster, economy, schedule, standings,
     data["arena_live"] = arena_snap
     matches = schedule.findall(".//match")
     upcoming, recent = [], []
-    for m in matches:
+    next_league_opponent_id = None
+    for m in sorted(matches, key=lambda m: m.get("start", "")):
         start = m.get("start", "")
         away, home = m.find("awayTeam"), m.find("homeTeam")
         away_name = team_name(away) or "?"
         home_name = team_name(home) or "?"
+        away_id = away.get("id") if away is not None else None
+        home_id = home.get("id") if home is not None else None
         away_score = away.findtext("score") if away is not None else None
         home_score = home.findtext("score") if home is not None else None
         row = {"start": start, "away": away_name, "home": home_name}
@@ -933,8 +936,17 @@ def extract_data(conn, team_key, teaminfo, roster, economy, schedule, standings,
             recent.append({**row, "away_score": away_score, "home_score": home_score})
         else:
             upcoming.append(row)
+            # First not-yet-played league (regular season or playoff) match
+            # involving us, in schedule order - used to highlight "next
+            # league opponent" in the power rankings table even when
+            # they're outside the top group. Per Tom: not friendlies/cup/
+            # B3/etc., which aren't real league form.
+            if (next_league_opponent_id is None and our_team_id in (away_id, home_id)
+                    and (m.get("type") or "").split(".")[0] == "league"):
+                next_league_opponent_id = home_id if away_id == our_team_id else away_id
     data["schedule"]["upcoming"] = sorted(upcoming, key=lambda r: r["start"])[:5]
     data["schedule"]["recent"] = sorted(recent, key=lambda r: r["start"])[-5:]
+    data["next_league_opponent_id"] = next_league_opponent_id
     # Season-end cash projection needs "how many Monday resets are left" -
     # derived from the full match list above (schedule.aspx returns the
     # whole season, not just the handful of upcoming fixtures kept for
@@ -1440,57 +1452,69 @@ def _power_rankings_html(data):
         color = "var(--negative)" if v > our_overall_avg else ("var(--positive)" if v < our_overall_avg else "var(--ink)")
         return f'<span style="color:{color};">{v:.1f}</span>'
 
-    rows_html = "".join(
-        f'<tr class="{"us" if r["is_us"] else ""}"><td>{r["power_rank"]}{"*" if r.get("used_fallback_diff") else ""}</td>'
-        f'<td>{esc(r["name"])}{" <span class=sub>(you)</span>" if r["is_us"] else ""}</td>'
-        f'<td class="num">{esc(r["recent_record"])}</td>'
-        f'<td class="num">{cell(r["outside_scoring"])}</td><td class="num">{cell(r["inside_scoring"])}</td>'
-        f'<td class="num">{cell(r["outside_defense"])}</td><td class="num">{cell(r["inside_defense"])}</td>'
-        f'<td class="num">{cell(r["rebounding"])}</td><td class="num">{cell(r["offensive_flow"])}</td>'
-        f'<td class="num">{cell(r["composite"])}</td></tr>'
-        for r in rankings
-    )
-    any_fallback = any(r.get("used_fallback_diff") for r in rankings)
-    fallback_note = (' Rows marked * hadn\'t yet played anyone else in this top group when selected, so they fell '
-                      'back to season-long point differential instead of a head-to-head number.'
-                      if any_fallback else '')
-    our_row_html = ""
-    our_rating = data.get("our_rating")
-    if our_rating is not None and not any(r["is_us"] for r in rankings):
-        our_row_html = (
-            f'<tr style="background:var(--surface-2); border-top:2px solid var(--line);">'
-            f'<td class="sub">&mdash;</td>'
-            f'<td>{esc(our_rating["name"])} <span class=sub>(you, not in top 6)</span></td>'
-            f'<td class="num">{esc(our_rating["recent_record"])}</td>'
-            f'<td class="num">{plain_cell(our_rating["outside_scoring"])}</td><td class="num">{plain_cell(our_rating["inside_scoring"])}</td>'
-            f'<td class="num">{plain_cell(our_rating["outside_defense"])}</td><td class="num">{plain_cell(our_rating["inside_defense"])}</td>'
-            f'<td class="num">{plain_cell(our_rating["rebounding"])}</td><td class="num">{plain_cell(our_rating["offensive_flow"])}</td>'
-            f'<td class="num">{plain_cell(our_rating["composite"])}</td></tr>'
+    def power_cell(v):
+        return f'<b>{v:.1f}</b>' if v is not None else '—'
+
+    next_opp_id = data.get("next_league_opponent_id")
+
+    def row_html(r):
+        is_next_opp = next_opp_id is not None and r["team_id"] == next_opp_id
+        row_style = ' style="background:var(--accent-soft);"' if is_next_opp else ''
+        top_badge = ' <span class="tag tag-official" style="margin-left:4px;">Top 6</span>' if r.get("in_top_group") else ''
+        next_badge = ' <span class="tag tag-calc" style="margin-left:4px;">Next opponent</span>' if is_next_opp else ''
+        # Comparing our own row's rating cells against "our own average"
+        # would just be circular, so it gets plain (uncolored) cells - the
+        # red/green threat coloring only means something for an opponent.
+        rating_cell = plain_cell if r["is_us"] else cell
+        return (
+            f'<tr class="{"us" if r["is_us"] else ""}"{row_style}>'
+            f'<td>{r["power_rank"]}{"*" if r.get("used_fallback_diff") else ""}</td>'
+            f'<td>{esc(r["name"])}{" <span class=sub>(you)</span>" if r["is_us"] else ""}{top_badge}{next_badge}</td>'
+            f'<td class="num">{esc(r["recent_record"])}</td>'
+            f'<td class="num">{rating_cell(r["outside_scoring"])}</td><td class="num">{rating_cell(r["inside_scoring"])}</td>'
+            f'<td class="num">{rating_cell(r["outside_defense"])}</td><td class="num">{rating_cell(r["inside_defense"])}</td>'
+            f'<td class="num">{rating_cell(r["rebounding"])}</td><td class="num">{rating_cell(r["offensive_flow"])}</td>'
+            f'<td class="num">{power_cell(r.get("power_score"))}</td></tr>'
         )
+
+    rows_html = "".join(row_html(r) for r in rankings)
+    any_fallback = any(r.get("used_fallback_diff") for r in rankings)
+    fallback_note = (' Rows marked * hadn\'t yet played anyone else in the top group when it was selected, so they '
+                      'fell back to season-long point differential instead of a head-to-head number for that '
+                      'selection step (doesn\'t affect the Power score itself).'
+                      if any_fallback else '')
+    next_opp_note = (' Your next scheduled league opponent is highlighted and badged even when they\'re outside '
+                      'the top 6.' if next_opp_id and any(r["team_id"] == next_opp_id for r in rankings) else '')
     rankings_tip = info_tip(
         '<span class="tag tag-calc">Calculated</span> '
-        'Top 6 teams in your conference selected by head-to-head point differential among top teams (not season-wide '
-        'diff, which top teams can pad by blowing out bottom-feeders), then ranked here by recent-form boxscore '
-        'ratings (average over each team\'s last up to 5 competitive games - league, cup, playoffs, TV, B3; '
-        'friendlies and BBM scrimmages excluded) - a different cut than the season-long standings shown elsewhere '
-        'on this page.' + fallback_note + (' Your own row below the table (when you\'re not in the top 6) uses the '
-        'same rating window "You (avg)" uses above, which may differ from the top group\'s fixed last-5-games window - '
-        'shown in plain color, not red/green, since comparing your own values to your own average isn\'t a threat '
-        'signal the way an opponent\'s rating is.'
-        if our_row_html else '') + ' Each ranked team\'s rating cell is colored against your own overall average '
+        'Every team in your conference gets a Power score (0-100), blending three weighted components: '
+        f'<b style="color:var(--ink)">{POWER_WEIGHT_RATINGS * 100:.0f}%</b> overall rating (this run\'s boxscore '
+        'ratings, min-max normalized against the whole conference), '
+        f'<b style="color:var(--ink)">{POWER_WEIGHT_RECENT_RECORD * 100:.0f}%</b> win% over the last 5 competitive '
+        f'games, <b style="color:var(--ink)">{POWER_WEIGHT_VS_TOP_RECORD * 100:.0f}%</b> win% specifically against '
+        'the "Top 6" group (itself selected by head-to-head point differential among top teams, not season-wide '
+        'diff, which a top team can pad by blowing out bottom-feeders - candidates for that selection are capped to '
+        'the top half-plus of the conference by season diff, so a team that was never really in contention can\'t '
+        'sneak into "Top 6" on one noisy game). A team missing a component (most often "vs Top 6" - it hasn\'t '
+        'played all of them yet) has that weight redistributed across whatever components it does have, rather than '
+        'being scored 0% on a record it hasn\'t had the chance to build.' + fallback_note + next_opp_note + ' '
+        'Ratings themselves average each team\'s last up to 5 competitive games - league, cup, playoffs, TV, B3; '
+        'friendlies and BBM scrimmages excluded - a different cut than the season-long standings shown elsewhere on '
+        'this page. Each rating cell (not the Power score) is colored against your own overall average '
         f'({f"{our_overall_avg:.1f}" if our_overall_avg is not None else "n/a"}) - '
         '<span style="color:var(--negative);">red</span> above it (they outgun you there), '
-        '<span style="color:var(--positive);">green</span> below it (you\'re already ahead). '
+        '<span style="color:var(--positive);">green</span> below it (you\'re already ahead) - except on your own '
+        'row, where that comparison would just be circular. '
         '<span class="tag tag-rec">[Inference]</span> Player injuries aren\'t exposed anywhere in the BuzzerBeater '
         'API, so they\'re not reflected here - check a team\'s roster page manually if that matters.'
     )
     return (
         watch_html +
-        f'<div class="eyebrow" style="margin:14px 0 6px;">League power rankings &middot; last 5 games{rankings_tip}</div>'
+        f'<div class="eyebrow" style="margin:14px 0 6px;">League power rankings{rankings_tip}</div>'
         '<div class="tbl-scroll"><table><thead><tr><th>#</th><th>Team</th><th class="num">Record</th>'
         '<th class="num">Out. Scoring</th><th class="num">In. Scoring</th><th class="num">Out. Defense</th>'
         '<th class="num">In. Defense</th><th class="num">Rebounding</th><th class="num">Flow</th>'
-        '<th class="num">Power</th></tr></thead><tbody>' + rows_html + our_row_html + '</tbody></table></div>'
+        '<th class="num">Power</th></tr></thead><tbody>' + rows_html + '</tbody></table></div>'
     )
 
 # Categories excluded from the season-end projection's run rate: one-time
@@ -2524,31 +2548,95 @@ def _rate_team_recent_form(session, conn, team, schedules, recent_n=5, since_dat
     composite = sum(composite_vals) / len(composite_vals) if composite_vals else None
     wins = sum(1 for r in rows if r.get("team_score") is not None and r.get("opp_score") is not None and r["team_score"] > r["opp_score"])
     losses = sum(1 for r in rows if r.get("team_score") is not None and r.get("opp_score") is not None and r["team_score"] < r["opp_score"])
+    last5_win_pct = wins / (wins + losses) if (wins + losses) else None
     return {
         "team_id": team_id, "name": team["name"], "is_us": team.get("is_us", False),
         "season_diff_rank": team.get("diff_rank"), "head_to_head_diff": team.get("head_to_head_diff"),
         "used_fallback_diff": team.get("used_fallback_diff"), "games_used": len(rows),
-        "recent_record": f"{wins}-{losses}", "composite": composite, **cat_avgs,
+        "recent_record": f"{wins}-{losses}", "last5_win_pct": last5_win_pct,
+        "composite": composite, **cat_avgs,
     }
 
+def _win_pct_vs_group(team_id, schedules, group_ids):
+    """Win% for `team_id` specifically in games against other members of
+    `group_ids` (the final converged top-N group), from that team's full-
+    season match list - the "record against top teams" component of the
+    Power score. None if no such games exist yet."""
+    games = [m for m in schedules.get(team_id, []) if m["opp_id"] in group_ids and m["opp_id"] != team_id]
+    if not games:
+        return None
+    wins = sum(1 for m in games if m["team_score"] > m["opp_score"])
+    losses = sum(1 for m in games if m["team_score"] < m["opp_score"])
+    return wins / (wins + losses) if (wins + losses) else None
+
+POWER_WEIGHT_RATINGS = 0.50
+POWER_WEIGHT_RECENT_RECORD = 0.15
+POWER_WEIGHT_VS_TOP_RECORD = 0.35
+
+def compute_power_scores(rankings, composite_range=None):
+    """Per Tom's explicit weights: the "Power" column blends 3 components
+    into one 0-100 score - 50% overall rating (this ranked pool's own
+    composite ratings, min-max normalized so the best-rated team here
+    scores 100 and the worst scores 0 - composite isn't naturally
+    0-100 bounded on its own), 15% last-5-games win%, 35% win%
+    specifically against other teams in this same group. A team missing
+    a component (most often "vs top teams" - a team can be in the group
+    without having played every other member yet) has that weight
+    redistributed proportionally across whatever components it DOES
+    have, rather than being silently scored as 0% on a record it simply
+    hasn't had the chance to build yet. `composite_range`, when given,
+    overrides the (min, max) used for normalization - so a team scored
+    separately from the main ranked pool (our own row, when we're not in
+    the top-N group) can still be normalized against that same pool's
+    range rather than trivially against itself."""
+    if composite_range is not None:
+        lo, hi = composite_range
+    else:
+        composites = [r["composite"] for r in rankings if r.get("composite") is not None]
+        lo, hi = (min(composites), max(composites)) if composites else (0, 1)
+    span = (hi - lo) or 1
+    for r in rankings:
+        components = []
+        if r.get("composite") is not None:
+            components.append((POWER_WEIGHT_RATINGS, 100 * (r["composite"] - lo) / span))
+        if r.get("last5_win_pct") is not None:
+            components.append((POWER_WEIGHT_RECENT_RECORD, 100 * r["last5_win_pct"]))
+        if r.get("vs_top_win_pct") is not None:
+            components.append((POWER_WEIGHT_VS_TOP_RECORD, 100 * r["vs_top_win_pct"]))
+        total_w = sum(w for w, _ in components)
+        r["power_score"] = (sum(w * v for w, v in components) / total_w) if total_w else None
+    return rankings
+
 def fetch_division_power_rankings(session, conn, division_rows, top_n=6, recent_n=5):
-    """Recent-form power rankings for the top `top_n` teams in our
-    division/conference, selected by head-to-head point differential among
-    top teams (see compute_top_group_by_head_to_head), then rated using
-    each team's actual boxscore ratings (scoring/defense/rebounding/flow)
-    over their last `recent_n` finished games - a recent-form signal,
-    distinct from the season-long standings table shown elsewhere.
-    Boxscores are fetched once per (matchid, team) and cached in
-    match_ratings forever after (a finished game's ratings never change),
-    so a team's history only grows by the handful of matches played since
-    the last run, not re-fetched from scratch every day."""
+    """Recent-form Power score for every team in our division/conference,
+    rated using each team's actual boxscore ratings (scoring/defense/
+    rebounding/flow) over their last `recent_n` finished games - a
+    recent-form signal, distinct from the season-long standings table
+    shown elsewhere. Per Tom: score everyone, not just a top-6 cut - the
+    "top group" from compute_top_group_by_head_to_head is still computed
+    (capped-pool head-to-head selection, see that function) and used as
+    the reference set for each team's "record against top teams"
+    component and the in_top_group flag, but every team in the division
+    gets a full Power score and a row in the table. Boxscores are fetched
+    once per (matchid, team) and cached in match_ratings forever after (a
+    finished game's ratings never change), so a team's history only grows
+    by the handful of matches played since the last run, not re-fetched
+    from scratch every day."""
     group, schedules = compute_top_group_by_head_to_head(session, division_rows, top_n=top_n)
+    group_ids = {t["id"] for t in group}
+    all_teams = [r for r in division_rows if r.get("id")]
+    for t in all_teams:
+        if t["id"] not in schedules:
+            schedules[t["id"]] = _fetch_finished_matches(session, t["id"])
     rankings = []
-    for team in group:
+    for team in all_teams:
         rated = _rate_team_recent_form(session, conn, team, schedules, recent_n)
         if rated is not None:
+            rated["vs_top_win_pct"] = _win_pct_vs_group(team["id"], schedules, group_ids)
+            rated["in_top_group"] = team["id"] in group_ids
             rankings.append(rated)
-    rankings.sort(key=lambda r: (r["composite"] if r["composite"] is not None else -999), reverse=True)
+    compute_power_scores(rankings)
+    rankings.sort(key=lambda r: (r["power_score"] if r["power_score"] is not None else -999), reverse=True)
     for i, r in enumerate(rankings, start=1):
         r["power_rank"] = i
     conn.commit()
@@ -2584,12 +2672,19 @@ def build_report(session, conn, team_key):
         if our_team_row:
             our_schedule = {our_team_id: _fetch_finished_matches(session, our_team_id)}
             our_rating = _rate_team_recent_form(session, conn, our_team_row, our_schedule, since_date=OWN_RATING_SINCE)
+            if our_rating is not None:
+                top_group_ids = {r["team_id"] for r in data["power_rankings"] if r.get("in_top_group")}
+                our_rating["vs_top_win_pct"] = _win_pct_vs_group(our_team_id, our_schedule, top_group_ids)
+                pool_composites = [r["composite"] for r in data["power_rankings"] if r.get("composite") is not None]
+                composite_range = (min(pool_composites), max(pool_composites)) if pool_composites else None
+                compute_power_scores([our_rating], composite_range=composite_range)
     except (BBApiError, requests.RequestException):
         our_rating = None
     our_overall_avg = compute_overall_avg(our_rating)
     data["our_rating"] = our_rating
     data["our_overall_avg"] = our_overall_avg
-    data["ratings_watchlist"] = compute_ratings_watchlist(data["power_rankings"], our_overall_avg)
+    top_group_rankings = [r for r in data["power_rankings"] if r.get("in_top_group")]
+    data["ratings_watchlist"] = compute_ratings_watchlist(top_group_rankings, our_overall_avg)
     try:
         data["big_hires"] = detect_big_hires(session, conn, data["division_rows"], data["now"][:10])
     except (BBApiError, requests.RequestException):

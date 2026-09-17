@@ -202,37 +202,52 @@ fragment:
   only cover training weeks observed since this tracking started
   (2026-09-11) - the game's own flag resets every Friday, so a week that
   finished before that has no way to be recovered after the fact.
-- **League power rankings** - the top 6 teams in your conference, selected
-  by head-to-head point differential *among top teams only* rather than
-  raw season diff (which a top team can pad by blowing out bottom-feeders).
-  Bootstrapped iteratively in `compute_top_group_by_head_to_head`: seed a
+- **League power rankings** - per Tom, every team in the conference gets a
+  weighted **Power score (0-100)**, not just a top-6 cut:
+  `POWER_WEIGHT_RATINGS` **50%** overall rating (recent-form boxscore
+  ratings - outside/inside scoring, outside/inside defense, rebounding,
+  offensive flow, averaged over each team's last up to 5 competitive
+  games: league, cup, playoffs, TV-flagged league games, B3; friendlies
+  and BBM scrimmages excluded - then min-max normalized across the whole
+  conference so the best-rated team scores 100 and the worst scores 0),
+  `POWER_WEIGHT_RECENT_RECORD` **15%** win% over those same last 5 games,
+  `POWER_WEIGHT_VS_TOP_RECORD` **35%** win% specifically against the "Top
+  6" group. `compute_power_scores` blends these; a team missing a
+  component (most often "vs Top 6" - it hasn't played all of them yet)
+  has that weight redistributed proportionally across whatever components
+  it does have, rather than scoring 0% on a record it hasn't had the
+  chance to build. Each finished game's boxscore is fetched once and
+  cached forever in the `match_ratings` table (keyed by matchid + team) -
+  only matches played since the last run ever trigger a new
+  `boxscore.aspx` call.
+
+  The "Top 6" group itself (badged in the table) is still selected by
+  head-to-head point differential among top teams rather than raw season
+  diff (which a top team can pad by blowing out bottom-feeders) -
+  bootstrapped iteratively in `compute_top_group_by_head_to_head`: seed a
   group from naive season diff, recompute each team's average point diff
   using only games against the current group, re-rank, repeat until the
-  group stops changing. A team with no games yet against the group falls
-  back to its season diff (flagged with a `*` in the table). Eligible
-  candidates are capped to the top `max(top_n * 2, 10)` teams by naive
-  season diff, not the whole conference - without that cap, a team with a
-  genuinely poor record could still enter the "top 6" on one small/noisy
-  head-to-head sample (caught live 2026-09-17: a team ranked 13th of 16
-  briefly displaced a much stronger team on a single game). The selected
-  group is then rated by recent-form boxscore ratings (outside/inside
-  scoring, outside/inside defense, rebounding, offensive flow - averaged
-  over each team's last up to 5 competitive games: league, cup, playoffs,
-  TV-flagged league games, B3; friendlies and BBM scrimmages excluded).
-  Each finished game's boxscore is fetched once and cached forever in the
-  `match_ratings` table (keyed by matchid + team) - only matches played
-  since the last run ever trigger a new `boxscore.aspx` call. When our own
-  team isn't in the top 6, an extra row appears below the table (visually
-  set off with a top border) showing our own rating in the same columns,
-  so there's always a direct comparison point - built from `our_rating`
-  (the same figure "You (avg)" on the outlier cards uses, so it follows
-  `own_rating_since` when that's set, not necessarily the same last-5-games
-  window the ranked table itself uses - called out in the section's own
-  tooltip when that row is showing). Every rating cell in the table
-  (including that extra row's own cells) is colored against
-  `compute_overall_avg(our_rating)` - the same single number "You (avg)"
-  shows - red above it (an opponent that outguns us in that category),
-  green below it (a category we're already ahead in).
+  group stops changing. Eligible candidates for that selection are capped
+  to the top `max(top_n * 2, 10)` teams by naive season diff, not the
+  whole conference - without that cap, a team with a genuinely poor
+  record could still enter "Top 6" on one small/noisy head-to-head sample
+  (caught live 2026-09-17: a team ranked 13th of 16 briefly displaced a
+  much stronger team on a single game). A team with no games yet against
+  the group falls back to its season diff for that selection step only
+  (flagged with a `*` in the table) - doesn't affect the Power score.
+
+  Our own team's row uses the same rating window "You (avg)" on the
+  outlier cards uses (`own_rating_since`, when set - not necessarily the
+  same last-5-games window the rest of the table uses), and its rating
+  cells are shown in plain color rather than red/green, since comparing
+  our own values to our own average isn't a threat signal the way an
+  opponent's rating is. Every other team's rating cell is colored against
+  `compute_overall_avg(our_rating)` - red above it (they outgun us there),
+  green below it (we're already ahead). Our **next scheduled league
+  opponent** (regular season or playoff - not friendly/cup/B3/etc.,
+  resolved from the full schedule in `extract_data` as
+  `next_league_opponent_id`) is highlighted and badged in the table even
+  when they're well outside the Top 6.
   - **Teams to watch**, above the ranked table, in priority order: **new
     big hires** first (there's no transfer/bidding API for other teams, so
     this is inferred by diffing each conference team's `roster.aspx`
