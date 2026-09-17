@@ -221,20 +221,30 @@ fragment:
   only matches played since the last run ever trigger a new
   `boxscore.aspx` call.
 
-  The "Top 6" group itself (badged in the table) is still selected by
-  head-to-head point differential among top teams rather than raw season
-  diff (which a top team can pad by blowing out bottom-feeders) -
-  bootstrapped iteratively in `compute_top_group_by_head_to_head`: seed a
-  group from naive season diff, recompute each team's average point diff
-  using only games against the current group, re-rank, repeat until the
-  group stops changing. Eligible candidates for that selection are capped
-  to the top `max(top_n * 2, 10)` teams by naive season diff, not the
-  whole conference - without that cap, a team with a genuinely poor
-  record could still enter "Top 6" on one small/noisy head-to-head sample
-  (caught live 2026-09-17: a team ranked 13th of 16 briefly displaced a
-  much stronger team on a single game). A team with no games yet against
-  the group falls back to its season diff for that selection step only
-  (flagged with a `*` in the table) - doesn't affect the Power score.
+  The "Top 6" group itself (badged in the table) is still selected
+  separately from the Power score, by `compute_top_group_by_head_to_head`:
+  bootstrapped iteratively - seed a group from naive season diff,
+  recompute each team's average point diff using only games against the
+  current group, re-rank, repeat until the group stops changing. Eligible
+  candidates for that selection are capped to the top `max(top_n * 2, 10)`
+  teams by naive season diff, not the whole conference - without that
+  cap, a team with a genuinely poor record could still enter "Top 6" on
+  one small/noisy head-to-head sample (caught live 2026-09-17: a team
+  ranked 13th of 16 briefly displaced a much stronger team on a single
+  game).
+
+  Each candidate's selection score blends its head-to-head point diff vs
+  the current group (min-max normalized to 0-100 across the pool) 50/50
+  with its own recent-form composite rating (same normalization). A team
+  with no games yet against the current group has that 50% head-to-head
+  weight transfer entirely to its rating instead of falling back to a
+  differently-scaled number - per Tom (2026-09-17, after "Why is Honda
+  Fever in the top 6?" surfaced a team with a real-but-bad head-to-head
+  number outranking clearly stronger teams that simply hadn't played the
+  current group yet): a team with no data shouldn't be penalized against
+  one with bad data. A team with no head-to-head games is flagged with a
+  `*` in the table (`used_fallback_diff`) - this only affects "Top 6"
+  membership, not the Power score itself.
 
   Our own team's row uses the same rating window "You (avg)" on the
   outlier cards uses (`own_rating_since`, when set - not necessarily the

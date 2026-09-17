@@ -2328,7 +2328,7 @@ def _fetch_finished_matches(session, team_id):
     out.sort(key=lambda r: r["start"])
     return out
 
-def compute_top_group_by_head_to_head(session, division_rows, top_n=6, max_iterations=5):
+def compute_top_group_by_head_to_head(session, conn, division_rows, top_n=6, recent_n=5, max_iterations=5):
     """Per Tom: season point differential should only count games between
     top teams, not padding from blowouts against bottom-feeders. Bootstrapped
     iteratively, since "who's a top team" and "diff against top teams only"
@@ -2336,11 +2336,21 @@ def compute_top_group_by_head_to_head(session, division_rows, top_n=6, max_itera
     division_rows), recompute each team's average point diff using only
     games against the CURRENT group's members, re-rank, and repeat until the
     group stops changing - conferences here are small, so this converges in
-    a pass or two. A team with no games yet against the current group falls
-    back to its naive season diff, ranked strictly below every team that
-    does have a real head-to-head number (never blended into the same
-    number - a per-game head-to-head diff and a season cumulative diff are
-    different units).
+    a pass or two.
+
+    Selection score per candidate: head-to-head point diff vs the current
+    group (min-max normalized to 0-100 across the pool, same technique
+    compute_power_scores uses) blended 50/50 with the team's own recent-
+    form composite rating (also normalized 0-100 across the pool). Per
+    Tom (2026-09-17, after "Why is Honda Fever in the top 6?" showed a
+    team with a bad-but-real head-to-head number outranking clearly
+    stronger teams that simply hadn't played the current group yet): a
+    team with NO games yet against the current group should not be
+    penalized against one that has a real-but-poor number - instead its
+    full 50% head-to-head weight transfers to the rating component, so
+    the comparison is "how good is this team overall" rather than
+    "does this team happen to have a data point yet." A team missing
+    BOTH signals (no games, no rated boxscores) sorts last.
 
     Eligible candidates are capped to the top `max(top_n * 2, 10)` teams by
     naive season diff, not the whole division - caught live (2026-09-17):
@@ -2356,7 +2366,9 @@ def compute_top_group_by_head_to_head(session, division_rows, top_n=6, max_itera
     contention to begin with.
 
     Each team's full-season match list is fetched once and reused across
-    every iteration and by the caller (no repeated API calls). Returns
+    every iteration and by the caller (no repeated API calls); ratings are
+    read from the match_ratings cache (see _rate_team_recent_form) and only
+    hit the API for games not already cached. Returns
     (ranked_team_dicts, schedules_by_team_id)."""
     all_teams = [r for r in division_rows if r.get("id")]
     naive_ranked = sorted(all_teams, key=lambda t: t.get("diff_rank") if t.get("diff_rank") is not None else 999)
@@ -2365,34 +2377,56 @@ def compute_top_group_by_head_to_head(session, division_rows, top_n=6, max_itera
     schedules = {t["id"]: _fetch_finished_matches(session, t["id"]) for t in teams}
     by_id = {t["id"]: t for t in teams}
 
+    composites = {t["id"]: (_rate_team_recent_form(session, conn, t, schedules, recent_n) or {}).get("composite") for t in teams}
+    comp_vals = [v for v in composites.values() if v is not None]
+    comp_lo, comp_hi = (min(comp_vals), max(comp_vals)) if comp_vals else (0, 1)
+    comp_span = (comp_hi - comp_lo) or 1
+
+    def rating_score(team_id):
+        v = composites.get(team_id)
+        return 100 * (v - comp_lo) / comp_span if v is not None else None
+
     def group_diff(team_id, current_group):
         games = [m for m in schedules.get(team_id, []) if m["opp_id"] in current_group]
         if not games:
             return None
         return sum(m["team_score"] - m["opp_score"] for m in games) / len(games)
 
-    def rank_key(team_id, current_group):
-        d = group_diff(team_id, current_group)
-        if d is not None:
-            return (1, d)
-        naive = by_id[team_id].get("diff")
-        return (0, naive if naive is not None else -9999)
+    def score_group(current_group):
+        diffs = {t["id"]: group_diff(t["id"], current_group) for t in teams}
+        diff_vals = [v for v in diffs.values() if v is not None]
+        diff_lo, diff_hi = (min(diff_vals), max(diff_vals)) if diff_vals else (0, 1)
+        diff_span = (diff_hi - diff_lo) or 1
+        scored = {}
+        for t in teams:
+            tid = t["id"]
+            d = diffs[tid]
+            rscore = rating_score(tid)
+            if d is not None:
+                hscore = 100 * (d - diff_lo) / diff_span
+                blended = 0.5 * hscore + 0.5 * rscore if rscore is not None else hscore
+            elif rscore is not None:
+                blended = rscore
+            else:
+                blended = -9999
+            scored[tid] = (blended, d)
+        return scored
 
     group = {t["id"] for t in teams[:top_n]}  # teams is already naive-diff-rank sorted, from the pool cap above
     for _ in range(max_iterations):
-        keyed = {t["id"]: rank_key(t["id"], group) for t in teams}
-        new_group = {tid for tid, _ in sorted(keyed.items(), key=lambda kv: kv[1], reverse=True)[:top_n]}
+        keyed = score_group(group)
+        new_group = {tid for tid, _ in sorted(keyed.items(), key=lambda kv: kv[1][0], reverse=True)[:top_n]}
         if new_group == group:
             break
         group = new_group
 
-    final_keyed = {tid: rank_key(tid, group) for tid in group}
-    ranked_ids = sorted(final_keyed, key=lambda tid: final_keyed[tid], reverse=True)
+    final_scores = score_group(group)
+    final_keyed = {tid: final_scores[tid] for tid in group}  # score_group scores the whole pool (needed to find each new group) - only the converged top_n belongs in the output
+    ranked_ids = sorted(final_keyed, key=lambda tid: final_keyed[tid][0], reverse=True)
     out = []
     for tid in ranked_ids:
-        used_fallback, value = final_keyed[tid]
-        out.append({**by_id[tid], "head_to_head_diff": value if used_fallback == 1 else None,
-                     "used_fallback_diff": used_fallback == 0})
+        _, d = final_keyed[tid]
+        out.append({**by_id[tid], "head_to_head_diff": d, "used_fallback_diff": d is None})
     return out, schedules
 
 BIG_HIRE_SALARY_MULTIPLIER = 2.0
@@ -2630,7 +2664,7 @@ def fetch_division_power_rankings(session, conn, division_rows, top_n=6, recent_
     finished game's ratings never change), so a team's history only grows
     by the handful of matches played since the last run, not re-fetched
     from scratch every day."""
-    group, schedules = compute_top_group_by_head_to_head(session, division_rows, top_n=top_n)
+    group, schedules = compute_top_group_by_head_to_head(session, conn, division_rows, top_n=top_n, recent_n=recent_n)
     group_ids = {t["id"] for t in group}
     group_by_id = {t["id"]: t for t in group}  # carries head_to_head_diff/used_fallback_diff
     all_teams = [r for r in division_rows if r.get("id")]
