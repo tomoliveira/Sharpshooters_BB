@@ -1482,6 +1482,7 @@ def _power_rankings_html(data):
             f'<td class="num">{rating_cell(r["outside_scoring"])}</td><td class="num">{rating_cell(r["inside_scoring"])}</td>'
             f'<td class="num">{rating_cell(r["outside_defense"])}</td><td class="num">{rating_cell(r["inside_defense"])}</td>'
             f'<td class="num">{rating_cell(r["rebounding"])}</td><td class="num">{rating_cell(r["offensive_flow"])}</td>'
+            f'<td class="num"><b>{rating_cell(r.get("composite"))}</b></td>'
             f'<td class="num">{power_cell(r.get("power_score"))}</td></tr>'
         )
 
@@ -1549,7 +1550,9 @@ def _power_rankings_html(data):
         'being scored 0% on a record it hasn\'t had the chance to build.' + fallback_note + next_opp_note + ' '
         'Ratings themselves average each team\'s last up to 5 competitive games - league, cup, playoffs, TV, B3; '
         'friendlies and BBM scrimmages excluded - a different cut than the season-long standings shown elsewhere on '
-        'this page. Each rating cell (not the Power score) is colored against your own overall average '
+        'this page. <b style="color:var(--ink)">Avg</b> is that team\'s 6 rating categories averaged into one '
+        'number - the same composite the Power score\'s rating component is normalized from (see Criteria & '
+        'scores). Each rating cell (not the Power score) is colored against your own overall average '
         f'({f"{our_overall_avg:.1f}" if our_overall_avg is not None else "n/a"}) - '
         '<span style="color:var(--negative);">red</span> above it (they outgun you there), '
         '<span style="color:var(--positive);">green</span> below it (you\'re already ahead) - except on your own '
@@ -1570,7 +1573,7 @@ def _power_rankings_html(data):
         '<div class="power-view-panel power-view-panel-ratings tbl-scroll"><table><thead><tr><th>#</th><th>Team</th><th class="num">Record</th>'
         '<th class="num">Out. Scoring</th><th class="num">In. Scoring</th><th class="num">Out. Defense</th>'
         '<th class="num">In. Defense</th><th class="num">Rebounding</th><th class="num">Flow</th>'
-        '<th class="num">Power</th></tr></thead><tbody>' + rows_html + '</tbody></table></div>'
+        '<th class="num">Avg</th><th class="num">Power</th></tr></thead><tbody>' + rows_html + '</tbody></table></div>'
         f'<div class="power-view-panel power-view-panel-criteria tbl-scroll"><table><thead><tr><th>#</th><th>Team</th>'
         '<th class="num">Season rank</th><th class="num">H2H diff</th><th class="num">Rating</th>'
         '<th class="num">Rating pts</th><th class="num">Last-5</th><th class="num">Last-5 pts</th>'
