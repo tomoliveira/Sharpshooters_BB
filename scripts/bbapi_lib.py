@@ -1486,6 +1486,47 @@ def _power_rankings_html(data):
         )
 
     rows_html = "".join(row_html(r) for r in rankings)
+
+    def pct_cell(v):
+        return f'{v * 100:.0f}%' if v is not None else '—'
+
+    def component_cell(v):
+        return f'{v:.1f}' if v is not None else '—'
+
+    def criteria_row_html(r):
+        row_style = ' class="us"' if r["is_us"] else ''
+        hth = r.get("head_to_head_diff")
+        hth_str = (f'{hth:+.1f}' if hth is not None else '—') + (' *' if r.get("used_fallback_diff") else '')
+        return (
+            f'<tr{row_style}>'
+            f'<td>{r["power_rank"]}</td>'
+            f'<td>{esc(r["name"])}{" <span class=sub>(you)</span>" if r["is_us"] else ""}</td>'
+            f'<td class="num">{r.get("season_diff_rank") if r.get("season_diff_rank") is not None else "—"}</td>'
+            f'<td class="num">{hth_str}</td>'
+            f'<td class="num">{component_cell(r.get("composite"))}</td>'
+            f'<td class="num">{component_cell(r.get("power_rating_component"))}</td>'
+            f'<td class="num">{pct_cell(r.get("last5_win_pct"))}</td>'
+            f'<td class="num">{component_cell(r.get("power_recent_component"))}</td>'
+            f'<td class="num">{pct_cell(r.get("vs_top_win_pct"))}</td>'
+            f'<td class="num">{component_cell(r.get("power_vs_top_component"))}</td>'
+            f'<td class="num">{power_cell(r.get("power_score"))}</td></tr>'
+        )
+
+    criteria_rows_html = "".join(criteria_row_html(r) for r in rankings)
+    criteria_tip = info_tip(
+        '<span class="tag tag-calc">Calculated</span> Every number that feeds the Power score, unrounded. '
+        '<b style="color:var(--ink)">Season rank</b> is naive season point-differential rank (padded by '
+        'blowouts, not otherwise used). <b style="color:var(--ink)">H2H diff</b> is this team\'s average point '
+        'differential against the current "Top 6" group only - the input to Top 6 selection, not the Power '
+        'score; a <code>*</code> means it had no games yet against that group, so its selection weight shifted '
+        'entirely onto its rating (see the League power rankings tooltip). <b style="color:var(--ink)">Rating</b> '
+        'is the raw average boxscore composite (last up to 5 competitive games); its component column is that '
+        f'value min-max normalized 0-100 across the conference, weighted {POWER_WEIGHT_RATINGS * 100:.0f}% of '
+        f'Power. <b style="color:var(--ink)">Last-5 / vs Top 6</b> are win% over those samples, weighted '
+        f'{POWER_WEIGHT_RECENT_RECORD * 100:.0f}% and {POWER_WEIGHT_VS_TOP_RECORD * 100:.0f}% respectively - a '
+        'missing component has its weight redistributed across whatever the team does have, so its column reads '
+        '"—" rather than being silently scored 0.'
+    )
     any_fallback = any(r.get("used_fallback_diff") for r in rankings)
     fallback_note = (' Rows marked * hadn\'t yet played anyone else in the top group when it was selected, so they '
                       'fell back to season-long point differential instead of a head-to-head number for that '
@@ -1519,10 +1560,23 @@ def _power_rankings_html(data):
     return (
         watch_html +
         f'<div class="eyebrow" style="margin:14px 0 6px;">League power rankings{rankings_tip}</div>'
-        '<div class="tbl-scroll"><table><thead><tr><th>#</th><th>Team</th><th class="num">Record</th>'
+        '<div class="power-view">'
+        '<input type="radio" name="power-view" id="power-view-ratings" class="power-view-radio" checked>'
+        '<input type="radio" name="power-view" id="power-view-criteria" class="power-view-radio">'
+        '<div class="power-view-tabs">'
+        '<label for="power-view-ratings">Ratings</label>'
+        '<label for="power-view-criteria">Criteria &amp; scores</label>'
+        '</div>'
+        '<div class="power-view-panel power-view-panel-ratings tbl-scroll"><table><thead><tr><th>#</th><th>Team</th><th class="num">Record</th>'
         '<th class="num">Out. Scoring</th><th class="num">In. Scoring</th><th class="num">Out. Defense</th>'
         '<th class="num">In. Defense</th><th class="num">Rebounding</th><th class="num">Flow</th>'
         '<th class="num">Power</th></tr></thead><tbody>' + rows_html + '</tbody></table></div>'
+        f'<div class="power-view-panel power-view-panel-criteria tbl-scroll"><table><thead><tr><th>#</th><th>Team</th>'
+        '<th class="num">Season rank</th><th class="num">H2H diff</th><th class="num">Rating</th>'
+        '<th class="num">Rating pts</th><th class="num">Last-5</th><th class="num">Last-5 pts</th>'
+        '<th class="num">vs Top 6</th><th class="num">vs Top 6 pts</th>'
+        f'<th class="num">Power{criteria_tip}</th></tr></thead><tbody>' + criteria_rows_html + '</tbody></table></div>'
+        '</div>'
     )
 
 # Categories excluded from the season-end projection's run rate: one-time
@@ -2639,12 +2693,22 @@ def compute_power_scores(rankings, composite_range=None):
     span = (hi - lo) or 1
     for r in rankings:
         components = []
+        rating_component = recent_component = vs_top_component = None
         if r.get("composite") is not None:
-            components.append((POWER_WEIGHT_RATINGS, 100 * (r["composite"] - lo) / span))
+            rating_component = 100 * (r["composite"] - lo) / span
+            components.append((POWER_WEIGHT_RATINGS, rating_component))
         if r.get("last5_win_pct") is not None:
-            components.append((POWER_WEIGHT_RECENT_RECORD, 100 * r["last5_win_pct"]))
+            recent_component = 100 * r["last5_win_pct"]
+            components.append((POWER_WEIGHT_RECENT_RECORD, recent_component))
         if r.get("vs_top_win_pct") is not None:
-            components.append((POWER_WEIGHT_VS_TOP_RECORD, 100 * r["vs_top_win_pct"]))
+            vs_top_component = 100 * r["vs_top_win_pct"]
+            components.append((POWER_WEIGHT_VS_TOP_RECORD, vs_top_component))
+        # Kept per-row (not just folded into the final blend) so the report's
+        # "Criteria & scores" toggle can show each 0-100 component alongside
+        # the raw numbers it was derived from - see _power_rankings_html.
+        r["power_rating_component"] = rating_component
+        r["power_recent_component"] = recent_component
+        r["power_vs_top_component"] = vs_top_component
         total_w = sum(w for w, _ in components)
         r["power_score"] = (sum(w * v for w, v in components) / total_w) if total_w else None
     return rankings

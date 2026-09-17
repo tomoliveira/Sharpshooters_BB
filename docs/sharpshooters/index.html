@@ -210,6 +210,22 @@
 
   /* ---- tables ---- */
   .tbl-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+
+  /* ---- power rankings view toggle (pure CSS, same radio+label pattern as the main tabs) ---- */
+  .power-view-radio { position: absolute; opacity: 0; pointer-events: none; }
+  .power-view-tabs { display: flex; gap: 6px; margin: 0 0 8px; }
+  .power-view-tabs label {
+    cursor: pointer; padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px;
+    font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 600; font-size: 12.5px;
+    letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink-faint); background: var(--surface);
+  }
+  .power-view-panel { display: none; }
+  #power-view-ratings:checked ~ .power-view-panel-ratings,
+  #power-view-criteria:checked ~ .power-view-panel-criteria { display: block; }
+  #power-view-ratings:checked ~ .power-view-tabs label[for="power-view-ratings"],
+  #power-view-criteria:checked ~ .power-view-tabs label[for="power-view-criteria"] {
+    color: var(--accent); border-color: var(--accent); background: var(--accent-soft);
+  }
   table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 13.8px; }
   thead th {
     text-align: left; font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 600; font-size: 12.5px;
