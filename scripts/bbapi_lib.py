@@ -2624,12 +2624,18 @@ def fetch_division_power_rankings(session, conn, division_rows, top_n=6, recent_
     from scratch every day."""
     group, schedules = compute_top_group_by_head_to_head(session, division_rows, top_n=top_n)
     group_ids = {t["id"] for t in group}
+    group_by_id = {t["id"]: t for t in group}  # carries head_to_head_diff/used_fallback_diff
     all_teams = [r for r in division_rows if r.get("id")]
     for t in all_teams:
         if t["id"] not in schedules:
             schedules[t["id"]] = _fetch_finished_matches(session, t["id"])
     rankings = []
     for team in all_teams:
+        # Use the enriched group entry (has head_to_head_diff/
+        # used_fallback_diff attached) for group members, so those
+        # selection-diagnostic fields survive into the final row instead
+        # of silently reading as None for every team.
+        team = group_by_id.get(team["id"], team)
         rated = _rate_team_recent_form(session, conn, team, schedules, recent_n)
         if rated is not None:
             rated["vs_top_win_pct"] = _win_pct_vs_group(team["id"], schedules, group_ids)
