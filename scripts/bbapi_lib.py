@@ -1459,7 +1459,15 @@ def _power_rankings_html(data):
 
     def row_html(r):
         is_next_opp = next_opp_id is not None and r["team_id"] == next_opp_id
-        row_style = ' style="background:var(--accent-soft);"' if is_next_opp else ''
+        # Two different highlight colors so "us" and "next opponent" (two
+        # separate, non-overlapping things - we can't play ourselves) each
+        # read as their own signal rather than looking like the same badge.
+        if r["is_us"]:
+            row_style = ' style="background:var(--positive-soft);"'
+        elif is_next_opp:
+            row_style = ' style="background:var(--accent-soft);"'
+        else:
+            row_style = ''
         top_badge = ' <span class="tag tag-official" style="margin-left:4px;">Top 6</span>' if r.get("in_top_group") else ''
         next_badge = ' <span class="tag tag-calc" style="margin-left:4px;">Next opponent</span>' if is_next_opp else ''
         # Comparing our own row's rating cells against "our own average"
