@@ -908,7 +908,7 @@
         </div>
         <div style="display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin-top:14px;">
           <button type="button" id="tc-apply-btn" class="masthead-btn">
-            <span class="icon">&#8599;</span><span class="label">Open training.aspx to apply</span>
+            <span class="icon">&#8599;</span><span class="label">Training Page</span>
           </button>
           <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink-soft); cursor:pointer;">
             <input type="checkbox" id="tc-proj-toggle">
@@ -916,7 +916,6 @@
           </label>
           <span id="tc-apply-status" class="sub" style="display:none;"></span>
         </div>
-        <p class="block-note" style="margin-top:8px;"><span class="tag tag-rec">[Inference]</span> This report is read-only and can't submit the training change itself - BuzzerBeater's training.aspx doesn't accept pre-filled selections via a link either. The button above copies "<span id="tc-apply-preview">&mdash;</span>" to your clipboard and opens training.aspx in a new tab, so applying it is picking the same two dropdowns there instead of hunting for them from scratch.</p>
         <div id="training-calc-results" style="margin-top:16px;"><p class="block-note">Loading live data…</p></div>
       </div>
     </section>
@@ -1500,9 +1499,6 @@
     var weightNote = opt.weight < 1
       ? ' <span class="sub">(' + Math.round(opt.weight * 100) + "% skill-progression effectiveness for this combo - minutes toward the threshold still count in full)</span>"
       : "";
-    var projFootnote = (showProj && gains)
-      ? ' Projections assume the player keeps clearing their weekly minutes threshold at this position for all 4 weeks, at the coefficient rate in the Training type efficiency table above - a projection, not a guarantee (injuries, lineup changes, or falling short of the threshold in a given week would all reduce it).'
-      : '';
     var zeroMinutePlayers = affected.filter(function (x) { return x.minutes === 0; }).length;
     var summaryLine = zeroMinutePlayers
       ? (affected.length + " roster player" + (affected.length === 1 ? "" : "s") + " affected by <b style=\"color:var(--ink)\">" + ssbbEsc(opt.label) + "</b>" + weightNote
@@ -1514,9 +1510,7 @@
     results.innerHTML =
       '<div class="tbl-scroll"><table><thead><tr><th class="sortable" data-col="0">Player</th><th class="sortable" data-col="1">Pos</th><th class="num sortable" data-col="2">Age</th>'
       + '<th class="num sortable" data-col="3">Minutes / threshold</th><th class="sortable" data-col="4">Status</th>' + projHeaders + '</tr></thead><tbody>' + body + "</tbody></table></div>"
-      + '<p class="block-note" style="margin-top:10px;">' + summaryLine
-      + " - shown regardless of each player's own listed best position, since that's independent of where they were actually fielded."
-      + projFootnote + "</p>"
+      + '<p class="block-note" style="margin-top:10px;">' + summaryLine + "</p>"
       + projNote;
   }
 
@@ -1546,7 +1540,6 @@
     ssbbRenderTrainingCalc();
     ssbbApplyTrainingColumns();
     ssbbApplyTrainingCards();
-    ssbbUpdateApplyPreview();
     ssbbRenderTrainingRecommendation();
     ssbbRenderUpcomingSchedule();
   }
@@ -1717,6 +1710,20 @@
     }).join("");
   }
 
+  var UPCOMING_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  var UPCOMING_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  // "2026-09-19T21:00:00Z" -> "Sep-19 Sat" - parsed via UTC getters (not
+  // local-timezone ones) since the source timestamp is UTC and a local
+  // conversion could shift the displayed day near midnight.
+  function ssbbFormatUpcomingDate(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    var day = String(d.getUTCDate());
+    if (day.length < 2) day = "0" + day;
+    return UPCOMING_MONTHS[d.getUTCMonth()] + "-" + day + " " + UPCOMING_WEEKDAYS[d.getUTCDay()];
+  }
+
   function ssbbRenderUpcomingSchedule() {
     var container = document.getElementById("training-upcoming-schedule");
     if (!container) return;
@@ -1733,7 +1740,7 @@
       return ssbbEsc(name) + (p != null ? ' <span class="sub">(' + p.toFixed(1) + ")</span>" : "");
     }
     var rows = upcoming.map(function (m) {
-      return "<tr><td>" + ssbbEsc(m.start) + "</td><td>" + withPower(m.away) + " @ " + withPower(m.home) + "</td></tr>";
+      return "<tr><td>" + ssbbEsc(ssbbFormatUpcomingDate(m.start)) + "</td><td>" + withPower(m.away) + " @ " + withPower(m.home) + "</td></tr>";
     }).join("");
     container.innerHTML =
       '<div class="tbl-scroll"><table style="min-width:0;"><thead><tr><th class="sortable" data-col="0">Date</th>'
@@ -1823,17 +1830,6 @@
     });
   }
 
-  // Keeps the "copy to clipboard" preview text (in the note next to the
-  // apply button) in sync with whatever's currently selected - called
-  // after init and on every type/combo change.
-  function ssbbUpdateApplyPreview() {
-    var typeSel = document.getElementById("tc-type");
-    var comboSel = document.getElementById("tc-combo");
-    var preview = document.getElementById("tc-apply-preview");
-    if (!typeSel || !comboSel || !preview) return;
-    preview.textContent = typeSel.value && comboSel.value ? (typeSel.value + " — " + comboSel.value) : "—";
-  }
-
   document.addEventListener("change", function (e) {
     if (!e.target) return;
     if (e.target.id === "tc-type") {
@@ -1841,14 +1837,12 @@
       ssbbRenderTrainingCalc();
       ssbbApplyTrainingColumns();
       ssbbApplyTrainingCards();
-      ssbbUpdateApplyPreview();
       ssbbRenderTrainingRecommendation();
       ssbbSaveTrainingSelection(e.target.value, document.getElementById("tc-combo").value);
     } else if (e.target.id === "tc-combo") {
       ssbbRenderTrainingCalc();
       ssbbApplyTrainingColumns();
       ssbbApplyTrainingCards();
-      ssbbUpdateApplyPreview();
       ssbbRenderTrainingRecommendation();
       ssbbSaveTrainingSelection(document.getElementById("tc-type").value, e.target.value);
     } else if (e.target.id === "tc-proj-toggle") {
@@ -1863,11 +1857,11 @@
     }
   });
 
-  // "Open training.aspx to apply" - this report is read-only and
-  // training.aspx has no URL parameter to pre-select a combo, so the best
-  // it can do is copy the exact selection to the clipboard and open the
-  // real page in a new tab, rather than silently submitting anything
-  // itself (see the standing read-only rule in this repo's CLAUDE.md).
+  // "Training Page" button - this report is read-only and training.aspx
+  // has no URL parameter to pre-select a combo, so the best it can do is
+  // copy the exact selection to the clipboard and open the real page in a
+  // new tab, rather than silently submitting anything itself (see the
+  // standing read-only rule in this repo's CLAUDE.md).
   document.addEventListener("click", function (e) {
     var btn = e.target.closest && e.target.closest("#tc-apply-btn");
     if (!btn) return;
