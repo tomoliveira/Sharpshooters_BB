@@ -244,6 +244,19 @@ fragment:
     to exclude anyone, per the same reasoning as the projection toggle
     fix above. A suggestion, not an automatic change - nothing here
     submits to BuzzerBeater.
+  - **"Minimize salary" mode** (per Tom, 2026-09-19, and now the default
+    for a first-ever visit) - an alternate lens next to "Doctrine
+    priority": ranks every training type documented for the candidates'
+    combo by skill-points-gained per unit of 1&rarr;20 salary-multiplier
+    elasticity (`SALARY_MULTIPLIERS` in the page's JS, transcribed from
+    the Training priority card) and recommends the cheapest, with the
+    full ranked table shown for transparency. Reflects Tom's stated
+    priority while Division III is an easy climb: maximize development,
+    minimize payroll, ahead of promotion - see
+    `references/training_strategy_notes.md` for the full reasoning and a
+    worked example (One on One vs. Rebounding for forwards). Persisted
+    per-browser (`ssbb-recommendation-mode`), independent of the
+    calculator's own type/combo selection.
 - **Upcoming schedule** (Training Strategy tab) - per Tom (2026-09-18),
   the next 5 scheduled games (already computed for `data["schedule"]
   ["upcoming"]`), each team annotated with its Power score from the

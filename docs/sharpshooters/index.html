@@ -972,8 +972,16 @@
 
     <section class="block">
       <div class="block-head">
-        <h2>Training focus recommendation<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-calc">Calculated</span> Client-only, computed from your marked training candidates (Roster tab checkboxes) and the doctrine above - not part of the daily snapshot. For each doctrine group actually represented among your candidates (grouped by listed position purely to pick which priority-skill list applies - never used to exclude anyone), finds that group's current weakest priority skill (lowest average across the group's candidates) and the training type that grows it fastest at the position combo those candidates actually cover, using the Training type efficiency table's coefficients below. It's a suggestion based on today's skill snapshot, not an automatic change - nothing here submits anything to BuzzerBeater.</span></span></h2>
+        <h2>Training focus recommendation<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-calc">Calculated</span> Client-only, computed from your marked training candidates (Roster tab checkboxes) - not part of the daily snapshot. <b style="color:var(--ink)">Doctrine priority</b>: for each doctrine group represented among your candidates (grouped by listed position purely to pick which priority-skill list applies - never used to exclude anyone), finds that group's current weakest priority skill and the training type that grows it fastest. <b style="color:var(--ink)">Minimize salary</b>: ranks every training type available at your candidates' combo by skill-points-gained per unit of salary-multiplier elasticity (see the Training priority card's 1&rarr;20 multipliers, Investments tab) and recommends the cheapest. Per Tom (2026-09-19): while Division III is an easy climb and salary doesn't matter until after promotion, minimize salary is the more useful lens - revisit doctrine priority once results start mattering more than payroll. Both use the same Training type efficiency table's coefficients below. A suggestion either way, not an automatic change - nothing here submits anything to BuzzerBeater.</span></span></h2>
         <span class="tag tag-calc">Calculated · updates instantly</span>
+      </div>
+      <div style="display:flex; gap:14px; align-items:center; margin-bottom:10px;">
+        <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink-soft); cursor:pointer;">
+          <input type="radio" name="rec-mode" id="rec-mode-doctrine" value="doctrine"> Doctrine priority
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink-soft); cursor:pointer;">
+          <input type="radio" name="rec-mode" id="rec-mode-salary" value="salary"> Minimize salary
+        </label>
       </div>
       <div id="training-recommendation"><p class="block-note">Loading live data…</p></div>
     </section>
@@ -1336,6 +1344,18 @@
     driving: "Driving", passing: "Passing", insideShot: "Inside Shot", insideDef: "Inside Def.",
     rebound: "Rebounding", block: "Shot Blocking", stamina: "Stamina", freeThrow: "Free Throw",
   };
+  // 1->20 salary multipliers, transcribed from the "Training priority"
+  // card (Investments tab) - ground-truth curves from buzzer-manager.com's
+  // salary estimator, cross-validated against a 266-player market
+  // regression (see references/... in the repo). Used by the "Minimize
+  // salary" recommendation mode below - Stamina/Free Throw are absent from
+  // TRAINING_COEFFICIENTS entirely (no reference data for Team Training),
+  // so they never enter that scoring even though they're listed here.
+  var SALARY_MULTIPLIERS = {
+    jumpShot: 5.21, rebound: 4.42, passing: 3.39, insideDef: 3.28, insideShot: 2.93,
+    outsideDef: 2.45, range: 2.38, handling: 1.70, block: 1.65, driving: 1.23,
+    stamina: 1.00, freeThrow: 1.00,
+  };
   var POSITION_ORDER = ["PG", "SG", "SF", "PF", "C"];
 
   function ssbbEsc(v) {
@@ -1537,6 +1557,8 @@
     }
     var projToggleEl = document.getElementById("tc-proj-toggle");
     if (projToggleEl && saved) projToggleEl.checked = !!saved.showProj;
+    var recModeEl = document.getElementById("rec-mode-" + ssbbGetRecommendationMode());
+    if (recModeEl) recModeEl.checked = true;
     ssbbRenderTrainingCalc();
     ssbbApplyTrainingColumns();
     ssbbApplyTrainingCards();
@@ -1635,7 +1657,50 @@
     return null;
   }
 
-  function ssbbBuildTrainingRecommendations() {
+  // Persists which recommendation mode is selected (same localStorage
+  // pattern as the calculator's own selection) - per Tom (2026-09-19).
+  var RECOMMENDATION_MODE_KEY = "ssbb-recommendation-mode";
+
+  // Defaults to "salary" (not "doctrine") for a first-ever visit - per
+  // Tom (2026-09-19), that's the more useful lens while Division III
+  // stays an easy climb; switch back to "doctrine" any time, it's
+  // remembered per-browser either way.
+  function ssbbGetRecommendationMode() {
+    try { return localStorage.getItem(RECOMMENDATION_MODE_KEY) || "salary"; } catch (e) { return "salary"; }
+  }
+  function ssbbSetRecommendationMode(mode) {
+    try { localStorage.setItem(RECOMMENDATION_MODE_KEY, mode); } catch (e) {}
+  }
+
+  // $-efficiency score for one training type's coefficient set: skill
+  // points gained per week, per unit of salary-multiplier "elasticity"
+  // spent - see references/training_strategy_notes.md. Higher = cheaper
+  // development. Skills with no salary-multiplier entry (shouldn't happen
+  // given SALARY_MULTIPLIERS covers every tag TRAINING_COEFFICIENTS uses)
+  // are skipped rather than crashing.
+  function ssbbDollarEfficiencyScore(coeffs) {
+    var score = 0;
+    Object.keys(coeffs).forEach(function (tag) {
+      var mult = SALARY_MULTIPLIERS[tag];
+      if (mult) score += coeffs[tag] / mult;
+    });
+    return score;
+  }
+
+  // Every training type with reference data for this exact comboKey,
+  // ranked most to least salary-efficient.
+  function ssbbRankTrainingBySalaryEfficiency(comboKey) {
+    var ranked = [];
+    Object.keys(TRAINING_COEFFICIENTS).forEach(function (type) {
+      var combo = TRAINING_COEFFICIENTS[type][comboKey];
+      if (!combo) return;
+      ranked.push({ type: type, coeffs: combo, score: ssbbDollarEfficiencyScore(combo) });
+    });
+    ranked.sort(function (a, b) { return b.score - a.score; });
+    return ranked;
+  }
+
+  function ssbbBuildTrainingRecommendations(mode) {
     var data = window.SSBB_DATA;
     if (!data) return [];
     var rows = (data.roster_skills && data.roster_skills.rows) || [];
@@ -1645,6 +1710,23 @@
     DOCTRINE_GROUPS.forEach(function (group) {
       var members = candidates.filter(function (r) { return group.positions.indexOf(r.position) !== -1; });
       if (!members.length) return;
+      // Combo actually covered by this group's candidates (their real
+      // listed positions, not the whole doctrine group's position list) -
+      // e.g. a group of PF-only candidates recommends against "PF", not
+      // the wider "PF/C".
+      var comboKey = Array.from(new Set(members.map(function (r) { return r.position; })))
+        .sort(function (a, b) { return POSITION_ORDER.indexOf(a) - POSITION_ORDER.indexOf(b); }).join("/");
+
+      if (mode === "salary") {
+        var ranked = ssbbRankTrainingBySalaryEfficiency(comboKey);
+        var best = ranked[0] || null;
+        out.push({
+          group: group.name, members: members, comboKey: comboKey, mode: "salary", ranked: ranked,
+          recommendation: best ? { type: best.type, coeffs: best.coeffs, score: best.score, comboLabel: ssbbFindComboLabel(best.type, comboKey) } : null,
+        });
+        return;
+      }
+
       var avgs = group.prioritySkills.map(function (tag) {
         var vals = members.map(function (r) { var c = r[tag]; return c ? parseFloat(c.value) : NaN; }).filter(function (v) { return !isNaN(v); });
         return { tag: tag, avg: vals.length ? vals.reduce(function (a, b) { return a + b; }, 0) / vals.length : null };
@@ -1652,21 +1734,15 @@
       if (!avgs.length) return;
       avgs.sort(function (a, b) { return a.avg - b.avg; });
       var weakest = avgs[0];
-      // Combo actually covered by this group's candidates (their real
-      // listed positions, not the whole doctrine group's position list) -
-      // e.g. a group of PF-only candidates recommends against "PF", not
-      // the wider "PF/C".
-      var comboKey = Array.from(new Set(members.map(function (r) { return r.position; })))
-        .sort(function (a, b) { return POSITION_ORDER.indexOf(a) - POSITION_ORDER.indexOf(b); }).join("/");
-      var best = null;
+      var best2 = null;
       Object.keys(TRAINING_COEFFICIENTS).forEach(function (type) {
         var combo = TRAINING_COEFFICIENTS[type][comboKey];
         if (!combo || combo[weakest.tag] === undefined) return;
-        if (!best || combo[weakest.tag] > best.coef) best = { type: type, coef: combo[weakest.tag] };
+        if (!best2 || combo[weakest.tag] > best2.coef) best2 = { type: type, coef: combo[weakest.tag] };
       });
       out.push({
-        group: group.name, members: members, weakest: weakest, avgs: avgs, comboKey: comboKey,
-        recommendation: best ? { type: best.type, coef: best.coef, comboLabel: ssbbFindComboLabel(best.type, comboKey) } : null,
+        group: group.name, members: members, weakest: weakest, avgs: avgs, comboKey: comboKey, mode: "doctrine",
+        recommendation: best2 ? { type: best2.type, coef: best2.coef, comboLabel: ssbbFindComboLabel(best2.type, comboKey) } : null,
       });
     });
     return out;
@@ -1675,7 +1751,8 @@
   function ssbbRenderTrainingRecommendation() {
     var container = document.getElementById("training-recommendation");
     if (!container) return;
-    var recs = ssbbBuildTrainingRecommendations();
+    var mode = ssbbGetRecommendationMode();
+    var recs = ssbbBuildTrainingRecommendations(mode);
     if (!recs.length) {
       container.innerHTML = '<p class="block-note">No training candidates matching a doctrine group yet - check a box next to a player in the Roster tab\'s skill table to get a recommendation.</p>';
       return;
@@ -1685,11 +1762,39 @@
     var currentComboKey = comboSel && comboSel.value ? ssbbParseTrainingOption(comboSel.value).comboKey : null;
     container.innerHTML = recs.map(function (rec) {
       var memberNames = rec.members.map(function (r) { return ssbbEsc(r.name); }).join(", ");
-      var skillLine = rec.avgs.map(function (a) { return ssbbEsc(SKILL_TAG_INFO[a.tag] || a.tag) + ": " + a.avg.toFixed(1); }).join(" &middot; ");
+      if (mode === "salary") {
+        if (!rec.recommendation) {
+          return '<div class="card" style="margin-top:10px;"><div class="eyebrow">' + ssbbEsc(rec.group) + "</div>"
+            + '<p class="block-note" style="margin:6px 0;">Candidates: ' + memberNames + "</p>"
+            + '<p class="block-note">No training-coefficient reference data for this exact combo (' + ssbbEsc(rec.comboKey)
+            + '), see the Training type efficiency table below for the combos that are documented.</p></div>';
+        }
+        var matchesSalary = currentType === rec.recommendation.type && currentComboKey === rec.comboKey;
+        var badgeSalary = matchesSalary
+          ? '<span class="tag tag-official" style="margin-left:8px;">Matches current selection above</span>'
+          : '<span class="tag tag-calc" style="margin-left:8px;">Different from current selection above</span>';
+        var rankedRows = rec.ranked.map(function (r, i) {
+          var skillLine = Object.keys(r.coeffs).map(function (tag) {
+            return ssbbEsc(SKILL_TAG_INFO[tag] || tag) + " " + r.coeffs[tag].toFixed(2) + " (&times;" + SALARY_MULTIPLIERS[tag].toFixed(2) + ")";
+          }).join(", ");
+          return '<tr' + (i === 0 ? ' style="font-weight:600;"' : '') + '><td>' + ssbbEsc(r.type) + '</td><td class="sub">' + skillLine
+            + '</td><td class="num">' + r.score.toFixed(3) + "</td></tr>";
+        }).join("");
+        return '<div class="card" style="margin-top:10px;">'
+          + '<div class="eyebrow">' + ssbbEsc(rec.group) + badgeSalary + "</div>"
+          + '<p class="block-note" style="margin:6px 0;">Candidates: ' + memberNames + "</p>"
+          + '<p style="margin:8px 0;"><b style="color:var(--ink)">Recommended: ' + ssbbEsc(rec.recommendation.type) + " &mdash; "
+          + ssbbEsc(rec.recommendation.comboLabel || rec.comboKey) + "</b> "
+          + '<span class="sub">(highest $-efficiency score, ' + rec.recommendation.score.toFixed(3)
+          + ' skill-points/week per unit of salary elasticity - see the ranked table below)</span></p>'
+          + '<div class="tbl-scroll" style="box-shadow:none;"><table style="min-width:0;"><thead><tr><th>Training type</th><th>Skills (weekly rate, &times; salary multiplier)</th><th class="num">$-efficiency</th></tr></thead><tbody>'
+          + rankedRows + "</tbody></table></div></div>";
+      }
+      var skillLine2 = rec.avgs.map(function (a) { return ssbbEsc(SKILL_TAG_INFO[a.tag] || a.tag) + ": " + a.avg.toFixed(1); }).join(" &middot; ");
       if (!rec.recommendation) {
         return '<div class="card" style="margin-top:10px;"><div class="eyebrow">' + ssbbEsc(rec.group) + "</div>"
           + '<p class="block-note" style="margin:6px 0;">Candidates: ' + memberNames + "</p>"
-          + '<p class="block-note" style="margin:6px 0;">' + skillLine + "</p>"
+          + '<p class="block-note" style="margin:6px 0;">' + skillLine2 + "</p>"
           + '<p class="block-note">Weakest priority skill: <b style="color:var(--ink)">' + ssbbEsc(SKILL_TAG_INFO[rec.weakest.tag] || rec.weakest.tag)
           + "</b> (avg " + rec.weakest.avg.toFixed(1) + ") - no training-coefficient reference data for this exact combo ("
           + ssbbEsc(rec.comboKey) + "), see the Training type efficiency table below for the combos that are documented.</p></div>";
@@ -1701,7 +1806,7 @@
       return '<div class="card" style="margin-top:10px;">'
         + '<div class="eyebrow">' + ssbbEsc(rec.group) + badge + "</div>"
         + '<p class="block-note" style="margin:6px 0;">Candidates: ' + memberNames + "</p>"
-        + '<p class="block-note" style="margin:6px 0;">' + skillLine + "</p>"
+        + '<p class="block-note" style="margin:6px 0;">' + skillLine2 + "</p>"
         + '<p style="margin:8px 0 0;"><b style="color:var(--ink)">Recommended: ' + ssbbEsc(rec.recommendation.type) + " &mdash; "
         + ssbbEsc(rec.recommendation.comboLabel || rec.comboKey) + "</b> "
         + '<span class="sub">(targets ' + ssbbEsc(SKILL_TAG_INFO[rec.weakest.tag] || rec.weakest.tag) + ", this group's weakest priority skill at "
@@ -1853,6 +1958,9 @@
       var pid = e.target.getAttribute("data-playerid");
       if (e.target.checked) candidates.add(pid); else candidates.delete(pid);
       ssbbSetCandidates(candidates);
+      ssbbRenderTrainingRecommendation();
+    } else if (e.target.name === "rec-mode") {
+      ssbbSetRecommendationMode(e.target.value);
       ssbbRenderTrainingRecommendation();
     }
   });
