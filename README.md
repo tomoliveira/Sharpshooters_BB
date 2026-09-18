@@ -202,6 +202,26 @@ fragment:
   only cover training weeks observed since this tracking started
   (2026-09-11) - the game's own flag resets every Friday, so a week that
   finished before that has no way to be recovered after the fact.
+- **Training minutes calculator** (Training Strategy tab) - client-only JS,
+  independent of the daily snapshot. Two additions per Tom (2026-09-18):
+  - **"Open training.aspx to apply"** - this report is read-only and
+    `training.aspx` has no URL parameter to pre-select a training
+    type/combo, so the button doesn't (and can't) submit the change
+    itself. It copies the exact selection to the clipboard and opens
+    `training.aspx` in a new tab, so applying it is picking the same two
+    dropdowns there rather than hunting for them from scratch.
+  - **"Show 4-week skill projection"** toggle - adds one column per skill
+    the selected combo touches, projecting `current + coefficient × 4`
+    for every affected player, sourced from the same
+    `TRAINING_COEFFICIENTS` data as the Training type efficiency table
+    below (`references/training_coefficients.md`). That reference only
+    covers the combos Tom actually captured, not every option
+    `training.aspx` offers - an uncovered combo (e.g. Jump Shot's "C /
+    PF") shows a "no data for this combo" note instead of a fabricated
+    number, rather than silently showing nothing. The projection assumes
+    the player keeps clearing their weekly minutes threshold at that
+    position for all 4 weeks - stated as an assumption in the footnote,
+    not a guarantee.
 - **League power rankings** - per Tom, every team in the conference gets a
   weighted **Power score (0-100)**, not just a top-6 cut:
   `POWER_WEIGHT_RATINGS` **50%** overall rating (recent-form boxscore
