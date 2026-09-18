@@ -973,6 +973,22 @@
 
     <section class="block">
       <div class="block-head">
+        <h2>Training focus recommendation<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-calc">Calculated</span> Client-only, computed from your marked training candidates (Roster tab checkboxes) and the doctrine above - not part of the daily snapshot. For each doctrine group actually represented among your candidates (grouped by listed position purely to pick which priority-skill list applies - never used to exclude anyone), finds that group's current weakest priority skill (lowest average across the group's candidates) and the training type that grows it fastest at the position combo those candidates actually cover, using the Training type efficiency table's coefficients below. It's a suggestion based on today's skill snapshot, not an automatic change - nothing here submits anything to BuzzerBeater.</span></span></h2>
+        <span class="tag tag-calc">Calculated · updates instantly</span>
+      </div>
+      <div id="training-recommendation"><p class="block-note">Loading live data…</p></div>
+    </section>
+
+    <section class="block">
+      <div class="block-head">
+        <h2>Upcoming schedule<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-calc">Calculated</span> Your next scheduled games (live from schedule.aspx), each team annotated with its Power score from the League power rankings (Overview tab) where available - context for timing a training-focus switch, e.g. seeing a run of weak opponents coming up.</span></span></h2>
+        <span class="auto-badge">Auto-updated daily</span>
+      </div>
+      <div id="training-upcoming-schedule"><p class="block-note">Loading live data…</p></div>
+    </section>
+
+    <section class="block">
+      <div class="block-head">
         <h2>Training type efficiency<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-rec">Reference</span> Captured by Tom outside the game/API (<code>references/Weekly Training Amounts.webp</code> and <code>training_coefficients.md</code> in the GitHub repo) &mdash; not pulled live, so treat it as a training-mechanics reference rather than official documentation. Each row is the per-week skill-point gain rate for a training type + position combo, for a player who clears their weekly minutes threshold at that position. &ldquo;Sum&rdquo; adds every skill a combo touches into one efficiency number, useful for comparing combos <i>within</i> the same training type &mdash; not across different types, whose skills aren't equally valuable (see the salary multiplier table above: Jump Shot and Rebounding cost far more per point than Driving or Shot Blocking, so a high Sum on a cheap skill isn't the same win as the same Sum on an expensive one). <b style="color:var(--ink)">Total pts/week</b> is Sum &times; Players trained (per Tom: a 2-position combo trains roughly double the roster, 3-position triple, Team training the full five-player rotation) &mdash; a team-wide estimate, not a per-player rate, so it's only comparable across rows within the same training type where the underlying skills are worth the same.</span></span></h2>
         <span class="tag tag-rec">Reference &middot; not live</span>
       </div>
@@ -1399,6 +1415,13 @@
     var projToggle = document.getElementById("tc-proj-toggle");
     var showProj = !!(projToggle && projToggle.checked);
     var gains = showProj ? ssbbProjectedGains(document.getElementById("tc-type").value, opt.comboKey) : null;
+    // Per Tom: bestPosition "rarely means anything besides its salary
+    // implications" - players are routinely played AND trained out of
+    // position, so it's not a trustworthy stand-in for "who's actually a
+    // trainee." The candidate checkboxes (Roster tab, persisted in
+    // localStorage - see ssbbGetCandidates) are Tom's own explicit
+    // selection and the only reliable signal for that.
+    var candidateIds = showProj ? ssbbGetCandidates() : null;
     var computed = rows.map(function (r) {
       var pm = posMinutes[r.playerid] || {};
       var minutes = 0;
@@ -1409,23 +1432,24 @@
         if (m > 0) playedAt.push({ pos: opt.positions[i], minutes: m });
       }
       playedAt.sort(function (a, b) { return b.minutes - a.minutes; });
-      // Eligible-by-roster-position is separate from "logged minutes this
-      // week" - early in a training week (or a bye week with no games yet)
-      // position_minutes can be entirely empty for everyone, which used to
-      // make this whole calculator (including the projection toggle) go
-      // blank even though the combo is perfectly well-defined. With the
-      // projection toggle on, fall back to bestPosition eligibility so
-      // there's still something to project; without it, keep the original
-      // "who actually banked minutes" behavior untouched.
-      var eligibleByPosition = opt.positions.indexOf(r.position) !== -1;
-      return { r: r, minutes: Math.round(minutes), playedAt: playedAt, eligibleByPosition: eligibleByPosition };
+      var isCandidate = !!(candidateIds && candidateIds.has(r.playerid));
+      return { r: r, minutes: Math.round(minutes), playedAt: playedAt, isCandidate: isCandidate };
     });
+    // Eligible-for-projection is separate from "logged minutes this week" -
+    // early in a training week (or a bye week with no games yet)
+    // position_minutes can be entirely empty for everyone, which used to
+    // make this whole calculator (including the projection toggle) go
+    // blank even though the combo is perfectly well-defined. With the
+    // projection toggle on, every marked training candidate is shown
+    // regardless of this week's logged minutes, so there's still something
+    // to project; without the toggle, keep the original "who actually
+    // banked minutes" behavior untouched.
     var affected = computed
-      .filter(function (x) { return x.minutes > 0 || (showProj && gains && x.eligibleByPosition); })
+      .filter(function (x) { return x.minutes > 0 || (showProj && gains && x.isCandidate); })
       .sort(function (a, b) { return b.minutes - a.minutes; });
     if (!affected.length) {
       results.innerHTML = '<p class="block-note">No current roster player logged minutes at ' + ssbbEsc(opt.label) + " this training week"
-        + (showProj && gains ? ", and no roster player's listed position matches this combo either" : "") + ".</p>";
+        + (showProj && gains ? ", and no player is marked as a training candidate either (check the box next to a player in the Roster tab's skill table)" : "") + ".</p>";
       return;
     }
     var gainTags = gains ? Object.keys(gains) : [];
@@ -1449,17 +1473,16 @@
       }
       var minCell = threshold == null ? "—" : (minutes + " / " + threshold + " min");
       // Positions actually played for these minutes, not roster.aspx's
-      // bestPosition - same reasoning as the row filter above (a nominal
-      // PF banking minutes at C should read "C", not "PF"). A player
-      // pulled in purely by position eligibility (no minutes logged yet
-      // this week - see eligibleByPosition above) has no playedAt entries,
-      // so fall back to their listed position with a note instead of
-      // showing a blank cell.
+      // bestPosition (shown here only as informational context, never as
+      // an eligibility filter - see the isCandidate note above). A player
+      // pulled in purely by candidate selection (no minutes logged yet
+      // this week) has no playedAt entries, so fall back to their listed
+      // position with a note instead of showing a blank cell.
       // Already-safe HTML (not plain text) - the "no minutes yet" branch
       // needs a <span>, so this is inserted as-is below, not re-escaped.
       var posCellHtml = x.playedAt.length
         ? ssbbEsc(x.playedAt.map(function (p) { return p.pos + " (" + p.minutes + ")"; }).join(" / "))
-        : ssbbEsc(r.position) + ' <span class="sub">(no minutes yet this week)</span>';
+        : ssbbEsc(r.position) + ' <span class="sub">(no minutes yet this week - training candidate)</span>';
       var projCells = gainTags.map(function (tag) {
         var cell = r[tag];
         var current = cell ? parseFloat(cell.value) : NaN;
@@ -1484,7 +1507,7 @@
     var summaryLine = zeroMinutePlayers
       ? (affected.length + " roster player" + (affected.length === 1 ? "" : "s") + " affected by <b style=\"color:var(--ink)\">" + ssbbEsc(opt.label) + "</b>" + weightNote
          + " - " + (affected.length - zeroMinutePlayers) + " logged minutes there this training week, "
-         + zeroMinutePlayers + " more listed by position only (no minutes yet this week, live from boxscore.aspx).")
+         + zeroMinutePlayers + " more shown as marked training candidates with no minutes logged yet this week (live from boxscore.aspx).")
       : (affected.length + " player" + (affected.length === 1 ? "" : "s")
          + ' logged minutes at <b style="color:var(--ink)">' + ssbbEsc(opt.label) + "</b>" + weightNote
          + " this training week (live from boxscore.aspx)");
@@ -1517,6 +1540,8 @@
     ssbbApplyTrainingColumns();
     ssbbApplyTrainingCards();
     ssbbUpdateApplyPreview();
+    ssbbRenderTrainingRecommendation();
+    ssbbRenderUpcomingSchedule();
   }
 
   // ---- Roster tab: Train?/Minutes/Status columns on the skill table ----
@@ -1552,6 +1577,131 @@
 
   function ssbbSetCandidates(set) {
     try { localStorage.setItem(CANDIDATES_KEY, JSON.stringify(Array.from(set))); } catch (e) {}
+  }
+
+  // ---- Training focus recommendation ----
+  // Doctrine priority-skill lists, transcribed from the "General training
+  // priorities" section above (Bigs: ISP first, in the stated order; Guards:
+  // OSP first, excluding Jump Range which the doctrine explicitly
+  // deprioritizes). `positions` here is used ONLY to pick which priority
+  // list applies to a candidate when computing a recommendation - unlike
+  // the projection toggle's old bug, this never excludes anyone from
+  // anything; every marked candidate gets evaluated under whichever
+  // group(s) their listed position(s) put them in.
+  var DOCTRINE_GROUPS = [
+    { name: "Bigs (C / PF / SF)", positions: ["C", "PF", "SF"], prioritySkills: ["insideShot", "insideDef", "rebound"] },
+    { name: "Guards (PG / SG)", positions: ["PG", "SG"], prioritySkills: ["jumpShot", "outsideDef", "handling", "driving", "passing"] },
+  ];
+
+  // Reverse-lookup: given a training type + canonical comboKey, find the
+  // actual TRAINING_MAP option label (e.g. "C / PF") so the recommendation
+  // can point at something selectable in the real dropdown, instead of
+  // showing the internal canonical key.
+  function ssbbFindComboLabel(type, comboKey) {
+    var options = TRAINING_MAP[type] || [];
+    for (var i = 0; i < options.length; i++) {
+      if (ssbbParseTrainingOption(options[i]).comboKey === comboKey) return options[i];
+    }
+    return null;
+  }
+
+  function ssbbBuildTrainingRecommendations() {
+    var data = window.SSBB_DATA;
+    if (!data) return [];
+    var rows = (data.roster_skills && data.roster_skills.rows) || [];
+    var candidateIds = ssbbGetCandidates();
+    var candidates = rows.filter(function (r) { return candidateIds.has(r.playerid); });
+    var out = [];
+    DOCTRINE_GROUPS.forEach(function (group) {
+      var members = candidates.filter(function (r) { return group.positions.indexOf(r.position) !== -1; });
+      if (!members.length) return;
+      var avgs = group.prioritySkills.map(function (tag) {
+        var vals = members.map(function (r) { var c = r[tag]; return c ? parseFloat(c.value) : NaN; }).filter(function (v) { return !isNaN(v); });
+        return { tag: tag, avg: vals.length ? vals.reduce(function (a, b) { return a + b; }, 0) / vals.length : null };
+      }).filter(function (x) { return x.avg !== null; });
+      if (!avgs.length) return;
+      avgs.sort(function (a, b) { return a.avg - b.avg; });
+      var weakest = avgs[0];
+      // Combo actually covered by this group's candidates (their real
+      // listed positions, not the whole doctrine group's position list) -
+      // e.g. a group of PF-only candidates recommends against "PF", not
+      // the wider "PF/C".
+      var comboKey = Array.from(new Set(members.map(function (r) { return r.position; })))
+        .sort(function (a, b) { return POSITION_ORDER.indexOf(a) - POSITION_ORDER.indexOf(b); }).join("/");
+      var best = null;
+      Object.keys(TRAINING_COEFFICIENTS).forEach(function (type) {
+        var combo = TRAINING_COEFFICIENTS[type][comboKey];
+        if (!combo || combo[weakest.tag] === undefined) return;
+        if (!best || combo[weakest.tag] > best.coef) best = { type: type, coef: combo[weakest.tag] };
+      });
+      out.push({
+        group: group.name, members: members, weakest: weakest, avgs: avgs, comboKey: comboKey,
+        recommendation: best ? { type: best.type, coef: best.coef, comboLabel: ssbbFindComboLabel(best.type, comboKey) } : null,
+      });
+    });
+    return out;
+  }
+
+  function ssbbRenderTrainingRecommendation() {
+    var container = document.getElementById("training-recommendation");
+    if (!container) return;
+    var recs = ssbbBuildTrainingRecommendations();
+    if (!recs.length) {
+      container.innerHTML = '<p class="block-note">No training candidates matching a doctrine group yet - check a box next to a player in the Roster tab\'s skill table to get a recommendation.</p>';
+      return;
+    }
+    var typeSel = document.getElementById("tc-type"), comboSel = document.getElementById("tc-combo");
+    var currentType = typeSel ? typeSel.value : null;
+    var currentComboKey = comboSel && comboSel.value ? ssbbParseTrainingOption(comboSel.value).comboKey : null;
+    container.innerHTML = recs.map(function (rec) {
+      var memberNames = rec.members.map(function (r) { return ssbbEsc(r.name); }).join(", ");
+      var skillLine = rec.avgs.map(function (a) { return ssbbEsc(SKILL_TAG_INFO[a.tag] || a.tag) + ": " + a.avg.toFixed(1); }).join(" &middot; ");
+      if (!rec.recommendation) {
+        return '<div class="card" style="margin-top:10px;"><div class="eyebrow">' + ssbbEsc(rec.group) + "</div>"
+          + '<p class="block-note" style="margin:6px 0;">Candidates: ' + memberNames + "</p>"
+          + '<p class="block-note" style="margin:6px 0;">' + skillLine + "</p>"
+          + '<p class="block-note">Weakest priority skill: <b style="color:var(--ink)">' + ssbbEsc(SKILL_TAG_INFO[rec.weakest.tag] || rec.weakest.tag)
+          + "</b> (avg " + rec.weakest.avg.toFixed(1) + ") - no training-coefficient reference data for this exact combo ("
+          + ssbbEsc(rec.comboKey) + "), see the Training type efficiency table below for the combos that are documented.</p></div>";
+      }
+      var matches = currentType === rec.recommendation.type && currentComboKey === rec.comboKey;
+      var badge = matches
+        ? '<span class="tag tag-official" style="margin-left:8px;">Matches current selection above</span>'
+        : '<span class="tag tag-calc" style="margin-left:8px;">Different from current selection above</span>';
+      return '<div class="card" style="margin-top:10px;">'
+        + '<div class="eyebrow">' + ssbbEsc(rec.group) + badge + "</div>"
+        + '<p class="block-note" style="margin:6px 0;">Candidates: ' + memberNames + "</p>"
+        + '<p class="block-note" style="margin:6px 0;">' + skillLine + "</p>"
+        + '<p style="margin:8px 0 0;"><b style="color:var(--ink)">Recommended: ' + ssbbEsc(rec.recommendation.type) + " &mdash; "
+        + ssbbEsc(rec.recommendation.comboLabel || rec.comboKey) + "</b> "
+        + '<span class="sub">(targets ' + ssbbEsc(SKILL_TAG_INFO[rec.weakest.tag] || rec.weakest.tag) + ", this group's weakest priority skill at "
+        + rec.weakest.avg.toFixed(1) + " - " + ssbbEsc(rec.recommendation.type) + " grows it fastest at this combo, +"
+        + rec.recommendation.coef.toFixed(2) + "/week)</span></p></div>";
+    }).join("");
+  }
+
+  function ssbbRenderUpcomingSchedule() {
+    var container = document.getElementById("training-upcoming-schedule");
+    if (!container) return;
+    var data = window.SSBB_DATA;
+    var upcoming = (data && data.schedule && data.schedule.upcoming) || [];
+    if (!upcoming.length) {
+      container.innerHTML = '<p class="block-note">No upcoming games in the live snapshot.</p>';
+      return;
+    }
+    var powerByName = {};
+    ((data && data.power_rankings) || []).forEach(function (r) { powerByName[r.name] = r.power_score; });
+    function withPower(name) {
+      var p = powerByName.hasOwnProperty(name) ? powerByName[name] : null;
+      return ssbbEsc(name) + (p != null ? ' <span class="sub">(' + p.toFixed(1) + ")</span>" : "");
+    }
+    var rows = upcoming.map(function (m) {
+      return "<tr><td>" + ssbbEsc(m.start) + "</td><td>" + withPower(m.away) + " @ " + withPower(m.home) + "</td></tr>";
+    }).join("");
+    container.innerHTML =
+      '<div class="tbl-scroll"><table style="min-width:0;"><thead><tr><th class="sortable" data-col="0">Date</th>'
+      + '<th class="sortable" data-col="1">Matchup</th></tr></thead><tbody>' + rows + "</tbody></table></div>"
+      + '<p class="block-note" style="margin-top:8px;">Power score in parentheses, from the League power rankings (Overview tab) - shown only for teams currently in your conference\'s ranked pool; no parenthetical means the opponent isn\'t in that pool (a different league/division, or a non-league match type like a friendly).</p>';
   }
 
   // Shared by the roster skill table's Minutes/Status columns and the
@@ -1655,11 +1805,13 @@
       ssbbApplyTrainingColumns();
       ssbbApplyTrainingCards();
       ssbbUpdateApplyPreview();
+      ssbbRenderTrainingRecommendation();
     } else if (e.target.id === "tc-combo") {
       ssbbRenderTrainingCalc();
       ssbbApplyTrainingColumns();
       ssbbApplyTrainingCards();
       ssbbUpdateApplyPreview();
+      ssbbRenderTrainingRecommendation();
     } else if (e.target.id === "tc-proj-toggle") {
       ssbbRenderTrainingCalc();
     } else if (e.target.className === "candidate-checkbox") {
@@ -1667,6 +1819,7 @@
       var pid = e.target.getAttribute("data-playerid");
       if (e.target.checked) candidates.add(pid); else candidates.delete(pid);
       ssbbSetCandidates(candidates);
+      ssbbRenderTrainingRecommendation();
     }
   });
 

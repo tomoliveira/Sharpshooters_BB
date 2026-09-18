@@ -221,7 +221,35 @@ fragment:
     number, rather than silently showing nothing. The projection assumes
     the player keeps clearing their weekly minutes threshold at that
     position for all 4 weeks - stated as an assumption in the footnote,
-    not a guarantee.
+    not a guarantee. With the toggle on, every marked **training
+    candidate** (Roster tab checkboxes, not just whoever already logged
+    minutes this week) is shown - per Tom (2026-09-18), a player's listed
+    `bestPosition` "rarely means anything besides its salary implications"
+    since players are routinely played and trained out of position, so it
+    was never a sound filter for who's actually a trainee; the toggle used
+    to go blank entirely on a week with no games played yet, since the
+    original "who logged minutes" filter had nothing to show.
+- **Training focus recommendation** (Training Strategy tab, client-only JS)
+  - per Tom (2026-09-18): for each doctrine group (Bigs C/PF/SF, Guards
+    PG/SG) actually represented among the marked training candidates,
+    finds that group's current weakest doctrine-priority skill (lowest
+    average current value across the group's candidates - Bigs check
+    Inside Shot/Inside Defense/Rebounding, Guards check Jump Shot/Outside
+    Def/Handling/Driving/Passing, per the doctrine text above it) and the
+    training type that grows that skill fastest at the position combo
+    those candidates actually cover, using `TRAINING_COEFFICIENTS`. Flags
+    whether the recommendation matches what's currently selected in the
+    calculator above. A player's listed position is used here only to
+    pick which doctrine list applies to them for this comparison - never
+    to exclude anyone, per the same reasoning as the projection toggle
+    fix above. A suggestion, not an automatic change - nothing here
+    submits to BuzzerBeater.
+- **Upcoming schedule** (Training Strategy tab) - per Tom (2026-09-18),
+  the next 5 scheduled games (already computed for `data["schedule"]
+  ["upcoming"]`), each team annotated with its Power score from the
+  League power rankings where the opponent is in that ranked pool (blank
+  for a different league/division or a non-league match type) - context
+  for timing a training-focus switch around the schedule.
 - **League power rankings** - per Tom, every team in the conference gets a
   weighted **Power score (0-100)**, not just a top-6 cut:
   `POWER_WEIGHT_RATINGS` **50%** overall rating (recent-form boxscore
