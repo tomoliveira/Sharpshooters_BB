@@ -1396,7 +1396,10 @@
     // (how much the skill improves per minute trained), which this
     // calculator doesn't model. Minutes toward the weekly threshold count
     // at full value regardless; opt.weight is only shown below as context.
-    var affected = rows.map(function (r) {
+    var projToggle = document.getElementById("tc-proj-toggle");
+    var showProj = !!(projToggle && projToggle.checked);
+    var gains = showProj ? ssbbProjectedGains(document.getElementById("tc-type").value, opt.comboKey) : null;
+    var computed = rows.map(function (r) {
       var pm = posMinutes[r.playerid] || {};
       var minutes = 0;
       var playedAt = []; // which of the *selected* positions actually contributed minutes, not roster.aspx's bestPosition
@@ -1406,16 +1409,25 @@
         if (m > 0) playedAt.push({ pos: opt.positions[i], minutes: m });
       }
       playedAt.sort(function (a, b) { return b.minutes - a.minutes; });
-      return { r: r, minutes: Math.round(minutes), playedAt: playedAt };
-    }).filter(function (x) { return x.minutes > 0; })
+      // Eligible-by-roster-position is separate from "logged minutes this
+      // week" - early in a training week (or a bye week with no games yet)
+      // position_minutes can be entirely empty for everyone, which used to
+      // make this whole calculator (including the projection toggle) go
+      // blank even though the combo is perfectly well-defined. With the
+      // projection toggle on, fall back to bestPosition eligibility so
+      // there's still something to project; without it, keep the original
+      // "who actually banked minutes" behavior untouched.
+      var eligibleByPosition = opt.positions.indexOf(r.position) !== -1;
+      return { r: r, minutes: Math.round(minutes), playedAt: playedAt, eligibleByPosition: eligibleByPosition };
+    });
+    var affected = computed
+      .filter(function (x) { return x.minutes > 0 || (showProj && gains && x.eligibleByPosition); })
       .sort(function (a, b) { return b.minutes - a.minutes; });
     if (!affected.length) {
-      results.innerHTML = '<p class="block-note">No current roster player logged minutes at ' + ssbbEsc(opt.label) + " this training week.</p>";
+      results.innerHTML = '<p class="block-note">No current roster player logged minutes at ' + ssbbEsc(opt.label) + " this training week"
+        + (showProj && gains ? ", and no roster player's listed position matches this combo either" : "") + ".</p>";
       return;
     }
-    var projToggle = document.getElementById("tc-proj-toggle");
-    var showProj = !!(projToggle && projToggle.checked);
-    var gains = showProj ? ssbbProjectedGains(document.getElementById("tc-type").value, opt.comboKey) : null;
     var gainTags = gains ? Object.keys(gains) : [];
     var projHeaders = gainTags.map(function (tag, i) {
       return '<th class="num sortable" data-col="' + (5 + i) + '">' + ssbbEsc(SKILL_TAG_INFO[tag] || tag) + " +4wk</th>";
@@ -1438,8 +1450,16 @@
       var minCell = threshold == null ? "—" : (minutes + " / " + threshold + " min");
       // Positions actually played for these minutes, not roster.aspx's
       // bestPosition - same reasoning as the row filter above (a nominal
-      // PF banking minutes at C should read "C", not "PF").
-      var posCell = x.playedAt.map(function (p) { return p.pos + " (" + p.minutes + ")"; }).join(" / ");
+      // PF banking minutes at C should read "C", not "PF"). A player
+      // pulled in purely by position eligibility (no minutes logged yet
+      // this week - see eligibleByPosition above) has no playedAt entries,
+      // so fall back to their listed position with a note instead of
+      // showing a blank cell.
+      // Already-safe HTML (not plain text) - the "no minutes yet" branch
+      // needs a <span>, so this is inserted as-is below, not re-escaped.
+      var posCellHtml = x.playedAt.length
+        ? ssbbEsc(x.playedAt.map(function (p) { return p.pos + " (" + p.minutes + ")"; }).join(" / "))
+        : ssbbEsc(r.position) + ' <span class="sub">(no minutes yet this week)</span>';
       var projCells = gainTags.map(function (tag) {
         var cell = r[tag];
         var current = cell ? parseFloat(cell.value) : NaN;
@@ -1449,7 +1469,7 @@
         return '<td class="num">' + current.toFixed(0) + " &rarr; " + projected.toFixed(1)
           + ' <span class="sub">(+' + delta.toFixed(1) + ")</span></td>";
       }).join("");
-      return "<tr><td class=\"name-cell\">" + ssbbEsc(r.name) + "</td><td>" + ssbbEsc(posCell) + "</td>"
+      return "<tr><td class=\"name-cell\">" + ssbbEsc(r.name) + "</td><td>" + posCellHtml + "</td>"
         + "<td class=\"num\">" + ssbbEsc(r.age) + "</td><td class=\"num\">" + minCell + "</td>"
         + "<td><span class=\"tag\" style=\"background:var(" + color + "-soft); color:var(" + color + ");\">" + status + "</span></td>"
         + projCells + "</tr>";
@@ -1460,12 +1480,19 @@
     var projFootnote = (showProj && gains)
       ? ' Projections assume the player keeps clearing their weekly minutes threshold at this position for all 4 weeks, at the coefficient rate in the Training type efficiency table above - a projection, not a guarantee (injuries, lineup changes, or falling short of the threshold in a given week would all reduce it).'
       : '';
+    var zeroMinutePlayers = affected.filter(function (x) { return x.minutes === 0; }).length;
+    var summaryLine = zeroMinutePlayers
+      ? (affected.length + " roster player" + (affected.length === 1 ? "" : "s") + " affected by <b style=\"color:var(--ink)\">" + ssbbEsc(opt.label) + "</b>" + weightNote
+         + " - " + (affected.length - zeroMinutePlayers) + " logged minutes there this training week, "
+         + zeroMinutePlayers + " more listed by position only (no minutes yet this week, live from boxscore.aspx).")
+      : (affected.length + " player" + (affected.length === 1 ? "" : "s")
+         + ' logged minutes at <b style="color:var(--ink)">' + ssbbEsc(opt.label) + "</b>" + weightNote
+         + " this training week (live from boxscore.aspx)");
     results.innerHTML =
       '<div class="tbl-scroll"><table><thead><tr><th class="sortable" data-col="0">Player</th><th class="sortable" data-col="1">Pos</th><th class="num sortable" data-col="2">Age</th>'
       + '<th class="num sortable" data-col="3">Minutes / threshold</th><th class="sortable" data-col="4">Status</th>' + projHeaders + '</tr></thead><tbody>' + body + "</tbody></table></div>"
-      + '<p class="block-note" style="margin-top:10px;">' + affected.length + " player" + (affected.length === 1 ? "" : "s")
-      + ' logged minutes at <b style="color:var(--ink)">' + ssbbEsc(opt.label) + "</b>" + weightNote
-      + " this training week (live from boxscore.aspx) - shown regardless of each player's own listed best position, since that's independent of where they were actually fielded."
+      + '<p class="block-note" style="margin-top:10px;">' + summaryLine
+      + " - shown regardless of each player's own listed best position, since that's independent of where they were actually fielded."
       + projFootnote + "</p>"
       + projNote;
   }
