@@ -893,7 +893,7 @@
         <span class="tag tag-calc">Calculated · updates instantly</span>
       </div>
       <details class="note"><summary>How this works</summary>
-        <p class="block-note">Pick any training type and position combo from the live training.aspx dropdowns, and every roster player who'd be affected is recalculated instantly against this week's actual minutes (via boxscore.aspx) - no page reload, no waiting on tomorrow's snapshot. This is independent of whatever training is actually set in-game right now (see "What's actually being trained right now" below for that).</p>
+        <p class="block-note">Pick any training type and position combo from the live training.aspx dropdowns, and every roster player who'd be affected is recalculated instantly against this week's actual minutes (via boxscore.aspx) - no page reload, no waiting on tomorrow's snapshot. This is independent of whatever training is actually set in-game right now (see "What's actually being trained right now" below for that). Your type/combo pick and the projection toggle are remembered in this browser (localStorage) and restored the next time you open the report, so reopening it keeps whatever you were last looking at instead of resetting to the current doctrine default every time.</p>
       </details>
       <div class="card" style="margin-top:8px;">
         <div class="two-col">
@@ -1527,15 +1527,22 @@
     typeSel.innerHTML = Object.keys(TRAINING_MAP).map(function (t) {
       return '<option value="' + ssbbEsc(t) + '">' + ssbbEsc(t) + "</option>";
     }).join("");
-    // Defaults to whatever this team's training doctrine already has live
-    // (see "What's actually being trained right now" below), so the
-    // calculator opens showing the same numbers as the rest of this tab.
-    var defaultType = "Rebounding", defaultCombo = "C / PF";
+    // A saved selection (this browser's last pick, see
+    // ssbbSaveTrainingSelection) takes priority; only a first-ever visit
+    // with nothing saved yet falls back to whatever this team's training
+    // doctrine already has live (see "What's actually being trained right
+    // now" below), so the calculator opens showing the same numbers as
+    // the rest of this tab.
+    var saved = ssbbLoadTrainingSelection();
+    var defaultType = (saved && TRAINING_MAP[saved.type]) ? saved.type : "Rebounding";
+    var defaultCombo = saved ? saved.combo : "C / PF";
     if (TRAINING_MAP[defaultType]) typeSel.value = defaultType;
     ssbbPopulateComboDropdown(typeSel.value);
     if (TRAINING_MAP[typeSel.value] && TRAINING_MAP[typeSel.value].indexOf(defaultCombo) !== -1) {
       document.getElementById("tc-combo").value = defaultCombo;
     }
+    var projToggleEl = document.getElementById("tc-proj-toggle");
+    if (projToggleEl && saved) projToggleEl.checked = !!saved.showProj;
     ssbbRenderTrainingCalc();
     ssbbApplyTrainingColumns();
     ssbbApplyTrainingCards();
@@ -1577,6 +1584,36 @@
 
   function ssbbSetCandidates(set) {
     try { localStorage.setItem(CANDIDATES_KEY, JSON.stringify(Array.from(set))); } catch (e) {}
+  }
+
+  // Persists the calculator's own type/combo picks across sessions (same
+  // localStorage pattern as CANDIDATES_KEY above) - per Tom (2026-09-18),
+  // so reopening the report keeps whatever you last chose to look at
+  // instead of resetting to the hand-maintained "current doctrine" default
+  // every time.
+  var TRAINING_SELECTION_KEY = "ssbb-training-selection";
+
+  function ssbbSaveTrainingSelection(type, combo, showProj) {
+    try {
+      var toSave = { type: type, combo: combo };
+      // showProj is optional so a type/combo-only save (see the tc-type/
+      // tc-combo change handlers below) doesn't clobber whatever the
+      // toggle's own change handler saved last.
+      if (showProj === undefined) {
+        var prev = ssbbLoadTrainingSelection();
+        showProj = prev ? prev.showProj : false;
+      }
+      toSave.showProj = showProj;
+      localStorage.setItem(TRAINING_SELECTION_KEY, JSON.stringify(toSave));
+    } catch (e) {}
+  }
+
+  function ssbbLoadTrainingSelection() {
+    try {
+      var raw = localStorage.getItem(TRAINING_SELECTION_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return null;
   }
 
   // ---- Training focus recommendation ----
@@ -1806,14 +1843,17 @@
       ssbbApplyTrainingCards();
       ssbbUpdateApplyPreview();
       ssbbRenderTrainingRecommendation();
+      ssbbSaveTrainingSelection(e.target.value, document.getElementById("tc-combo").value);
     } else if (e.target.id === "tc-combo") {
       ssbbRenderTrainingCalc();
       ssbbApplyTrainingColumns();
       ssbbApplyTrainingCards();
       ssbbUpdateApplyPreview();
       ssbbRenderTrainingRecommendation();
+      ssbbSaveTrainingSelection(document.getElementById("tc-type").value, e.target.value);
     } else if (e.target.id === "tc-proj-toggle") {
       ssbbRenderTrainingCalc();
+      ssbbSaveTrainingSelection(document.getElementById("tc-type").value, document.getElementById("tc-combo").value, e.target.checked);
     } else if (e.target.className === "candidate-checkbox") {
       var candidates = ssbbGetCandidates();
       var pid = e.target.getAttribute("data-playerid");
