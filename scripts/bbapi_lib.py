@@ -1152,7 +1152,8 @@ def auto_transaction_ledger_html(data):
         blocks.append(
             '<div class="card" style="margin-bottom:16px;">'
             '<div class="eyebrow" style="margin-bottom:8px;">' + esc(label) + ' &middot; ' + money_html(week['initial']) + ' &rarr; ' + money_html(week['final']) + '</div>'
-            '<div class="tbl-scroll"><table><thead><tr><th>Date</th><th>Transaction</th><th class="num">Amount</th></tr></thead>'
+            '<div class="tbl-scroll"><table><thead><tr><th class="sortable" data-col="0">Date</th>'
+            '<th class="sortable" data-col="1">Transaction</th><th class="num sortable" data-col="2">Amount</th></tr></thead>'
             '<tbody>' + (rows if rows else '<tr><td colspan="3" class="sub">no itemized transactions</td></tr>') + '</tbody></table></div>'
             + variance_html + '</div>'
         )
@@ -1272,8 +1273,8 @@ def _financial_changes_html(data):
         )
     html_out = (
         '<div class="eyebrow" style="margin:14px 0 6px;">Financial changes &middot; this week vs. last week</div>'
-        '<div class="tbl-scroll"><table style="min-width:0;"><thead><tr><th>Category</th>'
-        '<th class="num">Last &rarr; This week</th><th class="num">Change</th></tr></thead>'
+        '<div class="tbl-scroll"><table style="min-width:0;"><thead><tr><th class="sortable" data-col="0">Category</th>'
+        '<th class="num sortable" data-col="1">Last &rarr; This week</th><th class="num sortable" data-col="2">Change</th></tr></thead>'
         f'<tbody>{rows_html}</tbody></table></div>'
     )
     proj = data.get("projection") or {}
@@ -1331,8 +1332,9 @@ def _training_pops_html(data):
             f'<td>{skill_list(p["season_by_skill"])}</td></tr>'
             for p in season_players
         )
-        totals_block = ('<div class="tbl-scroll"><table style="min-width:0;"><thead><tr><th>Training cohort</th>'
-                         '<th class="num">Pops</th><th class="num">Drops</th><th>By skill (season)</th></tr></thead>'
+        totals_block = ('<div class="tbl-scroll"><table style="min-width:0;"><thead><tr><th class="sortable" data-col="0">Training cohort</th>'
+                         '<th class="num sortable" data-col="1">Pops</th><th class="num sortable" data-col="2">Drops</th>'
+                         '<th class="sortable" data-col="3">By skill (season)</th></tr></thead>'
                          f'<tbody>{rows}</tbody></table></div>')
     else:
         totals_block = ""
@@ -1570,15 +1572,17 @@ def _power_rankings_html(data):
         '<label for="power-view-ratings">Ratings</label>'
         '<label for="power-view-criteria">Criteria &amp; scores</label>'
         '</div>'
-        '<div class="power-view-panel power-view-panel-ratings tbl-scroll"><table><thead><tr><th>#</th><th>Team</th><th class="num">Record</th>'
-        '<th class="num">Out. Scoring</th><th class="num">In. Scoring</th><th class="num">Out. Defense</th>'
-        '<th class="num">In. Defense</th><th class="num">Rebounding</th><th class="num">Flow</th>'
-        '<th class="num">Avg</th><th class="num">Power</th></tr></thead><tbody>' + rows_html + '</tbody></table></div>'
-        f'<div class="power-view-panel power-view-panel-criteria tbl-scroll"><table><thead><tr><th>#</th><th>Team</th>'
-        '<th class="num">Season rank</th><th class="num">H2H diff</th><th class="num">Rating</th>'
-        '<th class="num">Rating pts</th><th class="num">Last-5</th><th class="num">Last-5 pts</th>'
-        '<th class="num">vs Top 6</th><th class="num">vs Top 6 pts</th>'
-        f'<th class="num">Power{criteria_tip}</th></tr></thead><tbody>' + criteria_rows_html + '</tbody></table></div>'
+        '<div class="power-view-panel power-view-panel-ratings tbl-scroll"><table><thead><tr>'
+        '<th class="sortable" data-col="0">#</th><th class="sortable" data-col="1">Team</th><th class="num sortable" data-col="2">Record</th>'
+        '<th class="num sortable" data-col="3">Out. Scoring</th><th class="num sortable" data-col="4">In. Scoring</th><th class="num sortable" data-col="5">Out. Defense</th>'
+        '<th class="num sortable" data-col="6">In. Defense</th><th class="num sortable" data-col="7">Rebounding</th><th class="num sortable" data-col="8">Flow</th>'
+        '<th class="num sortable" data-col="9">Avg</th><th class="num sortable" data-col="10">Power</th></tr></thead><tbody>' + rows_html + '</tbody></table></div>'
+        '<div class="power-view-panel power-view-panel-criteria tbl-scroll"><table><thead><tr>'
+        '<th class="sortable" data-col="0">#</th><th class="sortable" data-col="1">Team</th>'
+        '<th class="num sortable" data-col="2">Season rank</th><th class="num sortable" data-col="3">H2H diff</th><th class="num sortable" data-col="4">Rating</th>'
+        '<th class="num sortable" data-col="5">Rating pts</th><th class="num sortable" data-col="6">Last-5</th><th class="num sortable" data-col="7">Last-5 pts</th>'
+        '<th class="num sortable" data-col="8">vs Top 6</th><th class="num sortable" data-col="9">vs Top 6 pts</th>'
+        f'<th class="num sortable" data-col="10">Power{criteria_tip}</th></tr></thead><tbody>' + criteria_rows_html + '</tbody></table></div>'
         '</div>'
     )
 
@@ -1835,7 +1839,7 @@ def _player_reports_html(rows):
             f'<b style="color:var(--ink)">{money_html(r["salary_paid"])}</b> &middot; TCO '
             f'<b style="color:var(--ink)">{money_html(r["tco"])}</b></div>'
             '<div class="tbl-scroll" style="box-shadow:none;"><table style="min-width:0;">'
-            '<thead><tr><th>Payday</th><th class="num">Salary paid</th></tr></thead>'
+            '<thead><tr><th class="sortable" data-col="0">Payday</th><th class="num sortable" data-col="1">Salary paid</th></tr></thead>'
             f'<tbody>{pay_rows}</tbody></table></div>'
             '</details>'
         )
@@ -1878,7 +1882,7 @@ def _expansion_reports_html(capex_list, regimes):
             f'Window {window} &middot; {regime["count"]} home game{"" if regime["count"] == 1 else "s"} &middot; '
             f'total gate revenue <b style="color:var(--ink)">{money_html(regime["total"])}</b>{avg_note}</div>'
             '<div class="tbl-scroll" style="box-shadow:none;"><table style="min-width:0;">'
-            '<thead><tr><th>Home date</th><th class="num">Gate revenue</th></tr></thead>'
+            '<thead><tr><th class="sortable" data-col="0">Home date</th><th class="num sortable" data-col="1">Gate revenue</th></tr></thead>'
             f'<tbody>{match_rows}</tbody></table></div>'
             '</details>'
         )
@@ -1940,10 +1944,10 @@ def auto_investments_html(data):
                 f'<td class="num">{sale_cell}</td><td>{status}</td></tr>'
             )
         table = (
-            '<div class="tbl-scroll"><table><thead><tr><th>Player</th><th>Acquired</th><th class="num">Price paid</th>'
-            '<th class="num">Salary paid since</th><th class="num">TCO</th><th class="num">TCO / week</th>'
-            '<th class="num">Skill total now (TSP proxy)</th>'
-            '<th class="num">TCO / skill pt</th><th class="num">Sale price</th><th>Status</th></tr></thead>'
+            '<div class="tbl-scroll"><table><thead><tr><th class="sortable" data-col="0">Player</th><th class="sortable" data-col="1">Acquired</th><th class="num sortable" data-col="2">Price paid</th>'
+            '<th class="num sortable" data-col="3">Salary paid since</th><th class="num sortable" data-col="4">TCO</th><th class="num sortable" data-col="5">TCO / week</th>'
+            '<th class="num sortable" data-col="6">Skill total now (TSP proxy)</th>'
+            '<th class="num sortable" data-col="7">TCO / skill pt</th><th class="num sortable" data-col="8">Sale price</th><th class="sortable" data-col="9">Status</th></tr></thead>'
             f'<tbody>{body}</tbody></table></div>'
         )
     else:
@@ -1965,7 +1969,8 @@ def auto_investments_html(data):
         capex_html = (
             f'<div class="card" style="margin-top:16px;"><div class="eyebrow" style="margin-bottom:10px;">Facility &amp; capex spend</div>'
             f'<div class="tbl-scroll" style="box-shadow:none;"><table style="min-width:0;">'
-            f'<thead><tr><th>Date</th><th>Item</th><th class="num">Amount</th></tr></thead><tbody>{capex_rows}</tbody></table></div></div>'
+            f'<thead><tr><th class="sortable" data-col="0">Date</th><th class="sortable" data-col="1">Item</th>'
+            f'<th class="num sortable" data-col="2">Amount</th></tr></thead><tbody>{capex_rows}</tbody></table></div></div>'
         )
     else:
         capex_html = ""
@@ -2005,8 +2010,9 @@ def auto_arena_revenue_html(data):
             )
         regime_html = (
             '<div class="tbl-scroll" style="margin-top:10px;"><table style="min-width:0;">'
-            '<thead><tr><th>Capacity window</th><th class="num">Seats</th><th class="num">Home dates</th>'
-            '<th class="num">Avg. gate revenue</th><th class="num">Full-house ceiling</th></tr></thead>'
+            '<thead><tr><th class="sortable" data-col="0">Capacity window</th><th class="num sortable" data-col="1">Seats</th>'
+            '<th class="num sortable" data-col="2">Home dates</th>'
+            '<th class="num sortable" data-col="3">Avg. gate revenue</th><th class="num sortable" data-col="4">Full-house ceiling</th></tr></thead>'
             f'<tbody>{rows}</tbody></table></div>'
         )
     else:
@@ -2126,7 +2132,7 @@ def auto_roster_by_position_html(data):
     sections = []
     for group_name, positions, cols in POSITION_GROUPS:
         group_rows = sorted((r for r in rows if r["position"] in positions), key=lambda r: r["name"])
-        header_cells = "".join(f'<th class="num">{esc(label)}</th>' for _, label in cols)
+        header_cells = "".join(f'<th class="num sortable" data-col="{4 + i}">{esc(label)}</th>' for i, (_, label) in enumerate(cols))
         if group_rows:
             body = ""
             for r in group_rows:
@@ -2142,7 +2148,9 @@ def auto_roster_by_position_html(data):
             body = f'<tr><td colspan="{4 + len(cols)}" class="sub">No players on roster at this position right now.</td></tr>'
         table = (
             '<div class="tbl-scroll"><table>'
-            f'<thead><tr><th>Player</th><th>Pos</th><th class="num">Age</th><th class="num">Potential</th>{header_cells}</tr></thead>'
+            '<thead><tr><th class="sortable" data-col="0">Player</th><th class="sortable" data-col="1">Pos</th>'
+            '<th class="num sortable" data-col="2">Age</th><th class="num sortable" data-col="3">Potential</th>'
+            f'{header_cells}</tr></thead>'
             f'<tbody>{body}</tbody></table></div>'
         )
         sections.append(

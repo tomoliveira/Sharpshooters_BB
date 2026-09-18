@@ -584,7 +584,7 @@
       </ul>
       <div class="tbl-scroll">
         <table>
-          <thead><tr><th>Season</th><th class="num">A — cumulative cost</th><th class="num">B — cumulative cost</th><th class="num">C — cumulative cost</th></tr></thead>
+          <thead><tr><th class="sortable" data-col="0">Season</th><th class="num sortable" data-col="1">A — cumulative cost</th><th class="num sortable" data-col="2">B — cumulative cost</th><th class="num sortable" data-col="3">C — cumulative cost</th></tr></thead>
           <tbody>
             <tr><td>2</td><td class="num">$60,800</td><td class="num">$105,742</td><td class="num"><b style="color:var(--positive)">$53,000</b></td></tr>
             <tr><td>5</td><td class="num"><b style="color:var(--positive)">$84,866</b></td><td class="num">$113,542</td><td class="num">$126,722</td></tr>
@@ -610,7 +610,7 @@
         <p class="block-note" style="margin-top:8px;">Modeled via a proxy schedule (Velotrol Metalizado, Season 72 — a completed league-finals-plus-tie-breaker season, i.e. a deep playoff run), broken down by home-game type and the BuzzerBeater Game Manual's own arena-revenue rules:</p>
         <div class="tbl-scroll" style="margin-top:8px; box-shadow:none;">
           <table style="min-width:0;">
-            <thead><tr><th>Type</th><th class="num">Home games</th><th>Arena revenue treatment</th></tr></thead>
+            <thead><tr><th class="sortable" data-col="0">Type</th><th class="num sortable" data-col="1">Home games</th><th class="sortable" data-col="2">Arena revenue treatment</th></tr></thead>
             <tbody>
               <tr><td>Regular league (blank)</td><td class="num">9</td><td class="credit">Full — counts</td></tr>
               <tr><td>TV</td><td class="num">2</td><td class="credit">Full — counts (treated as regular league)</td></tr>
@@ -632,7 +632,7 @@
           <div class="eyebrow" style="margin-bottom:8px;">Baseline season (11 games/yr)</div>
           <div class="tbl-scroll">
             <table style="min-width:0;">
-              <thead><tr><th>Growth</th><th class="num">Season 5</th><th class="num">10</th><th class="num">15</th><th class="num">20</th></tr></thead>
+              <thead><tr><th class="sortable" data-col="0">Growth</th><th class="num sortable" data-col="1">Season 5</th><th class="num sortable" data-col="2">10</th><th class="num sortable" data-col="3">15</th><th class="num sortable" data-col="4">20</th></tr></thead>
               <tbody>
                 <tr><td>0%</td><td class="num">$383,580</td><td class="num">$972,960</td><td class="num">$1,562,340</td><td class="num">$2,151,720</td></tr>
                 <tr><td>3%</td><td class="num">$420,020</td><td class="num">$1,145,516</td><td class="num">$1,986,566</td><td class="num">$2,961,572</td></tr>
@@ -647,7 +647,7 @@
           <div class="eyebrow" style="margin-bottom:8px;">Deep-run season (13 games/yr)</div>
           <div class="tbl-scroll">
             <table style="min-width:0;">
-              <thead><tr><th>Growth</th><th class="num">Season 5</th><th class="num">10</th><th class="num">15</th><th class="num">20</th></tr></thead>
+              <thead><tr><th class="sortable" data-col="0">Growth</th><th class="num sortable" data-col="1">Season 5</th><th class="num sortable" data-col="2">10</th><th class="num sortable" data-col="3">15</th><th class="num sortable" data-col="4">20</th></tr></thead>
               <tbody>
                 <tr><td>0%</td><td class="num">$490,740</td><td class="num">$1,187,280</td><td class="num">$1,883,820</td><td class="num">$2,580,360</td></tr>
                 <tr><td>3%</td><td class="num">$533,805</td><td class="num">$1,391,210</td><td class="num">$2,385,177</td><td class="num">$3,537,458</td></tr>
@@ -668,7 +668,7 @@
       <p class="block-note" style="margin:0 0 12px;">Every point in a skill costs a different amount in weekly salary. Ground-truth curves pulled from buzzer-manager.com's salary estimator (each of the 12 rated skills queried at every rating 1&ndash;20, holding age/nationality/potential and the other 11 skills fixed at 10) &mdash; cross-validated against a separate 266-player real-market regression, which independently ranked the same skills the same way. Full data: <code>salary-model/skill-curves-reference.md</code> and <code>salary-model/formula-history.md</code> in the GitHub repo.</p>
       <div class="tbl-scroll">
         <table style="min-width:0;">
-          <thead><tr><th>Skill</th><th class="num">1&rarr;20 salary multiplier</th><th>Shape</th></tr></thead>
+          <thead><tr><th class="sortable" data-col="0">Skill</th><th class="num sortable" data-col="1">1&rarr;20 salary multiplier</th><th class="sortable" data-col="2">Shape</th></tr></thead>
           <tbody>
             <tr><td>Jump Shot</td><td class="num debit">5.21&times;</td><td>Steep past ~rating 8</td></tr>
             <tr><td>Rebounding</td><td class="num debit">4.42&times;</td><td>Only skill with a real floor slope &mdash; costs something even at low ratings</td></tr>
@@ -701,7 +701,7 @@
       <p class="block-note" style="margin-top:10px;"><span class="tag tag-rec">[Inference]</span> A same-snapshot check across all 336 teams found win% and fill rate <b style="color:var(--ink)">negatively</b> correlated (&minus;0.17 to &minus;0.18) &mdash; losing teams (win% &le; 0.4) average 90.3% fill vs. 84.5% for winning teams (win% &ge; 0.6), a &minus;5.9 point gap. Plausible confound: winning teams tend to run bigger arenas that are harder to fill 100%, while many bottom-table teams sit at the 6,000-seat capacity floor and sell out easily regardless of form. Fill rate alone is not a clean price-demand signal without controlling for capacity and form.</p>
       <div class="tbl-scroll" style="margin-top:10px;">
         <table style="min-width:0;">
-          <thead><tr><th>Tier</th><th class="num">Current fill</th><th>Top price scenario tested</th><th class="num">Est. revenue/game</th><th class="num">Est. delta</th></tr></thead>
+          <thead><tr><th class="sortable" data-col="0">Tier</th><th class="num sortable" data-col="1">Current fill</th><th class="sortable" data-col="2">Top price scenario tested</th><th class="num sortable" data-col="3">Est. revenue/game</th><th class="num sortable" data-col="4">Est. delta</th></tr></thead>
           <tbody>
             <tr><td>Bleachers</td><td class="num">82.1%</td><td>$12 &rarr; $16 (+33%)</td><td class="num">$68,526</td><td class="num credit">+$9,225</td></tr>
             <tr><td>Courtside</td><td class="num">100.0%</td><td>$119 &rarr; $155 (+30%)</td><td class="num">$16,740</td><td class="num credit">+$3,888</td></tr>
@@ -713,7 +713,7 @@
       <p class="block-note" style="margin-top:8px;"><span class="tag tag-calc">Calculated</span> Ranked expansion scenarios by budget, from the optimizer's own recommendation engine:</p>
       <div class="tbl-scroll" style="margin-top:6px;">
         <table style="min-width:0;">
-          <thead><tr><th>Budget</th><th>Recommended allocation</th><th class="num">Est. added revenue/game</th></tr></thead>
+          <thead><tr><th class="sortable" data-col="0">Budget</th><th class="sortable" data-col="1">Recommended allocation</th><th class="num sortable" data-col="2">Est. added revenue/game</th></tr></thead>
           <tbody>
             <tr><td>$50,000</td><td>+25 courtside seats</td><td class="num credit">+$2,975</td></tr>
             <tr><td>$150,000</td><td>+40 courtside, +100 lower tier</td><td class="num credit">+$9,019</td></tr>
@@ -968,7 +968,7 @@
       <p class="block-note">The narrowest position combo for a training type (a single position, e.g. &ldquo;C&rdquo; or &ldquo;PG&rdquo;) always has the highest Sum &mdash; spreading a training focus across more positions dilutes the per-player rate, matching BuzzerBeater's own effectiveness-percentage discounts on the training.aspx dropdowns. A type's primary skill (SB for Shot Blocking, ID for Inside Defense, etc.) always carries the largest single coefficient in its row; the rest are secondary gains from the same training.</p>
       <div class="tbl-scroll" style="margin-top:10px;">
         <table style="min-width:0;">
-          <thead><tr><th>Training type</th><th>Position combo</th><th>Coefficients</th><th class="num">Sum</th></tr></thead>
+          <thead><tr><th class="sortable" data-col="0">Training type</th><th class="sortable" data-col="1">Position combo</th><th class="sortable" data-col="2">Coefficients</th><th class="num sortable" data-col="3">Sum</th></tr></thead>
           <tbody>
             <tr><td>Jump Shot</td><td>PG/SG, SG/SF</td><td class="sub">0.5 JS, 0.1 JR, 0.05 Ha, 0.05 Dr</td><td class="num">0.70</td></tr>
             <tr><td>Jump Shot</td><td>SF/PF</td><td class="sub">0.4 JS, 0.2 IS, 0.05 JR</td><td class="num">0.65</td></tr>
@@ -1341,8 +1341,8 @@
       ? ' <span class="sub">(' + Math.round(opt.weight * 100) + "% skill-progression effectiveness for this combo - minutes toward the threshold still count in full)</span>"
       : "";
     results.innerHTML =
-      '<div class="tbl-scroll"><table><thead><tr><th>Player</th><th>Pos</th><th class="num">Age</th>'
-      + '<th class="num">Minutes / threshold</th><th>Status</th></tr></thead><tbody>' + body + "</tbody></table></div>"
+      '<div class="tbl-scroll"><table><thead><tr><th class="sortable" data-col="0">Player</th><th class="sortable" data-col="1">Pos</th><th class="num sortable" data-col="2">Age</th>'
+      + '<th class="num sortable" data-col="3">Minutes / threshold</th><th class="sortable" data-col="4">Status</th></tr></thead><tbody>' + body + "</tbody></table></div>"
       + '<p class="block-note" style="margin-top:10px;">' + affected.length + " player" + (affected.length === 1 ? "" : "s")
       + ' logged minutes at <b style="color:var(--ink)">' + ssbbEsc(opt.label) + "</b>" + weightNote
       + " this training week (live from boxscore.aspx) - shown regardless of each player's own listed best position, since that's independent of where they were actually fielded.</p>";
@@ -1505,26 +1505,36 @@
     }
   });
 
-  // ---- Sortable table headers (roster skill table) ----
+  // ---- Sortable table headers (every table on the page) ----
   // Generic: works on any table whose sortable <th>s carry a data-col
   // matching each body row's <td> index at that position (server-rendered
   // headers set this explicitly, see auto_roster_skills_html). Checkbox
   // cells sort by checked state; everything else sorts numerically on its
   // leading number if it has one (handles "48 / 45 min", "9 · MVP", a bare
   // skill value), otherwise falls back to a case-insensitive text sort.
+  // Per Tom (2026-09-18, "always make tables sortable"): every table's
+  // headers get this treatment - the one exception is a `tr.total` summary
+  // row (a table's own running-total/net line, not a peer data row), which
+  // stays pinned at the bottom in its original position instead of being
+  // sorted into the middle of the data.
   function ssbbCellSortValue(td) {
     if (!td) return "";
     var cb = td.querySelector('input[type="checkbox"]');
     if (cb) return cb.checked ? 1 : 0;
     var text = (td.textContent || "").trim();
-    var num = parseFloat(text);
+    // Strip thousands-separator commas before parsing ("$142,792" -> 142792)
+    // - without this, parseFloat stops at the first comma and every money
+    // column over 999 would sort as if everyone had a 1-3 digit value.
+    var num = parseFloat(text.replace(/,/g, ""));
     return isNaN(num) ? text.toLowerCase() : num;
   }
 
   function ssbbSortRosterTable(table, col, asc) {
     var tbody = table.tBodies[0];
     if (!tbody) return;
-    var rows = Array.prototype.slice.call(tbody.querySelectorAll("tr"));
+    var allRows = Array.prototype.slice.call(tbody.querySelectorAll("tr"));
+    var totalRows = allRows.filter(function (tr) { return tr.classList.contains("total"); });
+    var rows = allRows.filter(function (tr) { return !tr.classList.contains("total"); });
     rows.sort(function (a, b) {
       var va = ssbbCellSortValue(a.children[col]);
       var vb = ssbbCellSortValue(b.children[col]);
@@ -1534,7 +1544,7 @@
       if (va > vb) return asc ? 1 : -1;
       return 0;
     });
-    rows.forEach(function (tr) { tbody.appendChild(tr); });
+    rows.concat(totalRows).forEach(function (tr) { tbody.appendChild(tr); });
   }
 
   document.addEventListener("click", function (e) {
