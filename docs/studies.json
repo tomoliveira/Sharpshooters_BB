@@ -129,6 +129,14 @@
       "date": "2026-09-10",
       "path": "studies/season-structure.md",
       "summary": "13 Monday paydays, 14 Friday training resets, and why every per-season cost uses 13."
+    },
+    {
+      "id": "game-manual",
+      "group": "reference",
+      "title": "Game Manual: a manager's guide",
+      "date": "2026-09-24",
+      "path": "references/game-manual.md",
+      "summary": "The official manual, summarized in our own words by topic with links to each chapter: promotion bonuses, the Division III minimum payroll, arena limits, training minutes, tactics, transfers and cups."
     }
   ]
 }
