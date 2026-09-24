@@ -400,7 +400,8 @@
   #r-roster:checked ~ .panels #panel-roster,
   #r-staff:checked ~ .panels #panel-staff,
   #r-byposition:checked ~ .panels #panel-byposition,
-  #r-training:checked ~ .panels #panel-training { display: block; }
+  #r-training:checked ~ .panels #panel-training,
+  #r-studies:checked ~ .panels #panel-studies { display: block; }
 
   #r-overview:checked ~ .tabs-nav label[for="r-overview"],
   #r-investments:checked ~ .tabs-nav label[for="r-investments"],
@@ -409,7 +410,8 @@
   #r-roster:checked ~ .tabs-nav label[for="r-roster"],
   #r-staff:checked ~ .tabs-nav label[for="r-staff"],
   #r-byposition:checked ~ .tabs-nav label[for="r-byposition"],
-  #r-training:checked ~ .tabs-nav label[for="r-training"] { color: var(--accent); border-bottom-color: var(--accent); border-left-color: var(--accent); }
+  #r-training:checked ~ .tabs-nav label[for="r-training"],
+  #r-studies:checked ~ .tabs-nav label[for="r-studies"] { color: var(--accent); border-bottom-color: var(--accent); border-left-color: var(--accent); }
 
   #r-overview:focus-visible ~ .tabs-nav label[for="r-overview"],
   #r-investments:focus-visible ~ .tabs-nav label[for="r-investments"],
@@ -418,7 +420,52 @@
   #r-roster:focus-visible ~ .tabs-nav label[for="r-roster"],
   #r-staff:focus-visible ~ .tabs-nav label[for="r-staff"],
   #r-byposition:focus-visible ~ .tabs-nav label[for="r-byposition"],
-  #r-training:focus-visible ~ .tabs-nav label[for="r-training"] { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #r-training:focus-visible ~ .tabs-nav label[for="r-training"],
+  #r-studies:focus-visible ~ .tabs-nav label[for="r-studies"] { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---- studies tab: article index + in-page Markdown reader ---- */
+  .study-group { margin: 34px 0 0; }
+  .study-group:first-child { margin-top: 20px; }
+  .study-group h3 { margin: 0; font-size: 19px; }
+  .study-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 14px; }
+  .study-card {
+    display: flex; flex-direction: column; gap: 6px; text-align: left; width: 100%;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 16px 18px; cursor: pointer; font: inherit; color: var(--ink);
+    transition: border-color 0.15s ease;
+  }
+  .study-card:hover { border-color: var(--accent); }
+  .study-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .study-card .study-title { font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 700; font-size: 18px; line-height: 1.2; }
+  .study-card .study-summary { font-size: 13.5px; color: var(--ink-soft); }
+  .study-card .study-date { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink-faint); margin-top: auto; }
+  .study-empty { font-size: 14px; color: var(--ink-faint); margin-top: 12px; }
+  .study-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 20px 0 18px; }
+  .study-back {
+    font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 600; font-size: 14px; letter-spacing: 0.02em;
+    background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 999px;
+    padding: 6px 14px; cursor: pointer;
+  }
+  .study-back:hover { border-color: var(--accent); color: var(--accent); }
+  .study-toolbar .study-meta { font-size: 13px; color: var(--ink-faint); }
+  .study-toolbar a { font-size: 13px; color: var(--accent2); }
+  .study-body { max-width: 860px; padding: 28px 32px; }
+  @media (max-width: 480px) { .study-body { padding: 18px 16px; } }
+  .study-body h1 { font-size: 34px; margin: 0 0 14px; }
+  .study-body h2 { font-size: 24px; margin: 34px 0 10px; }
+  .study-body h3 { font-size: 19px; margin: 24px 0 8px; }
+  .study-body p, .study-body li { font-size: 15px; color: var(--ink); max-width: 72ch; }
+  .study-body ul, .study-body ol { padding-left: 22px; }
+  .study-body li { margin: 3px 0; }
+  .study-body a { color: var(--accent2); }
+  .study-body hr { border: none; border-top: 1px solid var(--line); margin: 30px 0; }
+  .study-body blockquote { margin: 14px 0; padding: 4px 16px; border-left: 3px solid var(--accent); background: var(--surface-2); border-radius: 0 8px 8px 0; }
+  .study-body code { font-family: 'IBM Plex Mono', monospace; font-size: 0.88em; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+  .study-body pre { background: var(--surface-2); padding: 12px 14px; border-radius: 8px; overflow-x: auto; }
+  .study-body pre code { background: none; padding: 0; }
+  .study-body .tbl-scroll { margin: 14px 0; box-shadow: none; }
+  .study-body table { min-width: 0; }
+  .study-body td { vertical-align: top; }
 
   /* ---- automated-section badge ---- */
   .auto-badge { display: inline-flex; align-items: center; gap: 5px; font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; padding: 2.5px 8px 3px; border-radius: 100px; white-space: nowrap; background: var(--accent2); color: var(--accent-ink); }
@@ -439,6 +486,18 @@
   }
   .info-tip:hover .tip-bubble, .info-tip:focus .tip-bubble, .info-tip:focus-within .tip-bubble { display: block; }
   .info-tip .tip-bubble .tag { margin-bottom: 5px; }
+  /* bridges the gap under the icon so the pointer can reach links inside the bubble */
+  .info-tip .tip-bubble::before { content: ""; position: absolute; left: 0; right: 0; top: -9px; height: 9px; }
+  .info-tip .tip-bubble { font-family: 'Public Sans', system-ui, sans-serif; text-transform: none; letter-spacing: normal; }
+  .info-tip .tip-bubble a { color: var(--accent2); }
+  .info-tip .tip-more { display: block; margin-top: 8px; font-weight: 600; }
+  .study-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+  .study-links a {
+    font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 0.02em;
+    text-decoration: none; color: var(--accent2); background: var(--surface); border: 1px solid var(--line);
+    border-radius: 999px; padding: 4px 12px;
+  }
+  .study-links a:hover { border-color: var(--accent2); }
   @media (max-width: 480px) { .info-tip .tip-bubble { left: auto; right: 0; width: 260px; } }
 
   /* ---- sources ---- */
@@ -509,6 +568,7 @@
     <input type="radio" name="ss-tabs" id="r-staff" class="tab-radio">
     <input type="radio" name="ss-tabs" id="r-byposition" class="tab-radio">
     <input type="radio" name="ss-tabs" id="r-training" class="tab-radio">
+    <input type="radio" name="ss-tabs" id="r-studies" class="tab-radio">
 
     <div class="tabs-nav">
       <label class="tab-btn" for="r-overview">Overview</label>
@@ -521,6 +581,8 @@
       <label class="tab-btn" for="r-staff">Staff</label>
       <label class="tab-btn" for="r-byposition">Roster by Position</label>
       <label class="tab-btn" for="r-training">Training Strategy</label>
+      <span class="tab-divider"></span>
+      <label class="tab-btn" for="r-studies">Studies</label>
     </div>
 
     <div class="panels">
@@ -529,12 +591,9 @@
   <div class="tab-panel" id="panel-overview">
 
   <div class="block-head" style="margin-top:20px;">
-    <h2 style="font-size:19px;">Live snapshot</h2>
+    <h2 style="font-size:19px;">Live snapshot<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-official">Official API</span> Refreshed every day by a GitHub Actions job. Everything in this tab comes from that daily snapshot.</span></span></h2>
     <span class="auto-badge">Auto-updated daily</span>
   </div>
-  <details class="note"><summary>About the live snapshot below</summary>
-        <p class="block-note" style="margin:2px 0 0;">Straight from the official API, refreshed every day by a GitHub Actions job — the stat cards above are the dated manual analysis and stay fixed until the next full manual refresh.</p>
-      </details>
   <!-- AUTO:OVERVIEW_STATS -->
   <p class="block-note">Loading live data…</p>
   <!-- /AUTO:OVERVIEW_STATS -->
@@ -549,180 +608,19 @@
   <div class="tab-panel" id="panel-investments">
 
   <div class="block-head" style="margin-top:20px;">
-    <h2>Investment tracker<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-calc">Calculated</span> TCO = price paid + salary paid while owned. Salary is paid weekly, not continuously - one payment per Monday reset since acquisition, each recorded at that week's own salary (from the official API), so a later raise or skill-driven salary change doesn't retroactively change what earlier weeks cost. TCO/week divides TCO by the number of weekly payments recorded so far (floored at 1) - a run-rate figure comparable across players regardless of how long each has been tracked. <span class="tag tag-rec">[Inference]</span> "Skill total" is a self-computed sum of the 12 rated skills from the official API, standing in for Buzzer Manager's proprietary TSP figure. Treat skill total as a progress signal, not a market valuation. <span class="tag tag-rec">[Inference]</span> Rows marked "(estimated)" are drafted/home-grown players with no purchase to date from - salary-paid and TCO accrue from a manually-supplied acquisition date where one is known (e.g. a franchise takeover date), otherwise from the day this ledger first tracked them, so treat those figures as approximate rather than an official record.</span></span></h2>
+    <h2>Investment tracker<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><b style="color:var(--ink)">What counts as an investment:</b> every dated capital outlay in the official economy ledger, meaning player purchases (and sales) and lump-sum facility spend like the arena expansion. The API only shows the current and prior week, so each run adds to a running ledger. Salaries and scouting are operating costs, not investments, but salaries do roll into each player's TCO. Arena spend is tracked against real gate revenue, grouped by capacity and price period as arena.aspx changes.<br><br><span class="tag tag-calc">Calculated</span> TCO = price paid + salary paid while owned. Salary is paid weekly, not continuously - one payment per Monday reset since acquisition, each recorded at that week's own salary (from the official API), so a later raise or skill-driven salary change doesn't retroactively change what earlier weeks cost. TCO/week divides TCO by the number of weekly payments recorded so far (floored at 1) - a run-rate figure comparable across players regardless of how long each has been tracked. <span class="tag tag-rec">[Inference]</span> "Skill total" is a self-computed sum of the 12 rated skills from the official API, standing in for Buzzer Manager's proprietary TSP figure. Treat skill total as a progress signal, not a market valuation. <span class="tag tag-rec">[Inference]</span> Rows marked "(estimated)" are drafted/home-grown players with no purchase to date from - salary-paid and TCO accrue from a manually-supplied acquisition date where one is known (e.g. a franchise takeover date), otherwise from the day this ledger first tracked them, so treat those figures as approximate rather than an official record.</span></span></h2>
     <span class="auto-badge">Auto-updated daily</span>
   </div>
-  <details class="note"><summary>What counts as an "investment" here</summary>
-        <p class="block-note">Every dated capital outlay pulled from the official economy ledger — player transfer purchases (and sales, if any) and lump-sum facility spend like the arena expansion — accumulated into a running ledger each time this report runs, since the API only ever shows the current and prior week. Recurring weekly costs (salaries, scouting) are operating expenses, not investments, but they do roll into each player's <b>TCO</b> (total cost of ownership: price paid + salary paid while owned) below, so cost-per-player is measured against the full bill, not just the transfer fee. Arena spend is tracked the same way against real gate revenue, bucketed automatically by capacity/price regime as arena.aspx changes.</p>
-      </details>
   <!-- AUTO:INVESTMENTS -->
   <p class="block-note">Loading live data…</p>
   <!-- /AUTO:INVESTMENTS -->
 
   <section class="block">
     <div class="block-head">
-      <h2>Investment knowledge guide</h2>
-      <span class="tag tag-rec">Reference · not auto-updated</span>
+      <h2>Investment studies<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble">Worked analyses of what pays off, kept as articles in the Studies tab rather than recomputed each run.</span></span></h2>
+      <span class="tag tag-rec">Studies</span>
     </div>
-    <p class="block-note">Two worked-through analyses of what actually pays off fastest, kept here as reference for future decisions rather than recomputed each run. Static — edit this section by hand if the underlying assumptions change.</p>
-    <details class="note"><summary>Season structure (both analyses below assume this)</summary>
-      <p class="block-note" style="margin-top:8px;"><span class="tag tag-official">Official · game schedule mechanics</span>&nbsp; A season runs <b style="color:var(--ink)">14 weeks</b>, but its two weekly resets don't both land 14 times: <b style="color:var(--ink)">13 Monday resets</b> (TV money, merchandise, and player salaries are all paid on this reset — this is what a "season" of salary cost actually means below) and <b style="color:var(--ink)">14 Friday resets</b> (training progress and weekly minutes tracking reset here instead). Any dollar figure below scaled per-season uses 13, not 14 — a season's salary bill is one payday short of what a flat 14-week count would suggest.</p>
-    </details>
-
-    <div class="card" style="margin-top:16px;">
-      <div class="eyebrow" style="margin-bottom:8px;">Bench-player acquisitions: which one is cheapest, long-run?</div>
-      <p class="block-note" style="margin:0 0 12px;">A total-cost-of-ownership comparison of three hypothetical bench-player acquisitions, with salary <b style="color:var(--ink)">projected forward</b> rather than held flat — using a decay curve fit from 15 real players' actual season-by-season salary histories.</p>
-      <details class="note"><summary>The decay model</summary>
-        <p class="block-note" style="margin-top:8px;">Player salaries peak around age 33–34, then decline. Fit from the 15-player sample (log-linear regression, R²=0.24 — larger salaries drop sharper): each season past the peak, <code>% change ≈ 14.1% − 4.02%×ln(salary)</code>. A $200/week floor applies (no tracked player was ever observed below it). Age advances 1 year/season; each season's salary cost is that season's rate × <b style="color:var(--ink)">13</b> (Monday paydays, not a flat 14 — see "Season structure" above).</p>
-        <p class="block-note" style="margin-top:8px;"><span class="tag tag-rec">[Inference]</span> The $200 floor is empirical, drawn from the sample's observed minimum — not a documented game rule, and could be wrong for a large enough roster.</p>
-      </details>
-      <p class="block-note" style="margin-top:10px;"><b style="color:var(--ink)">The three options modeled:</b></p>
-      <ul style="margin:4px 0 12px; padding-left:20px; font-size:13.8px; color:var(--ink-soft);">
-        <li><b style="color:var(--ink)">A</b> — $800/wk, $40,000 acquisition, starting age 32</li>
-        <li><b style="color:var(--ink)">B</b> — $250/wk, $100,000 acquisition, starting age 50</li>
-        <li><b style="color:var(--ink)">C</b> — $2,000/wk, $1,000 acquisition, starting age 30</li>
-      </ul>
-      <div class="tbl-scroll">
-        <table>
-          <thead><tr><th class="sortable" data-col="0">Season</th><th class="num sortable" data-col="1">A — cumulative cost</th><th class="num sortable" data-col="2">B — cumulative cost</th><th class="num sortable" data-col="3">C — cumulative cost</th></tr></thead>
-          <tbody>
-            <tr><td>2</td><td class="num">$60,800</td><td class="num">$105,742</td><td class="num"><b style="color:var(--positive)">$53,000</b></td></tr>
-            <tr><td>5</td><td class="num"><b style="color:var(--positive)">$84,866</b></td><td class="num">$113,542</td><td class="num">$126,722</td></tr>
-            <tr><td>10</td><td class="num"><b style="color:var(--positive)">$110,283</b></td><td class="num">$126,542</td><td class="num">$195,337</td></tr>
-            <tr><td>15</td><td class="num"><b style="color:var(--positive)">$126,032</b></td><td class="num">$139,542</td><td class="num">$229,907</td></tr>
-            <tr><td>20</td><td class="num"><b style="color:var(--positive)">$139,032</b></td><td class="num">$152,542</td><td class="num">$250,015</td></tr>
-            <tr><td>30</td><td class="num"><b style="color:var(--positive)">$165,032</b></td><td class="num">$178,542</td><td class="num">$276,651</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="block-note" style="margin-top:10px;"><span class="tag tag-calc">Calculated</span> <b style="color:var(--ink)">A is cheapest from season 3 onward, indefinitely.</b> Both A and B eventually hit the $200 floor — A by season 16, B already by season 3 — and once both are floored, the gap between them (B's larger acquisition price) never closes. C is only competitive in the first two seasons, on the strength of its near-zero acquisition price alone; its high starting salary catches up fast once decay hasn't yet had time to bite.</p>
-    </div>
-
-    <div class="card" style="margin-top:16px;">
-      <div class="eyebrow" style="margin-bottom:8px;">Arena upgrade: payback and long-run surplus</div>
-      <p class="block-note" style="margin:0 0 12px;">Payback/surplus analysis of the real, already-executed $205,800 arena expansion, using this report's own live arena data.</p>
-      <div class="stat-row" style="margin-top:4px;">
-        <div class="stat-card"><div class="label">Incremental revenue / full-value game</div><div class="value">$10,716</div><div class="foot">($103,449 new sellout − $92,298 old) × 96.1% avg. utilization</div></div>
-        <div class="stat-card"><div class="label">Payback — baseline season</div><div class="value">1.75 seasons</div><div class="foot">11 full-value-equivalent games/season</div></div>
-        <div class="stat-card"><div class="label">Payback — deep-run season</div><div class="value">1.48 seasons</div><div class="foot">13 full-value-equivalent games/season</div></div>
-      </div>
-      <details class="note" style="margin-top:12px;"><summary>Where "11" and "13" games/season come from</summary>
-        <p class="block-note" style="margin-top:8px;">Modeled via a proxy schedule (Velotrol Metalizado, Season 72 — a completed league-finals-plus-tie-breaker season, i.e. a deep playoff run), broken down by home-game type and the BuzzerBeater Game Manual's own arena-revenue rules:</p>
-        <div class="tbl-scroll" style="margin-top:8px; box-shadow:none;">
-          <table style="min-width:0;">
-            <thead><tr><th class="sortable" data-col="0">Type</th><th class="num sortable" data-col="1">Home games</th><th class="sortable" data-col="2">Arena revenue treatment</th></tr></thead>
-            <tbody>
-              <tr><td>Regular league (blank)</td><td class="num">9</td><td class="credit">Full — counts</td></tr>
-              <tr><td>TV</td><td class="num">2</td><td class="credit">Full — counts (treated as regular league)</td></tr>
-              <tr><td>Playoffs (PO, SF, F, TB)</td><td class="num">4</td><td>Half — split with visitors</td></tr>
-              <tr><td>Cup (C)</td><td class="num">6</td><td class="debit">Zero — excluded, confirmed by manual</td></tr>
-              <tr><td>Private League (PL)</td><td class="num">5</td><td class="debit">Zero — excluded</td></tr>
-              <tr><td>B3</td><td class="num">2</td><td class="debit">Zero — excluded</td></tr>
-              <tr><td>Scrimmage (SC)</td><td class="num">0</td><td class="debit">Zero — excluded (none occurred at home this season)</td></tr>
-              <tr class="total"><td>Total home games</td><td class="num">28</td><td></td></tr>
-            </tbody>
-          </table>
-        </div>
-        <p class="block-note" style="margin-top:8px;">Full-value-equivalent games/season: <b style="color:var(--ink)">9 + 2 + (4 × 0.5) = 13</b> in this deep-run season. A baseline season without a playoff run drops the 4 half-value playoff games, leaving <b style="color:var(--ink)">9 + 2 = 11</b>.</p>
-        <p class="block-note" style="margin-top:8px;"><span class="tag tag-rec">[Inference]</span> That's a different team's schedule, used as a structural proxy — not the Sharpshooters' own game mix. The 96.1% fill rate is also assumed, not confirmed, to hold on the newly added seats specifically.</p>
-      </details>
-      <p class="block-note" style="margin-top:14px;"><b style="color:var(--ink)">Cumulative surplus</b> (cumulative incremental revenue − $205,800), assuming revenue grows at a flat annual rate:</p>
-      <div class="two-col" style="margin-top:8px;">
-        <div>
-          <div class="eyebrow" style="margin-bottom:8px;">Baseline season (11 games/yr)</div>
-          <div class="tbl-scroll">
-            <table style="min-width:0;">
-              <thead><tr><th class="sortable" data-col="0">Growth</th><th class="num sortable" data-col="1">Season 5</th><th class="num sortable" data-col="2">10</th><th class="num sortable" data-col="3">15</th><th class="num sortable" data-col="4">20</th></tr></thead>
-              <tbody>
-                <tr><td>0%</td><td class="num">$383,580</td><td class="num">$972,960</td><td class="num">$1,562,340</td><td class="num">$2,151,720</td></tr>
-                <tr><td>3%</td><td class="num">$420,020</td><td class="num">$1,145,516</td><td class="num">$1,986,566</td><td class="num">$2,961,572</td></tr>
-                <tr><td>5%</td><td class="num">$445,539</td><td class="num">$1,276,832</td><td class="num">$2,337,795</td><td class="num">$3,691,882</td></tr>
-                <tr><td>8%</td><td class="num">$485,731</td><td class="num">$1,501,818</td><td class="num">$2,994,783</td><td class="num">$5,188,437</td></tr>
-                <tr><td>10%</td><td class="num">$513,845</td><td class="num">$1,672,840</td><td class="num">$3,539,413</td><td class="num">$6,545,548</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div>
-          <div class="eyebrow" style="margin-bottom:8px;">Deep-run season (13 games/yr)</div>
-          <div class="tbl-scroll">
-            <table style="min-width:0;">
-              <thead><tr><th class="sortable" data-col="0">Growth</th><th class="num sortable" data-col="1">Season 5</th><th class="num sortable" data-col="2">10</th><th class="num sortable" data-col="3">15</th><th class="num sortable" data-col="4">20</th></tr></thead>
-              <tbody>
-                <tr><td>0%</td><td class="num">$490,740</td><td class="num">$1,187,280</td><td class="num">$1,883,820</td><td class="num">$2,580,360</td></tr>
-                <tr><td>3%</td><td class="num">$533,805</td><td class="num">$1,391,210</td><td class="num">$2,385,177</td><td class="num">$3,537,458</td></tr>
-                <tr><td>5%</td><td class="num">$563,965</td><td class="num">$1,546,401</td><td class="num">$2,800,267</td><td class="num">$4,400,552</td></tr>
-                <tr><td>8%</td><td class="num">$611,464</td><td class="num">$1,812,294</td><td class="num">$3,576,707</td><td class="num">$6,169,208</td></tr>
-                <tr><td>10%</td><td class="num">$644,689</td><td class="num">$2,014,411</td><td class="num">$4,220,361</td><td class="num">$7,773,066</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-      <p class="block-note" style="margin-top:10px;"><span class="tag tag-calc">Calculated</span> The expansion <b style="color:var(--ink)">pays for itself within its second season in every scenario tested</b>. Growth rate barely moves the payback timing (it's a near-term, low-compounding effect at that horizon) but compounds long-run surplus substantially — the 20-season gap between 0% and 10% growth is roughly 3x the baseline surplus itself.</p>
-      <p class="block-note" style="margin-top:8px;"><span class="tag tag-rec">[Inference]</span> Growth rates (0/3/5/8/10%) are illustrative, not verified against any real trend. Two of the four current price tiers are already near their game-imposed ceiling, which caps how much of that growth could plausibly come from further price increases rather than attendance/demand growth.</p>
-    </div>
-
-    <div class="card" style="margin-top:16px;">
-      <div class="eyebrow" style="margin-bottom:8px;">Training priority: which skills are cheapest to develop, salary-wise</div>
-      <p class="block-note" style="margin:0 0 12px;">Every point in a skill costs a different amount in weekly salary. Ground-truth curves pulled from buzzer-manager.com's salary estimator (each of the 12 rated skills queried at every rating 1&ndash;20, holding age/nationality/potential and the other 11 skills fixed at 10) &mdash; cross-validated against a separate 266-player real-market regression, which independently ranked the same skills the same way. Full data: <code>salary-model/skill-curves-reference.md</code> and <code>salary-model/formula-history.md</code> in the GitHub repo.</p>
-      <div class="tbl-scroll">
-        <table style="min-width:0;">
-          <thead><tr><th class="sortable" data-col="0">Skill</th><th class="num sortable" data-col="1">1&rarr;20 salary multiplier</th><th class="sortable" data-col="2">Shape</th></tr></thead>
-          <tbody>
-            <tr><td>Jump Shot</td><td class="num debit">5.21&times;</td><td>Steep past ~rating 8</td></tr>
-            <tr><td>Rebounding</td><td class="num debit">4.42&times;</td><td>Only skill with a real floor slope &mdash; costs something even at low ratings</td></tr>
-            <tr><td>Passing</td><td class="num debit">3.39&times;</td><td>Steep past ~rating 11</td></tr>
-            <tr><td>Inside Def</td><td class="num debit">3.28&times;</td><td>Steep past ~rating 9</td></tr>
-            <tr><td>Inside Shot</td><td class="num">2.93&times;</td><td>Steep past ~rating 9</td></tr>
-            <tr><td>Outside Def</td><td class="num">2.45&times;</td><td>Steep past ~rating 10</td></tr>
-            <tr><td>Jump Range</td><td class="num">2.38&times;</td><td>Three-stage &mdash; a mid-rate step around 10&ndash;14</td></tr>
-            <tr><td>Handling</td><td class="num credit">1.70&times;</td><td>Steep only past ~rating 12</td></tr>
-            <tr><td>Shot Blocking</td><td class="num credit">1.65&times;</td><td>Gentle throughout</td></tr>
-            <tr><td>Driving</td><td class="num credit">1.23&times;</td><td>Gentle throughout</td></tr>
-            <tr><td>Stamina</td><td class="num credit">1.00&times;</td><td>Zero salary effect at any rating</td></tr>
-            <tr><td>Free Throw</td><td class="num credit">1.00&times;</td><td>Zero salary effect at any rating</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="block-note" style="margin-top:10px;"><span class="tag tag-calc">Calculated</span> Every skill except Stamina/Free Throw follows the same <b style="color:var(--ink)">two-regime shape</b> &mdash; a nearly flat "low regime" up to a per-skill breakpoint, then a much steeper "high regime" for the rest of the range (not a smooth power law). Baseline weekly salary with everything at rating 10 is <b class="mono">$17,609</b> &mdash; every curve passes through that exact value, confirming the isolated-skill queries are internally consistent.</p>
-      <p class="block-note" style="margin-top:8px;"><span class="tag tag-rec">[Inference]</span> Stamina and Free Throw training is essentially "free" salary-wise &mdash; push those to the 6&ndash;8 / 7+ targets already in this team's training doctrine without hesitation. Jump Shot and Rebounding are the two skills where a big push has the largest, most convex salary consequence &mdash; worth being deliberate about timing (e.g. concentrated pushes rather than a slow drip once past each skill's breakpoint). The separate 266-player market regression (pooled model, R&sup2;=0.891) found <b style="color:var(--ink)">Age has no real effect</b> on salary once current skills are controlled for &mdash; BuzzerBeater recalculates salary once per season from current skills only, so an apparent "age discount" on a young, still-training player is really just salary that hasn't been recalculated since their last training gains, not a market age premium.</p>
-    </div>
-
-    <div class="card" style="margin-top:16px;">
-      <div class="eyebrow" style="margin-bottom:8px;">Arena pricing: where we sit vs. our real Division III peers</div>
-      <p class="block-note" style="margin:0 0 12px;">336 Brazil teams scraped from public buzzerbeater.com pages (Liga Nacional + Div II + all 16 Div III conferences) &mdash; Sharpshooters' actual peer group, not a top-division benchmark. Full data and scripts: <code>arena-model/</code> in the GitHub repo (<code>brazil_leagues_all.csv</code>, <code>brazil_league_analysis.py</code>, <code>sharpshooters_arena_optimizer.py</code>).</p>
-      <div class="stat-row" style="margin-top:4px;">
-        <div class="stat-card"><div class="label">Revenue/game percentile</div><div class="value pos">55th</div><div class="foot">of 256 Division III teams &mdash; $92,273/game vs. $80,520 median</div></div>
-        <div class="stat-card"><div class="label">Win% percentile</div><div class="value">22nd</div><div class="foot">3&ndash;7 record &mdash; revenue is outperforming results</div></div>
-        <div class="stat-card"><div class="label">Bleachers price</div><div class="value">$12</div><div class="foot">Div III median $10, mean $11.0</div></div>
-        <div class="stat-card"><div class="label">Courtside price</div><div class="value">$119</div><div class="foot">Div III median $100, mean $119.1</div></div>
-      </div>
-      <p class="block-note" style="margin-top:10px;"><span class="tag tag-rec">[Inference]</span> A same-snapshot check across all 336 teams found win% and fill rate <b style="color:var(--ink)">negatively</b> correlated (&minus;0.17 to &minus;0.18) &mdash; losing teams (win% &le; 0.4) average 90.3% fill vs. 84.5% for winning teams (win% &ge; 0.6), a &minus;5.9 point gap. Plausible confound: winning teams tend to run bigger arenas that are harder to fill 100%, while many bottom-table teams sit at the 6,000-seat capacity floor and sell out easily regardless of form. Fill rate alone is not a clean price-demand signal without controlling for capacity and form.</p>
-      <div class="tbl-scroll" style="margin-top:10px;">
-        <table style="min-width:0;">
-          <thead><tr><th class="sortable" data-col="0">Tier</th><th class="num sortable" data-col="1">Current fill</th><th class="sortable" data-col="2">Top price scenario tested</th><th class="num sortable" data-col="3">Est. revenue/game</th><th class="num sortable" data-col="4">Est. delta</th></tr></thead>
-          <tbody>
-            <tr><td>Bleachers</td><td class="num">82.1%</td><td>$12 &rarr; $16 (+33%)</td><td class="num">$68,526</td><td class="num credit">+$9,225</td></tr>
-            <tr><td>Courtside</td><td class="num">100.0%</td><td>$119 &rarr; $155 (+30%)</td><td class="num">$16,740</td><td class="num credit">+$3,888</td></tr>
-            <tr><td>Lower Tier</td><td class="num">96.8%</td><td>$44 &rarr; $57 (+30%)</td><td class="num">$27,243</td><td class="num credit">+$3,395</td></tr>
-            <tr><td>Luxury</td><td class="num">62.5%</td><td colspan="3" class="sub">Excluded &mdash; fill already dropped after the last expansion; not recommended to add more or raise price until it recovers</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="block-note" style="margin-top:8px;"><span class="tag tag-calc">Calculated</span> Ranked expansion scenarios by budget, from the optimizer's own recommendation engine:</p>
-      <div class="tbl-scroll" style="margin-top:6px;">
-        <table style="min-width:0;">
-          <thead><tr><th class="sortable" data-col="0">Budget</th><th class="sortable" data-col="1">Recommended allocation</th><th class="num sortable" data-col="2">Est. added revenue/game</th></tr></thead>
-          <tbody>
-            <tr><td>$50,000</td><td>+25 courtside seats</td><td class="num credit">+$2,975</td></tr>
-            <tr><td>$150,000</td><td>+40 courtside, +100 lower tier</td><td class="num credit">+$9,019</td></tr>
-            <tr><td>$500,000 (only $185,000 usefully spent)</td><td>+40 courtside, +150 lower tier</td><td class="num credit">+$11,148</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="block-note" style="margin-top:8px;"><span class="tag tag-rec">[Inference]</span> Price-change and expansion estimates assume a flat &minus;0.4 elasticity (not fitted from real data) and, for the percentile comparisons, use the closer 256-team Division III comp set rather than the top-division benchmark used earlier in this guide's arena-expansion payback analysis above. Re-run <code>sharpshooters_arena_optimizer.py</code> / <code>brazil_league_analysis.py</code> periodically &mdash; prices, capacity, and the comp set all drift as the season progresses.</p>
-    </div>
+    <div class="study-list" data-study-links="skill-salary-costs,arena-pricing-div3,arena-expansion-payback,bench-player-tco,season-structure"></div>
   </section>
 
   </div>
@@ -732,12 +630,9 @@
 
     <section class="block" style="margin-top:20px;">
       <div class="block-head">
-        <h2>Season-end cash projection</h2>
+        <h2>Season-end cash projection<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble">Projects current cash forward at a flat weekly run rate for however many of the season's 13 Monday resets (<a href="#study=season-structure" data-study="season-structure">why 13</a>) remain — derived from the schedule's own last currently-listed match, not a hand-maintained number, so it self-updates (and grows) if the league adds more fixtures later. Falls back to a config value only if the schedule returns nothing. Doesn't know about one-time events that haven't happened yet.</span></span></h2>
         <span class="auto-badge">Auto-updated daily</span>
       </div>
-      <details class="note"><summary>About this projection</summary>
-        <p class="block-note">Projects current cash forward at a flat weekly run rate for however many of the season's 13 Monday resets remain — derived from the schedule's own last currently-listed match, not a hand-maintained number, so it self-updates (and grows) if the league adds more fixtures later. Falls back to a config value only if the schedule returns nothing. Doesn't know about one-time events that haven't happened yet.</p>
-      </details>
       <!-- AUTO:SEASON_PROJECTION -->
       <p class="block-note">Loading live data…</p>
       <!-- /AUTO:SEASON_PROJECTION -->
@@ -745,12 +640,9 @@
 
     <section class="block">
       <div class="block-head">
-        <h2>Recent cash movement</h2>
+        <h2>Recent cash movement<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble">Itemized transactions from the official API's economy ledger (last week and this week), running balance computed from each week's confirmed opening balance. Zero-amount placeholder entries (e.g. an unplayed match's revenue row) are omitted.</span></span></h2>
         <span class="auto-badge">Auto-updated daily</span>
       </div>
-      <details class="note"><summary>About this ledger</summary>
-        <p class="block-note">Itemized transactions from the official API's economy ledger (last week and this week), running balance computed from each week's confirmed opening balance. Zero-amount placeholder entries (e.g. an unplayed match's revenue row) are omitted.</p>
-      </details>
       <!-- AUTO:TRANSACTION_LEDGER -->
       <p class="block-note">Loading live data…</p>
       <!-- /AUTO:TRANSACTION_LEDGER -->
@@ -758,12 +650,9 @@
 
     <section class="block">
       <div class="block-head">
-        <h2>This week's live category breakdown</h2>
+        <h2>This week's live category breakdown<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble">The official API's own category breakdown for the current and prior week, refreshed daily.</span></span></h2>
         <span class="auto-badge">Auto-updated daily</span>
       </div>
-      <details class="note"><summary>About this breakdown</summary>
-        <p class="block-note">The official API's own category breakdown for the current and prior week, refreshed daily.</p>
-      </details>
       <!-- AUTO:FINANCE_WEEKLY -->
       <p class="block-note">Loading live data…</p>
       <!-- /AUTO:FINANCE_WEEKLY -->
@@ -791,7 +680,7 @@
           <!-- /AUTO:ARENA_PRICE_BARS -->
         </div>
         <div class="card">
-          <div class="eyebrow" style="margin-bottom:10px;">Expansion cost per seat</div>
+          <div class="eyebrow" style="margin-bottom:10px;">Expansion cost per seat<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-calc">Calculated</span>&nbsp; At today's prices and full capacity, one sellout ≈ <b class="mono">$92,298</b> in gate receipts (5,438×$12 + 500×$38 + 60×$106 + 2×$841). Once the expansion lands, the new max sellout ≈ <b class="mono">$103,449</b> at these same prices (5,600×$12 + 542×$38 + 108×$106 + 5×$841, 6,255 total seats).<a class="tip-more" href="#study=arena-expansion-payback" data-study="arena-expansion-payback">Payback analysis &rarr;</a></span></span></div>
           <table style="min-width:0;">
             <tbody>
               <tr><td>Bleachers <span class="sub">(+162 seats)</span></td><td class="num">$200</td></tr>
@@ -801,9 +690,6 @@
               <tr class="total"><td>Total expansion cost</td><td class="num">$205,800</td></tr>
             </tbody>
           </table>
-          <details class="note"><summary>Sellout revenue math</summary>
-        <p class="block-note" style="margin:12px 0 0;"><span class="tag tag-calc">Calculated</span>&nbsp; At today's prices and full capacity, one sellout ≈ <b class="mono">$92,298</b> in gate receipts (5,438×$12 + 500×$38 + 60×$106 + 2×$841). Once the expansion lands, the new max sellout ≈ <b class="mono">$103,449</b> at these same prices (5,600×$12 + 542×$38 + 108×$106 + 5×$841, 6,255 total seats).</p>
-      </details>
         </div>
       </div>
     </section>
@@ -825,12 +711,9 @@
 
     <section class="block">
       <div class="block-head">
-        <h2>Skill ratings (as shown in-game)<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-official">Official · Game Manual, rules.aspx?nav=Nomenclature + contentbox.css</span> Word labels (on hover) are the manual's verbatim 1&ndash;20 adjective scale; colors are the exact hex values from the game's own stylesheet (.lev1&ndash;.lev20). Dark-mode colors are lightness-boosted for legibility, since the game has no dark theme of its own to match. <span class="tag tag-calc">Calculated</span> The trailing Train?/Minutes/Status columns are filled in live by this page's own script from whichever training combo is currently selected above (see the training minutes calculator, Training Strategy tab) - not part of the daily snapshot.</span></span></h2>
+        <h2>Skill ratings (as shown in-game)<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-official">Official · Game Manual, rules.aspx?nav=Nomenclature + contentbox.css</span> Word labels (on hover) are the manual's verbatim 1&ndash;20 adjective scale; colors are the exact hex values from the game's own stylesheet (.lev1&ndash;.lev20). Dark-mode colors are lightness-boosted for legibility, since the game has no dark theme of its own to match. <span class="tag tag-calc">Calculated</span> The trailing Train?/Minutes/Status columns are filled in live by this page's own script from whichever training combo is currently selected above (see the training minutes calculator, Training Strategy tab) - not part of the daily snapshot. Tick a player to mark them a training candidate; that choice is saved in this browser only. Skills are grouped OSP/ISP/Other and shown as numbers; hover a value for its word.</span></span></h2>
         <span class="auto-badge">Auto-updated daily</span>
       </div>
-      <details class="note"><summary>About the Train?/Minutes/Status columns</summary>
-        <p class="block-note">Check any player to mark them a training candidate - that's saved in this browser only (not synced anywhere, not part of the daily snapshot), so it's private to whoever's viewing and sticks around on this device across reloads. Minutes/threshold/status for every player use whichever training type and position combo are currently selected in the training minutes calculator (Training Strategy tab) - change that selection there and this table updates too, they share the same live combo rather than each needing their own.</p>
-      </details>
       <!-- AUTO:ROSTER_SKILLS -->
       <p class="block-note">Loading live data…</p>
       <!-- /AUTO:ROSTER_SKILLS -->
@@ -838,12 +721,9 @@
 
     <section class="block">
       <div class="block-head">
-        <h2>Minutes vs. money — this week<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-calc">Calculated</span> Live total minutes (any position) this training week vs. each player's salary, sorted by salary — a quick check on whether the highest earners are actually playing. This resets on the Friday training-week boundary, same as the training-threshold minutes elsewhere in this report.</span></span></h2>
+        <h2>Minutes vs. money — this week<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-calc">Calculated</span> Live total minutes (any position, summed from boxscore.aspx) this training week vs. each player's salary, sorted by salary — a quick check on whether the highest earners are actually playing. This resets on the Friday training-week boundary, same as the training-threshold minutes elsewhere in this report.</span></span></h2>
         <span class="auto-badge">Auto-updated daily</span>
       </div>
-      <details class="note"><summary>About this section</summary>
-        <p class="block-note">Live total minutes (any position, not just the training-focused ones) via boxscore.aspx across this training-week's played matches.</p>
-      </details>
       <!-- AUTO:MINUTES_VS_MONEY -->
       <p class="block-note">Loading live data…</p>
       <!-- /AUTO:MINUTES_VS_MONEY -->
@@ -856,15 +736,12 @@
 
     <section class="block" style="margin-top:20px;">
       <div class="block-head">
-        <h2>Staff, training &amp; scouting</h2>
+        <h2>Staff, training &amp; scouting<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-official">Official · training.aspx</span>&nbsp; Training is set to <b style="color:var(--ink)">Rebounding, C/PF</b> — an individual skill focus for Centers and Power Forwards, not Team Training. training.aspx has no API endpoint, so this line is carried over from the last screenshot check, not live.</span></span></h2>
         <span class="auto-badge">Auto-updated daily</span>
       </div>
       <!-- AUTO:STAFF -->
       <p class="block-note">Loading live data…</p>
       <!-- /AUTO:STAFF -->
-      <details class="note"><summary>Training focus, scouting</summary>
-        <p class="block-note" style="margin-top:14px;"><span class="tag tag-official">Official · training.aspx</span>&nbsp; Training is set to <b style="color:var(--ink)">Rebounding, C/PF</b> — an individual skill focus for Centers and Power Forwards, not Team Training. training.aspx has no API endpoint, so this line is carried over from the last screenshot check, not live.</p>
-      </details>
     </section>
 
   </div>
@@ -874,7 +751,7 @@
 
     <section class="block" style="margin-top:20px;">
       <div class="block-head">
-        <h2>Roster by position group</h2>
+        <h2>Roster by position group<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble">Same live values as the grouped skill table on the Roster tab, split into narrower per-position tables so nothing scrolls sideways.</span></span></h2>
         <span class="auto-badge">Auto-updated daily</span>
       </div>
       <!-- AUTO:ROSTER_BY_POSITION -->
@@ -889,12 +766,9 @@
 
     <section class="block" style="margin-top:20px;">
       <div class="block-head">
-        <h2>Training minutes calculator</h2>
+        <h2>Training minutes calculator<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble">Pick any training type and position combo from the training.aspx dropdowns. Every affected player is recalculated instantly against this week's actual minutes (from boxscore.aspx), with no reload. This is independent of the training actually set in-game (see the Staff tab). Your pick and the projection toggle are remembered in this browser.</span></span></h2>
         <span class="tag tag-calc">Calculated · updates instantly</span>
       </div>
-      <details class="note"><summary>How this works</summary>
-        <p class="block-note">Pick any training type and position combo from the live training.aspx dropdowns, and every roster player who'd be affected is recalculated instantly against this week's actual minutes (via boxscore.aspx) - no page reload, no waiting on tomorrow's snapshot. This is independent of whatever training is actually set in-game right now (see "What's actually being trained right now" below for that). Your type/combo pick and the projection toggle are remembered in this browser (localStorage) and restored the next time you open the report, so reopening it keeps whatever you were last looking at instead of resetting to the current doctrine default every time.</p>
-      </details>
       <div class="card" style="margin-top:8px;">
         <div class="two-col">
           <div>
@@ -922,12 +796,9 @@
 
     <section class="block">
       <div class="block-head">
-        <h2>Training candidates &amp; skills<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-rec">[Inference]</span> Laid out like the in-game player page, live from the official API each run. A few fields shown in-game aren't exposed by the API and are left out rather than guessed. Word labels and colors use the Game Manual's exact 1&ndash;20 scale and stylesheet. Weekly minutes are computed live each run by summing boxscore.aspx across matches played since the most recent Friday reset. <span class="tag tag-rec">Per Tom</span> Only minutes played at one of the focused positions count toward the threshold. Training focus is still static, carried over from the last screenshot check, since training.aspx has no API endpoint. The Clears/Short/Well-short bucketing is our own heuristic, not an official in-game label.</span></span></h2>
+        <h2>Training candidates &amp; skills<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-rec">[Inference]</span> Laid out like the in-game player page, live from the official API each run. A few fields shown in-game aren't exposed by the API and are left out rather than guessed. Word labels and colors use the Game Manual's exact 1&ndash;20 scale and stylesheet. Weekly minutes are computed live each run by summing boxscore.aspx across matches played since the most recent Friday reset. <span class="tag tag-rec">Per Tom</span> Only minutes played at one of the focused positions count toward the threshold. Training focus is still static, carried over from the last screenshot check, since training.aspx has no API endpoint. Thresholds: 45 min (age 18–19), 48 min (20–26), 40 min (27+). The Clears/Short/Well-short bucketing is our own heuristic, not an official in-game label.</span></span></h2>
         <span class="auto-badge">Auto-updated daily</span>
       </div>
-      <details class="note"><summary>About these skill ratings</summary>
-        <p class="block-note">Cards below are pulled live from the official API each run, laid out the same way the game shows a player page. Thresholds: 45min (18–19yo), 48min (20–26yo), 40min (27+yo). Skill ratings use the Game Manual's full 20-level scale and exact color coding (1 atrocious … 20 legendary).</p>
-      </details>
       <!-- AUTO:TRAINING_CARDS -->
       <p class="block-note">Loading live data…</p>
       <!-- /AUTO:TRAINING_CARDS -->
@@ -935,12 +806,9 @@
 
     <section class="block">
       <div class="block-head">
-        <h2>General training priorities</h2>
+        <h2>General training priorities<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble">Tom's standing doctrine for every cohort. Universal targets: Stamina 6–8, Free Throw 7+ (trainable only in Team Training, which pauses individual skills while active). During the promotion push, keeping salaries low comes first.<a class="tip-more" href="#study=training-doctrine" data-study="training-doctrine">Full doctrine &rarr;</a></span></span></h2>
         <span class="tag tag-rec">Your stated doctrine</span>
       </div>
-      <details class="note"><summary>Standing training doctrine</summary>
-        <p class="block-note">Recorded here as the standing framework for training decisions going forward, not just for the current cohort.</p>
-      </details>
       <div class="two-col">
         <div class="card">
           <div class="eyebrow" style="margin-bottom:10px;">Big men (C / PF)</div>
@@ -962,17 +830,16 @@
           </ol>
         </div>
       </div>
-      <details class="note"><summary>Universal training targets</summary>
-        <p class="block-note" style="margin-top:12px;">Universal targets, regardless of position: <b style="color:var(--ink)">Stamina 6–8</b>, <b style="color:var(--ink)">Free Throw 7+</b>.</p>
-      </details>
-      <details class="note"><summary>Team Training vs. individual skills</summary>
-        <p class="block-note" style="margin-top:10px;"><span class="tag tag-official">Official · training.aspx mechanics</span>&nbsp; Stamina and Free Throw are only trainable through <b>Team Training</b> mode (alongside Game Shape), which is mutually exclusive with the 10 individual position-skill categories — only one training focus is active for the whole team at a time. Hitting the Stamina 6–8 / Free Throw 7+ targets means periodically rotating into Team Training, which pauses individual skill development for everyone while it's active.</p>
-      </details>
+      <div class="study-links">
+        <a href="#study=training-doctrine" data-study="training-doctrine">Training doctrine &rarr;</a>
+        <a href="#study=training-strategy" data-study="training-strategy">Promotion-era priorities &rarr;</a>
+        <a href="#study=skill-salary-costs" data-study="skill-salary-costs">Skill salary costs &rarr;</a>
+      </div>
     </section>
 
     <section class="block">
       <div class="block-head">
-        <h2>Training focus recommendation<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-calc">Calculated</span> Client-only, computed from your marked training candidates (Roster tab checkboxes) - not part of the daily snapshot. <b style="color:var(--ink)">Doctrine priority</b>: for each doctrine group represented among your candidates (grouped by listed position purely to pick which priority-skill list applies - never used to exclude anyone), finds that group's current weakest priority skill and the training type that grows it fastest. <b style="color:var(--ink)">Minimize salary</b>: ranks every training type available at your candidates' combo by skill-points-gained per unit of salary-multiplier elasticity (see the Training priority card's 1&rarr;20 multipliers, Investments tab) and recommends the cheapest. Per Tom (2026-09-19): while Division III is an easy climb and salary doesn't matter until after promotion, minimize salary is the more useful lens - revisit doctrine priority once results start mattering more than payroll. Both use the same Training type efficiency table's coefficients below. A suggestion either way, not an automatic change - nothing here submits anything to BuzzerBeater.</span></span></h2>
+        <h2>Training focus recommendation<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-calc">Calculated</span> Client-only, computed from your marked training candidates (Roster tab checkboxes) - not part of the daily snapshot. <b style="color:var(--ink)">Doctrine priority</b>: for each doctrine group represented among your candidates (grouped by listed position purely to pick which priority-skill list applies - never used to exclude anyone), finds that group's current weakest priority skill and the training type that grows it fastest. <b style="color:var(--ink)">Minimize salary</b>: ranks every training type available at your candidates' combo by skill-points-gained per unit of salary-multiplier elasticity (the 1&rarr;20 multipliers in <a href="#study=skill-salary-costs" data-study="skill-salary-costs">Skill salary costs</a>) and recommends the cheapest. Per Tom (2026-09-19): while Division III is an easy climb and salary doesn't matter until after promotion, minimize salary is the more useful lens - revisit doctrine priority once results start mattering more than payroll. Both use the same Training type efficiency table's coefficients below. A suggestion either way, not an automatic change - nothing here submits anything to BuzzerBeater.</span></span></h2>
         <span class="tag tag-calc">Calculated · updates instantly</span>
       </div>
       <div style="display:flex; gap:14px; align-items:center; margin-bottom:10px;">
@@ -988,7 +855,7 @@
 
     <section class="block">
       <div class="block-head">
-        <h2>Upcoming schedule<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-calc">Calculated</span> Your next scheduled games (live from schedule.aspx), each team annotated with its Power score from the League power rankings (Overview tab) where available - context for timing a training-focus switch, e.g. seeing a run of weak opponents coming up.</span></span></h2>
+        <h2>Upcoming schedule<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-calc">Calculated</span> Your next scheduled games (live from schedule.aspx), each team annotated with its Power score from the League power rankings (Overview tab) where available - context for timing a training-focus switch, e.g. seeing a run of weak opponents coming up. Scores appear only for teams in your conference&rsquo;s ranked pool; no score means a different league or division, or a non-league game like a friendly.</span></span></h2>
         <span class="auto-badge">Auto-updated daily</span>
       </div>
       <div id="training-upcoming-schedule"><p class="block-note">Loading live data…</p></div>
@@ -996,10 +863,9 @@
 
     <section class="block">
       <div class="block-head">
-        <h2>Training type efficiency<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-rec">Reference</span> Captured by Tom outside the game/API (<code>references/Weekly Training Amounts.webp</code> and <code>training_coefficients.md</code> in the GitHub repo) &mdash; not pulled live, so treat it as a training-mechanics reference rather than official documentation. Each row is the per-week skill-point gain rate for a training type + position combo, for a player who clears their weekly minutes threshold at that position. &ldquo;Sum&rdquo; adds every skill a combo touches into one efficiency number, useful for comparing combos <i>within</i> the same training type &mdash; not across different types, whose skills aren't equally valuable (see the salary multiplier table above: Jump Shot and Rebounding cost far more per point than Driving or Shot Blocking, so a high Sum on a cheap skill isn't the same win as the same Sum on an expensive one). <b style="color:var(--ink)">Total pts/week</b> is Sum &times; Players trained (per Tom: a 2-position combo trains roughly double the roster, 3-position triple, Team training the full five-player rotation) &mdash; a team-wide estimate, not a per-player rate, so it's only comparable across rows within the same training type where the underlying skills are worth the same.</span></span></h2>
+        <h2>Training type efficiency<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-rec">Reference</span> Captured by Tom outside the game/API (<code>references/Weekly Training Amounts.webp</code> and <code>training_coefficients.md</code> in the GitHub repo) &mdash; not pulled live, so treat it as a training-mechanics reference rather than official documentation. Each row is the per-week skill-point gain rate for a training type + position combo, for a player who clears their weekly minutes threshold at that position. &ldquo;Sum&rdquo; adds every skill a combo touches into one efficiency number, useful for comparing combos <i>within</i> the same training type &mdash; not across different types, whose skills aren't equally valuable (see <a href="#study=skill-salary-costs" data-study="skill-salary-costs">Skill salary costs</a>: Jump Shot and Rebounding cost far more per point than Driving or Shot Blocking, so a high Sum on a cheap skill isn't the same win as the same Sum on an expensive one). <b style="color:var(--ink)">Total pts/week</b> is Sum &times; Players trained (per Tom: a 2-position combo trains roughly double the roster, 3-position triple, Team training the full five-player rotation) &mdash; a team-wide estimate, not a per-player rate, so it's only comparable across rows within the same training type where the underlying skills are worth the same.<br><br>The narrowest position combo for a training type (a single position, e.g. &ldquo;C&rdquo; or &ldquo;PG&rdquo;) always has the highest Sum &mdash; spreading a training focus across more positions dilutes the per-player rate, matching BuzzerBeater's own effectiveness-percentage discounts on the training.aspx dropdowns. A type's primary skill (SB for Shot Blocking, ID for Inside Defense, etc.) always carries the largest single coefficient in its row; the rest are secondary gains from the same training.<br><br>Abbreviations: JS = Jump Shot, JR = Jump Range, OD = Outside Defense, Ha = Handling, Dr = Driving, Pa = Passing, IS = Inside Shot (Inside Scoring), ID = Inside Defense, Rb = Rebounding, SB = Shot Blocking.<a class="tip-more" href="#study=training-coefficients" data-study="training-coefficients">Coefficient reference &rarr;</a></span></span></h2>
         <span class="tag tag-rec">Reference &middot; not live</span>
       </div>
-      <p class="block-note">The narrowest position combo for a training type (a single position, e.g. &ldquo;C&rdquo; or &ldquo;PG&rdquo;) always has the highest Sum &mdash; spreading a training focus across more positions dilutes the per-player rate, matching BuzzerBeater's own effectiveness-percentage discounts on the training.aspx dropdowns. A type's primary skill (SB for Shot Blocking, ID for Inside Defense, etc.) always carries the largest single coefficient in its row; the rest are secondary gains from the same training.</p>
       <div class="tbl-scroll" style="margin-top:10px;">
         <table style="min-width:0;">
           <thead><tr><th class="sortable" data-col="0">Training type</th><th class="sortable" data-col="1">Position combo</th><th class="sortable" data-col="2">Coefficients</th><th class="num sortable" data-col="3">Sum</th><th class="num sortable" data-col="4">Players trained</th><th class="num sortable" data-col="5">Total pts/week</th></tr></thead>
@@ -1036,7 +902,32 @@
           </tbody>
         </table>
       </div>
-      <p class="block-note" style="margin-top:8px;">Abbreviations: JS = Jump Shot, JR = Jump Range, OD = Outside Defense, Ha = Handling, Dr = Driving, Pa = Passing, IS = Inside Shot (Inside Scoring), ID = Inside Defense, Rb = Rebounding, SB = Shot Blocking.</p>
+    </section>
+
+  </div>
+
+  <!-- ================= PANEL: STUDIES ================= -->
+  <div class="tab-panel" id="panel-studies">
+
+    <section class="block" style="margin-top:20px;">
+      <div class="block-head">
+        <h2>Studies</h2>
+        <span class="tag tag-rec">Knowledge base</span>
+      </div>
+      <p class="block-note">Research and strategy articles kept in the <a href="https://github.com/tomoliveira/Sharpshooters_BB" target="_blank" rel="noopener">Sharpshooters_BB</a> repo. Each one loads straight from GitHub, so it's always the latest committed version. The list itself is <code>docs/studies.json</code>.</p>
+
+      <div id="studies-index">
+        <p class="block-note">Loading studies…</p>
+      </div>
+
+      <div id="studies-reader" hidden>
+        <div class="study-toolbar">
+          <button type="button" class="study-back" id="studies-back">&larr; All studies</button>
+          <span class="study-meta" id="studies-meta"></span>
+          <a id="studies-source" href="#" target="_blank" rel="noopener">View on GitHub</a>
+        </div>
+        <article class="card study-body" id="studies-body"></article>
+      </div>
     </section>
 
   </div>
@@ -1849,8 +1740,7 @@
     }).join("");
     container.innerHTML =
       '<div class="tbl-scroll"><table style="min-width:0;"><thead><tr><th class="sortable" data-col="0">Date</th>'
-      + '<th class="sortable" data-col="1">Matchup</th></tr></thead><tbody>' + rows + "</tbody></table></div>"
-      + '<p class="block-note" style="margin-top:8px;">Power score in parentheses, from the League power rankings (Overview tab) - shown only for teams currently in your conference\'s ranked pool; no parenthetical means the opponent isn\'t in that pool (a different league/division, or a non-league match type like a friendly).</p>';
+      + '<th class="sortable" data-col="1">Matchup</th></tr></thead><tbody>' + rows + "</tbody></table></div>";
   }
 
   // Shared by the roster skill table's Minutes/Status columns and the
@@ -2062,6 +1952,163 @@
   });
 </script>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script>
+  // Studies tab. The article list is docs/studies.json; each article is a
+  // Markdown file elsewhere in the repo, fetched from raw.githubusercontent.com
+  // when opened (Pages only serves /docs), rendered with marked and sanitized
+  // with DOMPurify. #study=<id> deep-links straight to one article.
+  // The snapshot loader below swaps document.body.innerHTML, so elements are
+  // looked up on every use and clicks are delegated from document, never cached.
+  (function () {
+    var REPO = "tomoliveira/Sharpshooters_BB", BRANCH = "master";
+    // Served locally from the repo root (python -m http.server, then open
+    // /docs/sharpshooters/), articles load from the working copy so unmerged ones can be previewed.
+    var RAW = /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
+      ? location.origin + "/"
+      : "https://raw.githubusercontent.com/" + REPO + "/" + BRANCH + "/";
+    var BLOB = "https://github.com/" + REPO + "/blob/" + BRANCH + "/";
+    var manifest = null;
+
+    function el(id) { return document.getElementById(id); }
+
+    function esc(v) {
+      return String(v).replace(/[&<>"']/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+      });
+    }
+
+    function card(a) {
+      return '<button type="button" class="study-card" data-study="' + esc(a.id) + '">' +
+        '<span class="study-title">' + esc(a.title) + '</span>' +
+        '<span class="study-summary">' + esc(a.summary || "") + '</span>' +
+        '<span class="study-date">' + esc(a.date || "") + '</span></button>';
+    }
+
+    function renderIndex() {
+      // Other tabs list related articles with <div data-study-links="id,id,...">.
+      document.querySelectorAll("[data-study-links]").forEach(function (box) {
+        box.innerHTML = box.getAttribute("data-study-links").split(",").map(function (id) {
+          return manifest.articles.filter(function (a) { return a.id === id.trim(); })[0];
+        }).filter(Boolean).map(card).join("");
+      });
+      el("studies-index").innerHTML = manifest.groups.map(function (g) {
+        var cards = manifest.articles
+          .filter(function (a) { return a.group === g.key; })
+          .sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; })
+          .map(card).join("");
+        return '<div class="study-group"><h3>' + esc(g.title) + '</h3>' +
+          (g.note ? '<p class="block-note" style="margin-top:2px;">' + esc(g.note) + '</p>' : "") +
+          (cards ? '<div class="study-list">' + cards + '</div>' : '<p class="study-empty">Nothing here yet.</p>') +
+          '</div>';
+      }).join("");
+    }
+
+    // Relative links/images inside an article point at files next to it in the repo.
+    function resolveRelative(href, dir, base) {
+      if (!href || /^(?:[a-z][a-z0-9+.-]*:|#|\/\/)/i.test(href)) return href;
+      var out = [];
+      (dir + href).split("/").forEach(function (p) {
+        if (p === "..") out.pop();
+        else if (p !== "." && p !== "") out.push(p);
+      });
+      return base + out.join("/");
+    }
+
+    function showIndex() {
+      el("studies-reader").hidden = true;
+      el("studies-index").hidden = false;
+      if (location.hash.indexOf("#study=") === 0) history.replaceState(null, "", location.pathname + location.search);
+    }
+
+    function selectTab() {
+      var radio = el("r-studies");
+      radio.checked = true;
+      radio.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    function openStudy(id) {
+      var a = manifest && manifest.articles.filter(function (x) { return x.id === id; })[0];
+      if (!a) return showIndex();
+      var group = manifest.groups.filter(function (g) { return g.key === a.group; })[0];
+      el("studies-index").hidden = true;
+      el("studies-reader").hidden = false;
+      el("studies-meta").textContent = [a.date, group && group.title].filter(Boolean).join(" · ");
+      el("studies-source").href = BLOB + a.path;
+      el("studies-body").innerHTML = '<p class="block-note">Loading…</p>';
+      history.replaceState(null, "", "#study=" + encodeURIComponent(id));
+      fetch(RAW + a.path, { cache: "no-cache" })
+        .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+        .then(function (md) {
+          var dir = a.path.slice(0, a.path.lastIndexOf("/") + 1);
+          var body = el("studies-body");
+          body.innerHTML = DOMPurify.sanitize(marked.parse(md, { gfm: true }));
+          body.querySelectorAll("a[href]").forEach(function (link) {
+            var href = resolveRelative(link.getAttribute("href"), dir, BLOB);
+            // A link to another listed article opens here instead of on GitHub.
+            var target = href.indexOf(BLOB) === 0 && manifest.articles.filter(function (x) {
+              return BLOB + x.path === href.split("#")[0];
+            })[0];
+            if (target) {
+              link.setAttribute("href", "#study=" + encodeURIComponent(target.id));
+              link.setAttribute("data-study", target.id);
+              return;
+            }
+            link.setAttribute("href", href);
+            if (href.charAt(0) !== "#") { link.target = "_blank"; link.rel = "noopener"; }
+          });
+          body.querySelectorAll("img[src]").forEach(function (img) {
+            img.setAttribute("src", resolveRelative(img.getAttribute("src"), dir, RAW));
+            img.style.maxWidth = "100%";
+          });
+          body.querySelectorAll("table").forEach(function (t) {
+            var w = document.createElement("div");
+            w.className = "tbl-scroll";
+            t.parentNode.insertBefore(w, t);
+            w.appendChild(t);
+          });
+          el("studies-reader").scrollIntoView({ block: "start" });
+        })
+        .catch(function (err) {
+          el("studies-body").innerHTML = '<p class="block-note">Couldn\'t load this article (' + esc(err.message) +
+            '). <a href="' + esc(BLOB + a.path) + '" target="_blank" rel="noopener">Open it on GitHub</a> instead.</p>';
+        });
+    }
+
+    // Any link to "#study=<id>" anywhere in the report (e.g. a "Read more" on
+    // another tab) switches to this tab and opens that article.
+    document.addEventListener("click", function (e) {
+      var card = e.target.closest("[data-study]");
+      if (card) { e.preventDefault(); selectTab(); openStudy(card.getAttribute("data-study")); return; }
+      if (e.target.closest("#studies-back")) showIndex();
+    });
+
+    function restoreFromHash() {
+      var h = location.hash.match(/^#study=(.+)$/);
+      if (h) { selectTab(); openStudy(decodeURIComponent(h[1])); }
+    }
+
+    // The body swap resets which tab is checked and whatever this script rendered.
+    document.addEventListener("ssbb:patched", function () {
+      if (!manifest) return;
+      renderIndex();
+      restoreFromHash();
+    });
+
+    fetch("../studies.json", { cache: "no-cache" })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function (m) {
+        manifest = m;
+        renderIndex();
+        restoreFromHash();
+      })
+      .catch(function (err) {
+        el("studies-index").innerHTML = '<p class="block-note">Couldn\'t load the studies list (' + esc(err.message) + ').</p>';
+      });
+  })();
+</script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
 <script>
 (async function () {
@@ -2103,6 +2150,8 @@
     ssbbUpdateToggleLabel(); // the innerHTML swap above just reset #theme-toggle to its default markup
     ssbbInitTrainingCalc(reportData); // ditto for the #tc-type/#tc-combo dropdowns
     console.log("BuzzerBeater report patched from snapshot", fetchedAt);
+    // Lets scripts with their own client-side state (e.g. the Studies tab) restore it after the swap.
+    document.dispatchEvent(new Event("ssbb:patched"));
   } catch (err) {
     console.error("Failed to load live report data:", err);
     var badge = document.querySelector(".masthead .meta-row");

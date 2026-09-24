@@ -10,8 +10,8 @@
 **Standing interpretation:** while Sharpshooters are in an "easy"
 Division III conference, prioritize **cheap, fast skill development**
 over the hand-written training doctrine's textbook priority order (see
-`docs/sharpshooters/index.html`'s "General training priorities" section
-- Bigs: ISP first; Guards: OSP first). Salary payroll matters far less
+[Training doctrine](../studies/training-doctrine.md) - Bigs: ISP first;
+Guards: OSP first). Salary payroll matters far less
 right now than it will post-promotion, since a harder conference will
 both demand more from the roster and make payroll discipline matter
 more. **Revisit this once promoted** - re-check whether doctrine-priority

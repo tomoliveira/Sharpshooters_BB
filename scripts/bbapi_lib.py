@@ -2103,10 +2103,8 @@ def auto_roster_skills_html(data):
         '</thead>'
         f'<tbody>{body}</tbody></table></div>'
     )
-    return (
-        '<p class="block-note">Same 12 skills, word scale, and color coding the game itself shows on a player card, pulled live from the official API for the full roster — grouped OSP/ISP/Other and shown as numbers only (hover a value for its word) to keep the table scannable.</p>'
-        + table
-    )
+    # The section's explanation lives in the heading's info tip in index.html.
+    return table
 
 # Option 3 from the roster-readability discussion: split into narrower,
 # position-specific tables so each only shows the skills that matter for that
@@ -2157,10 +2155,8 @@ def auto_roster_by_position_html(data):
             f'<div class="eyebrow" style="margin:{"0" if group_name == POSITION_GROUPS[0][0] else "20px"} 0 8px;">{esc(group_name)}</div>'
             + table
         )
-    gap_note = (
-        '<p class="block-note" style="margin-top:10px;">Same live values as the grouped table above, split into narrower per-position tables so nothing scrolls horizontally.</p>'
-    )
-    return "".join(sections) + gap_note
+    # The section's explanation lives in the heading's info tip in index.html.
+    return "".join(sections)
 
 CLEARS_CHECK_SVG = (
     '<svg viewBox="0 0 24 24" width="30" height="30" role="img" aria-label="Clears training minutes threshold">'

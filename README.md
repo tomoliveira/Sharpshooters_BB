@@ -400,11 +400,39 @@ report further down the page:
 ## What's live vs. manual
 
 Every section tagged **"Auto-updated daily"** on the report page is filled
-in from the daily snapshot. Everything else (fan sentiment, the division
-$/player comparison, training-doctrine narrative, arena-expansion
-commentary) is hand-written prose with no API source — edit
-`docs/<team_key>/index.html` directly when you want to refresh those, the
-same as the original skill's template.
+in from the daily snapshot. Longer hand-written analysis and strategy
+(training doctrine, investment and arena studies) lives as Markdown
+articles in the Studies tab - see below. What's left in
+`docs/<team_key>/index.html` is short: the doctrine cards, a few static
+tables, and each section's (i) tooltip. Edit those directly.
+
+## Studies tab (knowledge base)
+
+This repo is the knowledge base for the game, and the report's **Studies**
+tab is its reader. `docs/studies.json` lists every article (id, group,
+title, date, path, one-line summary) in three groups: **Strategy
+definitions** (decisions Tom has made), **Research**, and **Reference**
+(game mechanics and lookup tables).
+
+- An article is a Markdown file anywhere in the repo (`studies/`,
+  `top-teams-research/`, `salary-model/`, `references/`, ...). The page
+  fetches it from `raw.githubusercontent.com` on `master` when opened, so
+  it shows the latest committed version without touching the page.
+- **Add an article:** commit the `.md`, then add one entry to
+  `docs/studies.json`.
+- Relative links between listed articles open inside the report; links to
+  anything else open on GitHub. `#study=<id>` deep-links to an article.
+- Other tabs link to articles, never repeat them: a section's (i) tooltip
+  can end with `<a class="tip-more" href="#study=<id>" data-study="<id>">`,
+  and `<div class="study-list" data-study-links="id,id">` renders article
+  cards (used on the Investments tab). Keep explanatory text in tooltips
+  or articles rather than as paragraphs in the tabs.
+- The snapshot loader replaces `document.body.innerHTML` and then fires
+  `ssbb:patched`. Any client script that keeps its own state has to look
+  elements up fresh and re-render on that event, not cache them.
+- Local preview: `python -m http.server` from the repo root, then open
+  `/docs/sharpshooters/`. On localhost, articles load from the working
+  copy, so unmerged ones can be checked.
 
 ## Credit
 

@@ -1,0 +1,134 @@
+{
+  "_comment": "Articles shown in the report's Studies tab. Each path is a Markdown file anywhere in the repo, loaded from GitHub at read time. Add a new article by committing the .md and adding one entry here.",
+  "groups": [
+    {
+      "key": "strategy",
+      "title": "Strategy definitions",
+      "note": "Decisions Tom has made about how the team is run."
+    },
+    {
+      "key": "research",
+      "title": "Research",
+      "note": "Studies of the game, the market and other teams."
+    },
+    {
+      "key": "reference",
+      "title": "Reference",
+      "note": "Game mechanics and lookup tables used by the report."
+    }
+  ],
+  "articles": [
+    {
+      "id": "training-strategy",
+      "group": "strategy",
+      "title": "Training strategy: promotion-era priorities",
+      "date": "2026-09-19",
+      "path": "references/training_strategy_notes.md",
+      "summary": "While Division III is an easy climb: maximize skill development, keep salaries low, promote. Why the report defaults to the Minimize salary mode."
+    },
+    {
+      "id": "top-teams",
+      "group": "research",
+      "title": "How long-run winners are built",
+      "date": "2026-09-24",
+      "path": "top-teams-research/BB_Top_Teams_Strategy_Report.md",
+      "summary": "Venomous Scorpions, I Love Tehran and Młoty Stargard: title cycles vs. constant contention, Młoty's teenage flips, and what their salaries say about the prices paid."
+    },
+    {
+      "id": "skill-curves",
+      "group": "research",
+      "title": "Skill-to-salary curves",
+      "date": "2026-09-11",
+      "path": "salary-model/skill-curves-reference.md",
+      "summary": "Weekly salary for each skill at every rating 1–20, other skills held fixed. The ground truth for which skills are expensive to train."
+    },
+    {
+      "id": "salary-formula-history",
+      "group": "research",
+      "title": "Salary model: formula history",
+      "date": "2026-09-11",
+      "path": "salary-model/formula-history.md",
+      "summary": "Log of the weekly-salary regression fits, including the move to per-position models and dropping age."
+    },
+    {
+      "id": "salary-floor",
+      "group": "research",
+      "title": "Salary floor and the season-73 formula change",
+      "date": "2026-09-14",
+      "path": "salary-model/reference-cases/floor-players-and-deflation.md",
+      "summary": "Two all-minimum players that pin down the salary floor, and the one-time ~8.4% salary formula replacement."
+    },
+    {
+      "id": "sandoval-decline",
+      "group": "research",
+      "title": "Retirement decline curve: Sandoval Mustafa",
+      "date": "2026-09-14",
+      "path": "salary-model/reference-cases/sandoval-48787579.md",
+      "summary": "A full career of salary history, used to see how salary falls as skills decay with age."
+    },
+    {
+      "id": "training-coefficients",
+      "group": "reference",
+      "title": "Training type skill coefficients",
+      "date": "2026-09-18",
+      "path": "references/training_coefficients.md",
+      "summary": "Weekly skill gain per training type and position combo. Feeds the training calculator and projections."
+    },
+    {
+      "id": "training-dropdowns",
+      "group": "reference",
+      "title": "Training dropdown map",
+      "date": "2026-09-03",
+      "path": "references/training_dropdown_map.md",
+      "summary": "Every training type and position combo available on training.aspx."
+    },
+    {
+      "id": "training-doctrine",
+      "group": "strategy",
+      "title": "Training doctrine",
+      "date": "2026-09-03",
+      "path": "studies/training-doctrine.md",
+      "summary": "Priority order for big men (ISP first) and guards (OSP first), the Stamina/Free Throw targets, and how Team Training fits in."
+    },
+    {
+      "id": "skill-salary-costs",
+      "group": "research",
+      "title": "Which skills are cheapest to develop, salary-wise",
+      "date": "2026-09-12",
+      "path": "studies/skill-salary-costs.md",
+      "summary": "The 1→20 salary multiplier for every skill, the two-regime curve shape, and why Stamina and Free Throw are free to train."
+    },
+    {
+      "id": "arena-pricing-div3",
+      "group": "research",
+      "title": "Arena pricing vs. Division III peers",
+      "date": "2026-09-12",
+      "path": "studies/arena-pricing-div3.md",
+      "summary": "Where our prices and revenue sit among 336 Brazilian teams, price scenarios per tier, and expansion options by budget."
+    },
+    {
+      "id": "arena-expansion-payback",
+      "group": "research",
+      "title": "Arena expansion: payback and long-run surplus",
+      "date": "2026-09-10",
+      "path": "studies/arena-expansion-payback.md",
+      "summary": "The $205,800 expansion pays for itself within its second season in every scenario. Includes the sellout math and which home games count."
+    },
+    {
+      "id": "bench-player-tco",
+      "group": "research",
+      "title": "Bench-player acquisitions: cheapest long-run",
+      "date": "2026-09-10",
+      "path": "studies/bench-player-tco.md",
+      "summary": "Three hypothetical bench buys compared over 30 seasons, with salaries projected on a fitted decay curve."
+    },
+    {
+      "id": "season-structure",
+      "group": "reference",
+      "title": "Season structure: Monday and Friday resets",
+      "date": "2026-09-10",
+      "path": "studies/season-structure.md",
+      "summary": "13 Monday paydays, 14 Friday training resets, and why every per-season cost uses 13."
+    }
+  ]
+}
