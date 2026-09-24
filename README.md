@@ -127,7 +127,7 @@ the repo. Tools exposed: `get_report_snapshot`, `get_report_section`,
 ## Adding another team
 
 1. Copy `teams/sharpshooters/config.json` to `teams/<team_key>/config.json`,
-   filling in that team's `training_cohort`, `current_training_focus`,
+   filling in that team's `training_cohort`,
    `trainee_score_pops_so_far` (see "Trainee Score" below), and distinct
    `bb_login_env`/`bb_code_env` names (e.g. `BB_LOGIN_TEAM2`).
 2. Add the matching secrets in repo settings.
@@ -156,8 +156,17 @@ for the exact formula.
 The one piece that goes stale during a season is `trainee_score_pops_so_far`
 in that team's `config.json` - roughly how many skill pops have already
 landed since the season started (a season adds ~8-12 total; nudge this
-value up by hand every week or two as the season progresses, the same way
-`current_training_focus` already needs occasional manual updates).
+value up by hand every week or two as the season progresses).
+
+## Training focus
+
+The training focus (type + position combo) is set in the report itself, in
+the Training Strategy tab's calculator, and nowhere else: not in team
+config, not in the Python job. The daily snapshot exports raw per-position
+minutes (`position_minutes`), and the page applies the selected combo to
+them for every minutes/threshold/Clears figure (roster table, training
+cards, recommendation). The selection is saved in the browser
+(`ssbb-training-selection` in localStorage).
 
 ## Season-end cash projection
 

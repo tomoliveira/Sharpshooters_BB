@@ -35,14 +35,10 @@ TRAINING_COHORT_IDS = {
     "56146672": "Lauro Mendonça", "56146678": "Élder Landim",
     "56146681": "Fiorindo Valença", "55910729": "Gunnar Støen",
 }
-# Training focus itself still has no API endpoint (training.aspx is a plain web
-# page) - carried over from the last check it was confirmed by screenshot.
-# TRAINING_FOCUS_POSITIONS must be kept in sync with CURRENT_TRAINING_FOCUS by
-# hand - per Tom, only minutes played AT one of these positions count toward
-# the training threshold; minutes at any other position (e.g. a C/PF trainee
-# subbed in at PG) don't count even though the player is still on the floor.
-CURRENT_TRAINING_FOCUS = "Rebounding, C / PF"
-TRAINING_FOCUS_POSITIONS = ["PF", "C"]
+# The training focus (type + position combo) is chosen in the report itself -
+# the Training Strategy tab's calculator - and applied client-side from the
+# raw per-position minutes exported below. training.aspx has no API endpoint,
+# so nothing here keeps its own copy of the focus.
 
 # Trainee Score - worked out with Tom across several rounds, not derived from
 # anything in the Game Manual: an "ideal trainee" has 60+ TSP (sum of the 12
@@ -55,7 +51,7 @@ TRAINING_FOCUS_POSITIONS = ["PF", "C"]
 # likely landed since the season's own start) - it's a team-config value
 # (see teams/<team>/config.json's trainee_score_pops_so_far), not a
 # constant, precisely so it can be nudged upward week by week without a
-# code change, the same way CURRENT_TRAINING_FOCUS already is.
+# code change.
 TRAINEE_SCORE_ANCHOR_AGE = 18
 TRAINEE_SCORE_START_TSP = 60
 TRAINEE_SCORE_POPS_PER_SEASON = 10
@@ -123,25 +119,6 @@ def training_threshold(age):
     if age <= 26: return 48
     return 40
 
-def build_training_minutes_status(position_minutes, roster_root):
-    """Weekly minutes come live from boxscore.aspx (see
-    fetch_weekly_position_minutes) - genuinely this week's total, not carried
-    over. Per Tom, only minutes at TRAINING_FOCUS_POSITIONS count toward the
-    threshold. The Clears/Short/Well-short bucketing itself is our own
-    heuristic (gap <=10 -> "Short by N", else "Well short"), not an official
-    in-game label - the game likely just shows a binary clears-or-not
-    indicator."""
-    out = {}
-    for p in roster_root.findall(".//player"):
-        pid = p.get("id")
-        threshold = training_threshold(p.findtext("age"))
-        if pid is None or threshold is None: continue
-        minutes = round(total_minutes(position_minutes.get(pid, {}), TRAINING_FOCUS_POSITIONS))
-        gap = threshold - minutes
-        status = "Clears" if gap <= 0 else (f"Short by {gap}" if gap <= 10 else "Well short")
-        out[pid] = {"minutes": minutes, "threshold": threshold, "status": status}
-    return out
-
 def build_minutes_vs_money(position_minutes, roster_root):
     """Total minutes (any position) this training-week, live via boxscore.aspx,
     against salary - a gut check on whether the highest earners are actually
@@ -175,11 +152,9 @@ def load_team_config(config_path):
     Must run before build_report()/login() - everything it touches is read
     from these globals at call time, not at import time, so reassigning here
     is safe as long as it happens first."""
-    global CURRENT_TRAINING_FOCUS, TRAINING_FOCUS_POSITIONS, TRAINING_COHORT_IDS
+    global TRAINING_COHORT_IDS
     global LOGIN, CODE, TEAM_KEY, TRAINEE_SCORE_POPS_SO_FAR, SEASON_WEEKS_REMAINING, OWN_RATING_SINCE
     cfg = json.loads(Path(config_path).read_text(encoding="utf-8"))
-    CURRENT_TRAINING_FOCUS = cfg.get("current_training_focus", CURRENT_TRAINING_FOCUS)
-    TRAINING_FOCUS_POSITIONS = cfg.get("training_focus_positions", TRAINING_FOCUS_POSITIONS)
     TRAINING_COHORT_IDS = cfg.get("training_cohort", TRAINING_COHORT_IDS)
     TRAINEE_SCORE_POPS_SO_FAR = cfg.get("trainee_score_pops_so_far", TRAINEE_SCORE_POPS_SO_FAR)
     SEASON_WEEKS_REMAINING = cfg.get("season_weeks_remaining", SEASON_WEEKS_REMAINING)
@@ -907,11 +882,9 @@ def extract_data(conn, team_key, teaminfo, roster, economy, schedule, standings,
         row["on_roster"] = row["playerid"] in current_roster_ids
     data["roster_skills"] = build_roster_skills_table(roster)
     data["training_cards"] = build_training_cohort_cards(roster)
-    data["training_minutes"] = build_training_minutes_status(position_minutes, roster)
-    # Raw per-player, per-position weekly minutes (not just the total already
-    # filtered to this team's configured training focus) - exported so the
-    # report page's training-position calculator can recompute minutes for
-    # *any* position combo the user picks client-side, without a re-fetch.
+    # Raw per-player, per-position weekly minutes - the report page applies
+    # whichever training combo is selected in its calculator to these, so
+    # training minutes and Clears/Short status are only ever computed client-side.
     data["position_minutes"] = position_minutes
     data["staff"] = staff_list
     data["minutes_vs_money"] = build_minutes_vs_money(position_minutes, roster)
@@ -2165,27 +2138,15 @@ CLEARS_CHECK_SVG = (
     '</svg>'
 )
 
-def training_status_html(playerid, minutes_map):
-    # Label and minutes/status are placeholders, deliberately left for the
-    # page's own JS (ssbbApplyTrainingColumns) to fill in from whichever
-    # training combo is currently selected in the calculator, not this
-    # team's static config value - see docs/sharpshooters/index.html. The
-    # server-computed values below are just the initial paint, matching
-    # this team's configured default, before that script runs.
-    m = minutes_map.get(playerid)
-    if not m: status_color = "--ink-soft"
-    elif m["status"] == "Clears": status_color = "--positive"
-    elif m["status"].startswith("Short by"): status_color = "--warning"
-    else: status_color = "--negative"
-    minutes_html = (
-        f'{m["minutes"]} / {m["threshold"]} min &nbsp;'
-        f'<span class="tag" style="background:var({status_color}-soft); color:var({status_color});">{esc(m["status"])}</span>'
-    ) if m else "minutes not tracked"
+def training_status_html():
+    # Label and minutes/status are placeholders, filled in by the page's own
+    # JS (ssbbApplyTrainingCards) from the training combo selected in the
+    # report's calculator - the only place the training focus is set.
     return (
         '<div style="display:flex; flex-wrap:wrap; gap:6px 18px; align-items:center; font-size:13px; color:var(--ink-soft); '
         'padding:6px 0 10px; margin-top:2px; border-bottom:1px solid var(--line);">'
-        f'<span>Training: <b class="js-training-label" style="color:var(--ink)">{esc(CURRENT_TRAINING_FOCUS)}</b></span>'
-        f'<span class="js-training-minutes">{minutes_html}</span>'
+        '<span>Training: <b class="js-training-label" style="color:var(--ink)">&mdash;</b></span>'
+        '<span class="js-training-minutes">&hellip;</span>'
         '</div>'
     )
 
@@ -2210,21 +2171,17 @@ def auto_training_cards_html(data):
             return f'<div style="padding:3px 0;">{esc(skill_labels[tag])}: <b>{label}</b>{pop}</div>'
 
         skill_rows = "".join(skill_cell(lt) + skill_cell(rt) for lt, rt in zip(left_tags, right_tags))
-        minutes_map = data["training_minutes"]
-        clears = minutes_map.get(c["playerid"], {}).get("status") == "Clears"
-        # Border color and the checkmark badge both reflect "clears" -
-        # server-computed here as the initial paint (this team's configured
-        # default combo), then kept live by ssbbApplyTrainingColumns as the
-        # combo changes. js-clears-badge always exists in the DOM (hidden
-        # when not clearing) rather than being added/removed, so the JS
-        # only ever has to toggle it, not build new markup for it.
-        card_style = "position:relative;" + (" border-color:var(--positive);" if clears else "")
-        badge_style = "position:absolute; top:14px; right:14px;" + ("" if clears else " display:none;")
+        # Border color and the checkmark badge reflect "clears" for the combo
+        # selected in the report's calculator, so both start neutral here and
+        # ssbbApplyTrainingCards sets them. js-clears-badge always exists in the
+        # DOM (hidden) so the JS only ever toggles it.
+        card_style = "position:relative;"
+        badge_style = "position:absolute; top:14px; right:14px; display:none;"
         out.append(
             f'<div class="card training-cohort-card" data-playerid="{esc(c["playerid"])}" style="{card_style}">'
             f'<div class="js-clears-badge" style="{badge_style}">{CLEARS_CHECK_SVG}</div>'
             f'<div class="who" style="font-size:17px; font-weight:700; padding-right:38px;">{esc(c["name"])} <span class="sub">&middot; {esc(c["position"])}</span></div>'
-            + training_status_html(c["playerid"], minutes_map) +
+            + training_status_html() +
             f'<div class="sub" style="margin:8px 0 8px;">Owner: {esc(data["team"]["name"])}</div>'
             '<div style="display:grid; grid-template-columns:1fr 1fr; gap:2px 18px; font-size:13px; color:var(--ink-soft); margin-bottom:10px;">'
             f'<span>Weekly salary: <b style="color:var(--ink)">{money_html(c["salary"])}</b></span>'

@@ -57,7 +57,7 @@ const TOOLS = [
   {
     name: "get_report_section",
     description:
-      "Get one top-level section of the latest report snapshot instead of the whole thing. Useful sections: 'team', 'economy', 'schedule', 'standings', 'roster', 'roster_skills', 'staff', 'training_cards', 'training_minutes', 'minutes_vs_money', 'arena_live', 'investments', 'division_rows'.",
+      "Get one top-level section of the latest report snapshot instead of the whole thing. Useful sections: 'team', 'economy', 'schedule', 'standings', 'roster', 'roster_skills', 'staff', 'training_cards', 'position_minutes', 'minutes_vs_money', 'arena_live', 'investments', 'division_rows'.",
     inputSchema: {
       type: "object",
       properties: {
