@@ -280,10 +280,12 @@
   .la-nav label { cursor: pointer; padding: 5px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; color: var(--ink-soft); background: var(--surface); }
   .la-nav label:hover { color: var(--ink); }
   .la-pane { display: none; }
+  #la-t-total:checked ~ .la-panes .la-p-total,
   #la-t-bleachers:checked ~ .la-panes .la-p-bleachers,
   #la-t-lowerTier:checked ~ .la-panes .la-p-lowerTier,
   #la-t-courtside:checked ~ .la-panes .la-p-courtside,
   #la-t-luxury:checked ~ .la-panes .la-p-luxury { display: block; }
+  #la-t-total:checked ~ .la-nav label[for="la-t-total"],
   #la-t-bleachers:checked ~ .la-nav label[for="la-t-bleachers"],
   #la-t-lowerTier:checked ~ .la-nav label[for="la-t-lowerTier"],
   #la-t-courtside:checked ~ .la-nav label[for="la-t-courtside"],

@@ -2741,7 +2741,11 @@ def fetch_division_power_rankings(session, conn, division_rows, top_n=6, recent_
     return rankings
 
 LEAGUE_ARENA_RECENT_HOME_GAMES = 5
-ARENA_TIER_LABELS = {"bleachers": "Bleachers", "lowerTier": "Lower Tier", "courtside": "Courtside", "luxury": "Luxury Boxes"}
+ARENA_TIER_LABELS = {"total": "Total", "bleachers": "Bleachers", "lowerTier": "Lower Tier", "courtside": "Courtside", "luxury": "Luxury Boxes"}
+# Per Tom: a "Total" category alongside the four seat tiers - the whole
+# arena treated as one tier, so it gets the same rank/price/crowd/driver
+# treatment. Listed first because it's the default tab.
+ARENA_BENCH_CATEGORIES = ["total"] + ARENA_SEAT_TIERS
 # How far apart (in natural-log units) a team's price edge and crowd-size
 # edge over the league median have to be before one is called the driver
 # of its revenue rather than "Balanced" - 0.15 is roughly a 16% gap.
@@ -2817,6 +2821,18 @@ def summarize_team_arena(team, snap, games):
         }
     total_rev = sum(t["avg_rev"] for t in tiers.values()) if n else None
     game_fills = [sum(g["attendance"].values()) / sum(g["seats"].values()) for g in games if sum(g["seats"].values())]
+    total_att = sum(t["avg_att"] for t in tiers.values()) if n else None
+    total_seats = snap["total_seats"]
+    # Whole-arena "tier": price now is the seat-weighted list price, and the
+    # realized price is revenue per fan - both depend on the seat mix as
+    # well as on pricing (a few luxury boxes lift it a lot).
+    tiers["total"] = {
+        "seats": total_seats,
+        "price": (sum(snap["seats"].get(t, 0) * snap["prices"].get(t, 0) for t in ARENA_SEAT_TIERS) / total_seats) if total_seats else 0,
+        "avg_att": total_att, "avg_rev": total_rev,
+        "avg_price": (total_rev / total_att) if total_att else None,
+        "fill": (sum(game_fills) / len(game_fills)) if game_fills else None,
+    }
     return {"team_id": team["id"], "name": team["name"], "is_us": team.get("is_us", False),
             "wins": team.get("wins"), "losses": team.get("losses"),
             "total_seats": snap["total_seats"], "games": n,
@@ -2831,7 +2847,7 @@ def classify_arena_drivers(teams):
     term is bigger by ARENA_DRIVER_MARGIN is what's doing the work."""
     import math
     sampled = [t for t in teams if t["games"]]
-    for tier in ARENA_SEAT_TIERS:
+    for tier in ARENA_BENCH_CATEGORIES:
         med_price = _median([t["tiers"][tier]["avg_price"] for t in sampled if t["tiers"][tier]["avg_att"]])
         med_att = _median([t["tiers"][tier]["avg_att"] for t in sampled])
         ranked = sorted(sampled, key=lambda t: -(t["tiers"][tier]["avg_rev"] or 0))
@@ -2972,17 +2988,18 @@ def auto_league_arenas_html(data):
     )
 
     # Per tier: CSS-only tab switcher (radios inside the fragment), one table each.
+    cats = [c for c in ARENA_BENCH_CATEGORIES if all(c in t["tiers"] for t in sampled)]
     radios = "".join(f'<input type="radio" name="la-tier" id="la-t-{tier}" class="la-radio"{" checked" if i == 0 else ""}>'
-                     for i, tier in enumerate(ARENA_SEAT_TIERS))
-    nav = "".join(f'<label for="la-t-{tier}">{ARENA_TIER_LABELS[tier]}</label>' for tier in ARENA_SEAT_TIERS)
+                     for i, tier in enumerate(cats))
+    nav = "".join(f'<label for="la-t-{tier}">{ARENA_TIER_LABELS[tier]}</label>' for tier in cats)
     panes = ""
-    for tier in ARENA_SEAT_TIERS:
+    for tier in cats:
         trs = ""
         for t in sorted(sampled, key=lambda t: t["tiers"][tier]["rank"]):
             tt = t["tiers"][tier]
             trs += (f'<tr{_row_attr(t)}><td class="num">{tt["rank"]}</td><td>{esc(t["name"])}{_you(t)}</td>'
                     f'<td class="num"><b>{money_html(tt["avg_rev"])}</b></td>'
-                    f'<td class="num">{tt["seats"]:,}</td><td class="num">{money_html(tt["price"])}</td>'
+                    f'<td class="num">{tt["seats"]:,}</td><td class="num">{"~" if tier == "total" else ""}{money_html(tt["price"])}</td>'
                     f'<td class="num">{tt["avg_att"]:,.0f}</td><td class="num">{_pct_html(tt["fill"])}</td>'
                     f'<td class="num">{_idx_html(tt["price_idx"])}</td><td class="num">{_idx_html(tt["size_idx"])}</td>'
                     f'<td>{_driver_html(tt["driver"])}</td></tr>')
@@ -3002,7 +3019,9 @@ def auto_league_arenas_html(data):
             '(cup, friendlies and scrimmages excluded). Revenue/game = real attendance from each boxscore &times; the ticket price '
             'in force that day. Price/crowd vs median: the team\'s realized ticket price and average crowd in that tier relative to the '
             'league median; whichever is bigger by more than ~16% is the revenue driver. Fill is against the capacity on each game day, '
-            'so a recent expansion shows as more seats now than the fill implies.'
+            'so a recent expansion shows as more seats now than the fill implies. In the Total category, price is the arena-wide '
+            'average (seat-weighted list price now, revenue per fan vs. median), so it reflects seat mix as well as pricing - '
+            'an arena with more courtside and luxury seats reads as "price" even at ordinary per-tier prices.'
             + (' <b style="color:var(--ink)">*</b> Some past games pre-date this tracker\'s price history and are valued at the '
                'earliest recorded price, so those totals are estimates until the daily history fills in.' if any_est else '')
             + '</p>')
