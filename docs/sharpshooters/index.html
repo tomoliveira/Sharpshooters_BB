@@ -275,7 +275,11 @@
 
   /* ---- league arena benchmark: per-tier switcher (radios live inside the fragment) ---- */
   .la-wrap td.num, .la-wrap th.num { white-space: nowrap; }
-  .la-radio { position: absolute; opacity: 0; pointer-events: none; }
+  /* Fixed, not absolute: clicking a label focuses its radio, and the
+     browser scrolls a focused element into view - an absolute radio sits
+     at the top of the benchmark block, so every category click jumped the
+     page back up there. A fixed one is always "in view", so no scroll. */
+  .la-radio { position: fixed; top: 0; left: 0; opacity: 0; pointer-events: none; }
   .la-nav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
   .la-nav label { cursor: pointer; padding: 5px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; color: var(--ink-soft); background: var(--surface); }
   .la-nav label:hover { color: var(--ink); }
