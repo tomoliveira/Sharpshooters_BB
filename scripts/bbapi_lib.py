@@ -2884,7 +2884,7 @@ def fetch_league_arena_benchmark(session, conn, team_key, our_team_id, division_
     for snap in load_investment_ledger(conn, team_key).get("arena_snapshots", []):
         conn.execute("INSERT OR IGNORE INTO league_arena_prices (team_id, date, seats_json, prices_json) VALUES (?, ?, ?, ?)",
                      (our_team_id, snap["date"], json.dumps(snap["seats"]), json.dumps(snap["prices"])))
-    teams = []
+    teams, last_teams = [], []
     for team in division_rows:
         if not team.get("id"):
             continue
@@ -2906,12 +2906,17 @@ def fetch_league_arena_benchmark(session, conn, team_key, our_team_id, division_
             seats, prices, exact = _arena_at_date(conn, team["id"], m["start"][:10])
             if att is None or seats is None:
                 continue
-            games.append({"attendance": att, "seats": seats, "prices": prices, "exact": exact})
+            games.append({"attendance": att, "seats": seats, "prices": prices, "exact": exact, "date": m["start"][:10]})
         teams.append(summarize_team_arena(team, snap, games))
+        # Same team, just its most recent home league game - the page's
+        # "Last home game" toggle (ranked and classified on its own).
+        last = summarize_team_arena(team, snap, games[-1:])
+        last["last_date"] = games[-1]["date"] if games else None
+        last_teams.append(last)
     conn.commit()
     if not teams:
         return None
-    return {"recent_n": recent_n, "teams": classify_arena_drivers(teams)}
+    return {"recent_n": recent_n, "teams": classify_arena_drivers(teams), "last_teams": classify_arena_drivers(last_teams)}
 
 def _idx_html(v):
     if v is None: return '—'
@@ -2952,80 +2957,106 @@ def _league_arena_insight(teams, tier):
                  f'gap to the leader {money_html(lt["avg_rev"] - ut["avg_rev"])}/game.')
     return f'<p class="block-note" style="margin:0 0 10px;">{line}</p>'
 
-def auto_league_arenas_html(data):
-    bench = data.get("league_arenas")
-    if not bench or not bench.get("teams"):
-        return '<p class="block-note">League arena data not available this run.</p>'
-    teams = bench["teams"]
+def _la_overall_table(teams, last):
+    """All-tiers gate table for one window (average or last home game)."""
     sampled = sorted((t for t in teams if t["games"]), key=lambda t: t["total_rank"])
     unsampled = [t for t in teams if not t["games"]]
-    any_est = any(t["estimated"] for t in teams)
-
-    # Overall: total gate per home game, split by tier.
     rows = ""
     for t in sampled:
         tier_cells = "".join(
             f'<td class="num">{money_html(t["tiers"][tier]["avg_rev"])} <span class="sub">#{t["tiers"][tier]["rank"]}</span></td>'
             for tier in ARENA_SEAT_TIERS)
+        last_cell = esc(t.get("last_date") or "—") if last else t["games"]
         rows += (f'<tr{_row_attr(t)}><td class="num">{t["total_rank"]}</td><td>{esc(t["name"])}{_you(t)}'
                  f'{" <span class=sub>*</span>" if t["estimated"] else ""}</td>'
                  f'<td class="num">{t["wins"] or 0}-{t["losses"] or 0}</td>'
                  f'<td class="num"><b>{money_html(t["total_rev"])}</b></td>{tier_cells}'
                  f'<td class="num">{t["total_seats"]:,}</td><td class="num">{_pct_html(t.get("fill"))}</td>'
-                 f'<td class="num">{t["games"]}</td></tr>')
+                 f'<td class="num">{last_cell}</td></tr>')
     for t in unsampled:
         rows += (f'<tr{_row_attr(t)}><td class="num">—</td><td>{esc(t["name"])}{_you(t)}</td><td class="num">{t["wins"] or 0}-{t["losses"] or 0}</td>'
                  f'<td class="num">—</td>' + '<td class="num">—</td>' * 4 +
-                 f'<td class="num">{t["total_seats"]:,}</td><td class="num">—</td><td class="num">0</td></tr>')
+                 f'<td class="num">{t["total_seats"]:,}</td><td class="num">—</td><td class="num">{"—" if last else 0}</td></tr>')
     tier_heads = "".join(f'<th class="num sortable" data-col="{4 + i}">{ARENA_TIER_LABELS[tier]}</th>' for i, tier in enumerate(ARENA_SEAT_TIERS))
-    overall = (
-        '<div class="eyebrow" style="margin:4px 0 8px;">Gate revenue per home league game &middot; all tiers</div>'
+    return (
         '<div class="tbl-scroll"><table><thead><tr>'
         '<th class="num sortable" data-col="0">#</th><th class="sortable" data-col="1">Team</th><th class="num sortable" data-col="2">W-L</th>'
-        f'<th class="num sortable" data-col="3">Total/game</th>{tier_heads}'
-        '<th class="num sortable" data-col="8">Seats</th><th class="num sortable" data-col="9">Fill (game day)</th><th class="num sortable" data-col="10">Games</th>'
+        f'<th class="num sortable" data-col="3">{"Gate" if last else "Total/game"}</th>{tier_heads}'
+        '<th class="num sortable" data-col="8">Seats</th><th class="num sortable" data-col="9">Fill (game day)</th>'
+        f'<th class="num sortable" data-col="10">{"Date" if last else "Games"}</th>'
         f'</tr></thead><tbody>{rows}</tbody></table></div>'
     )
 
-    # Per tier: CSS-only tab switcher (radios inside the fragment), one table each.
-    cats = [c for c in ARENA_BENCH_CATEGORIES if all(c in t["tiers"] for t in sampled)]
-    radios = "".join(f'<input type="radio" name="la-tier" id="la-t-{tier}" class="la-radio"{" checked" if i == 0 else ""}>'
-                     for i, tier in enumerate(cats))
-    nav = "".join(f'<label for="la-t-{tier}">{ARENA_TIER_LABELS[tier]}</label>' for tier in cats)
-    panes = ""
-    for tier in cats:
-        trs = ""
-        for t in sorted(sampled, key=lambda t: t["tiers"][tier]["rank"]):
-            tt = t["tiers"][tier]
-            trs += (f'<tr{_row_attr(t)}><td class="num">{tt["rank"]}</td><td>{esc(t["name"])}{_you(t)}</td>'
-                    f'<td class="num"><b>{money_html(tt["avg_rev"])}</b></td>'
-                    f'<td class="num">{tt["seats"]:,}</td><td class="num">{"~" if tier == "total" else ""}{money_html(tt["price"])}</td>'
-                    f'<td class="num">{tt["avg_att"]:,.0f}</td><td class="num">{_pct_html(tt["fill"])}</td>'
-                    f'<td class="num">{_idx_html(tt["price_idx"])}</td><td class="num">{_idx_html(tt["size_idx"])}</td>'
-                    f'<td>{_driver_html(tt["driver"])}</td></tr>')
-        panes += (
-            f'<div class="la-pane la-p-{tier}">{_league_arena_insight(teams, tier)}'
-            '<div class="tbl-scroll"><table><thead><tr>'
-            '<th class="num sortable" data-col="0">#</th><th class="sortable" data-col="1">Team</th>'
-            '<th class="num sortable" data-col="2">Revenue/game</th><th class="num sortable" data-col="3">Seats</th>'
-            '<th class="num sortable" data-col="4">Price now</th><th class="num sortable" data-col="5">Avg crowd</th>'
-            '<th class="num sortable" data-col="6">Fill (game day)</th><th class="num sortable" data-col="7">Price vs median</th>'
-            '<th class="num sortable" data-col="8">Crowd vs median</th><th class="sortable" data-col="9">Driver</th>'
-            f'</tr></thead><tbody>{trs}</tbody></table></div></div>'
-        )
-    tiers_html = (f'<div class="eyebrow" style="margin:22px 0 8px;">By seat category &middot; who earns the most, and how</div>'
-                  f'<div class="la-tabs">{radios}<div class="la-nav">{nav}</div><div class="la-panes">{panes}</div></div>')
-    foot = (f'<p class="block-note" style="margin-top:10px;">Averages over each team\'s last {bench["recent_n"]} home league games '
-            '(cup, friendlies and scrimmages excluded). Revenue/game = real attendance from each boxscore &times; the ticket price '
-            'in force that day. Price/crowd vs median: the team\'s realized ticket price and average crowd in that tier relative to the '
-            'league median; whichever is bigger by more than ~16% is the revenue driver. Fill is against the capacity on each game day, '
+def _la_tier_table(teams, tier, last):
+    sampled = [t for t in teams if t["games"]]
+    trs = ""
+    for t in sorted(sampled, key=lambda t: t["tiers"][tier]["rank"]):
+        tt = t["tiers"][tier]
+        trs += (f'<tr{_row_attr(t)}><td class="num">{tt["rank"]}</td><td>{esc(t["name"])}{_you(t)}</td>'
+                f'<td class="num"><b>{money_html(tt["avg_rev"])}</b></td>'
+                f'<td class="num">{tt["seats"]:,}</td><td class="num">{"~" if tier == "total" else ""}{money_html(tt["price"])}</td>'
+                f'<td class="num">{tt["avg_att"]:,.0f}</td><td class="num">{_pct_html(tt["fill"])}</td>'
+                f'<td class="num">{_idx_html(tt["price_idx"])}</td><td class="num">{_idx_html(tt["size_idx"])}</td>'
+                f'<td>{_driver_html(tt["driver"])}</td></tr>')
+    return (
+        f'{_league_arena_insight(teams, tier)}'
+        '<div class="tbl-scroll"><table><thead><tr>'
+        '<th class="num sortable" data-col="0">#</th><th class="sortable" data-col="1">Team</th>'
+        f'<th class="num sortable" data-col="2">{"Revenue" if last else "Revenue/game"}</th><th class="num sortable" data-col="3">Seats</th>'
+        f'<th class="num sortable" data-col="4">Price now</th><th class="num sortable" data-col="5">{"Crowd" if last else "Avg crowd"}</th>'
+        '<th class="num sortable" data-col="6">Fill (game day)</th><th class="num sortable" data-col="7">Price vs median</th>'
+        '<th class="num sortable" data-col="8">Crowd vs median</th><th class="sortable" data-col="9">Driver</th>'
+        f'</tr></thead><tbody>{trs}</tbody></table></div>'
+    )
+
+def auto_league_arenas_html(data):
+    bench = data.get("league_arenas")
+    if not bench or not bench.get("teams"):
+        return '<p class="block-note">League arena data not available this run.</p>'
+    # Per Tom: toggle between the recent-games average and each team's last
+    # home game. Both windows are rendered; .la-w-avg/.la-w-last blocks are
+    # shown/hidden by the window radios (CSS in index.html). The window and
+    # tier radios are siblings of every block they control, so flipping the
+    # window keeps whichever seat category is open.
+    windows = [("avg", bench["teams"])]
+    if bench.get("last_teams"):
+        windows.append(("last", bench["last_teams"]))
+    sampled_any = [t for t in bench["teams"] if t["games"]]
+    cats = [c for c in ARENA_BENCH_CATEGORIES if all(c in t["tiers"] for t in sampled_any)]
+    any_est = any(t["estimated"] for _, ts in windows for t in ts)
+
+    def both(render):
+        return "".join(f'<div class="la-w-{w}">{render(ts, w == "last")}</div>' for w, ts in windows)
+
+    win_labels = {"avg": f'Average &middot; last {bench["recent_n"]} home games', "last": "Last home game"}
+    win_radios = "".join(f'<input type="radio" name="la-window" id="la-w-{w}" class="la-radio"{" checked" if i == 0 else ""}>'
+                         for i, (w, _) in enumerate(windows))
+    win_labels_html = "".join(f'<label for="la-w-{w}">{win_labels[w]}</label>' for w, _ in windows)
+    win_nav = f'<div class="la-nav la-wnav">{win_labels_html}</div>' if len(windows) > 1 else ''
+    tier_radios = "".join(f'<input type="radio" name="la-tier" id="la-t-{tier}" class="la-radio"{" checked" if i == 0 else ""}>'
+                          for i, tier in enumerate(cats))
+    tier_nav = "".join(f'<label for="la-t-{tier}">{ARENA_TIER_LABELS[tier]}</label>' for tier in cats)
+    panes = "".join(f'<div class="la-pane la-p-{tier}">{both(lambda ts, last, tier=tier: _la_tier_table(ts, tier, last))}</div>'
+                    for tier in cats)
+    body = (
+        f'{win_radios}{tier_radios}{win_nav}'
+        '<div class="eyebrow" style="margin:4px 0 8px;">Gate revenue per home league game &middot; all tiers</div>'
+        f'<div class="la-overall">{both(_la_overall_table)}</div>'
+        '<div class="eyebrow" style="margin:22px 0 8px;">By seat category &middot; who earns the most, and how</div>'
+        f'<div class="la-nav">{tier_nav}</div><div class="la-panes">{panes}</div>'
+    )
+    foot = (f'<p class="block-note" style="margin-top:10px;">Average: each team\'s last {bench["recent_n"]} home league games; '
+            'Last home game: just the most recent one (date in the table). Cup, friendlies and scrimmages excluded. '
+            'Revenue = real attendance from each boxscore &times; the ticket price '
+            'in force that day. Price/crowd vs median: the team\'s realized ticket price and crowd in that tier relative to the '
+            'league median for the same window; whichever is bigger by more than ~16% is the revenue driver. Fill is against the capacity on each game day, '
             'so a recent expansion shows as more seats now than the fill implies. In the Total category, price is the arena-wide '
             'average (seat-weighted list price now, revenue per fan vs. median), so it reflects seat mix as well as pricing - '
             'an arena with more courtside and luxury seats reads as "price" even at ordinary per-tier prices.'
             + (' <b style="color:var(--ink)">*</b> Some past games pre-date this tracker\'s price history and are valued at the '
                'earliest recorded price, so those totals are estimates until the daily history fills in.' if any_est else '')
             + '</p>')
-    return f'<div class="la-wrap">{overall}{tiers_html}{foot}</div>'
+    return f'<div class="la-wrap"><div class="la-tabs">{body}</div>{foot}</div>'
 
 
 def build_report(session, conn, team_key):

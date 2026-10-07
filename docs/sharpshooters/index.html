@@ -291,6 +291,13 @@
   #la-t-courtside:checked ~ .la-nav label[for="la-t-courtside"],
   #la-t-luxury:checked ~ .la-nav label[for="la-t-luxury"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
   .la-radio:focus-visible ~ .la-nav label { outline-offset: 2px; }
+  /* average vs last-home-game window toggle */
+  .la-wnav { margin-bottom: 14px; }
+  .la-w-last { display: none; }
+  #la-w-last:checked ~ * .la-w-avg { display: none; }
+  #la-w-last:checked ~ * .la-w-last { display: block; }
+  #la-w-avg:checked ~ .la-wnav label[for="la-w-avg"],
+  #la-w-last:checked ~ .la-wnav label[for="la-w-last"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 
   /* ---- bars ---- */
   .bar-row { display: grid; grid-template-columns: 160px 1fr 78px; align-items: center; gap: 12px; padding: 7px 0; }
