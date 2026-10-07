@@ -528,6 +528,26 @@ def init_db(conn):
         team_id TEXT PRIMARY KEY,
         roster_json TEXT
     )""")
+    # League arena benchmark (see fetch_league_arena_benchmark). boxscore.aspx
+    # reports per-tier attendance but not the ticket prices that were in
+    # force, so each league team's arena.aspx seats/prices are recorded once
+    # per run date here - a past game is then valued at the price observed
+    # on or before its date. One row per matchid in match_attendance: a
+    # finished game's crowd never changes, so it's fetched once and reused.
+    conn.execute("""CREATE TABLE IF NOT EXISTS league_arena_prices (
+        team_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        seats_json TEXT NOT NULL,
+        prices_json TEXT NOT NULL,
+        PRIMARY KEY (team_id, date)
+    )""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS match_attendance (
+        matchid TEXT PRIMARY KEY,
+        home_team_id TEXT NOT NULL,
+        match_date TEXT,
+        match_type TEXT,
+        attendance_json TEXT NOT NULL
+    )""")
     conn.commit()
 
 def load_opponent_roster(conn, team_id):
@@ -1032,7 +1052,8 @@ def render_text(data):
 
 AUTO_MARKERS = ["META", "OVERVIEW_STATS", "RECOMMENDATIONS", "INVESTMENTS", "ROSTER_SKILLS", "ROSTER_BY_POSITION",
                 "TRAINING_CARDS", "TRANSACTION_LEDGER", "FINANCE_WEEKLY", "SEASON_PROJECTION",
-                "ROSTER_CHANGES", "STAFF", "MINUTES_VS_MONEY", "ARENA_GLANCE", "ARENA_PRICE_BARS"]
+                "ROSTER_CHANGES", "STAFF", "MINUTES_VS_MONEY", "ARENA_GLANCE", "ARENA_PRICE_BARS",
+                "LEAGUE_ARENAS"]
 
 def esc(v):
     return html.escape(str(v)) if v is not None else ""
@@ -2214,7 +2235,8 @@ def build_fragments(data):
                   "SEASON_PROJECTION": auto_season_projection_html,
                   "ROSTER_CHANGES": auto_roster_changes_html,
                   "STAFF": auto_staff_html, "MINUTES_VS_MONEY": auto_minutes_vs_money_html,
-                  "ARENA_GLANCE": auto_arena_glance_html, "ARENA_PRICE_BARS": auto_arena_price_bars_html}
+                  "ARENA_GLANCE": auto_arena_glance_html, "ARENA_PRICE_BARS": auto_arena_price_bars_html,
+                  "LEAGUE_ARENAS": auto_league_arenas_html}
     return {name: generators[name](data) for name in AUTO_MARKERS}
 
 def most_recent_training_week_start(now_utc):
@@ -2342,7 +2364,7 @@ def _fetch_finished_matches(session, team_id):
         except (TypeError, ValueError):
             continue
         out.append({"start": m.get("start", ""), "matchid": matchid, "type": m.get("type"),
-                     "opp_id": opp_id, "team_score": team_score, "opp_score": opp_score})
+                     "opp_id": opp_id, "is_home": is_home, "team_score": team_score, "opp_score": opp_score})
     out.sort(key=lambda r: r["start"])
     return out
 
@@ -2718,6 +2740,275 @@ def fetch_division_power_rankings(session, conn, division_rows, top_n=6, recent_
     conn.commit()
     return rankings
 
+LEAGUE_ARENA_RECENT_HOME_GAMES = 5
+ARENA_TIER_LABELS = {"bleachers": "Bleachers", "lowerTier": "Lower Tier", "courtside": "Courtside", "luxury": "Luxury Boxes"}
+# How far apart (in natural-log units) a team's price edge and crowd-size
+# edge over the league median have to be before one is called the driver
+# of its revenue rather than "Balanced" - 0.15 is roughly a 16% gap.
+ARENA_DRIVER_MARGIN = 0.15
+
+def _record_league_arena_price(conn, team_id, snap):
+    conn.execute("INSERT OR REPLACE INTO league_arena_prices (team_id, date, seats_json, prices_json) VALUES (?, ?, ?, ?)",
+                 (team_id, snap["date"], json.dumps(snap["seats"]), json.dumps(snap["prices"])))
+
+def _arena_at_date(conn, team_id, date):
+    """(seats, prices, exact) in force on `date` - the latest recorded
+    snapshot on or before it. With none that old (a game played before this
+    team was first tracked), falls back to the earliest snapshot we have and
+    flags it exact=False so the page can say the revenue is estimated."""
+    row = conn.execute("SELECT seats_json, prices_json FROM league_arena_prices WHERE team_id=? AND date<=? "
+                       "ORDER BY date DESC LIMIT 1", (team_id, date)).fetchone()
+    exact = row is not None
+    if row is None:
+        row = conn.execute("SELECT seats_json, prices_json FROM league_arena_prices WHERE team_id=? "
+                           "ORDER BY date ASC LIMIT 1", (team_id,)).fetchone()
+    if row is None:
+        return None, None, False
+    return json.loads(row[0]), json.loads(row[1]), exact
+
+def _parse_attendance(box_root):
+    att_el = box_root.find(".//attendance")
+    if att_el is None:
+        return None
+    out = {}
+    for tier in ARENA_SEAT_TIERS:
+        try: out[tier] = int(att_el.findtext(tier))
+        except (TypeError, ValueError): out[tier] = 0
+    return out
+
+def _home_game_attendance(session, conn, team_id, match):
+    row = conn.execute("SELECT attendance_json FROM match_attendance WHERE matchid=?", (match["matchid"],)).fetchone()
+    if row:
+        return json.loads(row[0])
+    try:
+        box = fetch(session, "boxscore.aspx", {"matchid": match["matchid"]})
+    except (BBApiError, requests.RequestException):
+        return None
+    att = _parse_attendance(box)
+    if att is None:
+        return None
+    conn.execute("INSERT OR REPLACE INTO match_attendance (matchid, home_team_id, match_date, match_type, attendance_json) "
+                 "VALUES (?, ?, ?, ?, ?)", (match["matchid"], team_id, match["start"][:10], match["type"], json.dumps(att)))
+    return att
+
+def _median(vals):
+    vals = sorted(v for v in vals if v is not None)
+    if not vals: return None
+    mid = len(vals) // 2
+    return vals[mid] if len(vals) % 2 else (vals[mid - 1] + vals[mid]) / 2
+
+def summarize_team_arena(team, snap, games):
+    """Per-tier averages over a team's sampled home league games. `games` is
+    a list of {"attendance", "seats", "prices", "exact"}, each valued at the
+    seats/prices in force on that game's date. avg_price is the realized
+    (attendance-weighted) ticket price, so it stays honest when a team
+    changed prices mid-sample."""
+    tiers = {}
+    n = len(games)
+    for tier in ARENA_SEAT_TIERS:
+        att = [g["attendance"].get(tier, 0) for g in games]
+        rev = [g["attendance"].get(tier, 0) * g["prices"].get(tier, 0) for g in games]
+        fills = [g["attendance"].get(tier, 0) / g["seats"][tier] for g in games if g["seats"].get(tier)]
+        tiers[tier] = {
+            "seats": snap["seats"].get(tier, 0), "price": snap["prices"].get(tier, 0),
+            "avg_att": sum(att) / n if n else None, "avg_rev": sum(rev) / n if n else None,
+            "avg_price": (sum(rev) / sum(att)) if sum(att) else snap["prices"].get(tier, 0),
+            "fill": (sum(fills) / len(fills)) if fills else None,
+        }
+    total_rev = sum(t["avg_rev"] for t in tiers.values()) if n else None
+    game_fills = [sum(g["attendance"].values()) / sum(g["seats"].values()) for g in games if sum(g["seats"].values())]
+    return {"team_id": team["id"], "name": team["name"], "is_us": team.get("is_us", False),
+            "wins": team.get("wins"), "losses": team.get("losses"),
+            "total_seats": snap["total_seats"], "games": n,
+            "estimated": any(not g["exact"] for g in games), "total_rev": total_rev,
+            "fill": (sum(game_fills) / len(game_fills)) if game_fills else None, "tiers": tiers}
+
+def classify_arena_drivers(teams):
+    """Per tier: rank teams by revenue/game and split each team's revenue
+    edge over the league median into a price part and a crowd-size part.
+    Revenue = attendance x price, so ln(rev/median) is (to a close
+    approximation) ln(price/median) + ln(attendance/median) - whichever
+    term is bigger by ARENA_DRIVER_MARGIN is what's doing the work."""
+    import math
+    sampled = [t for t in teams if t["games"]]
+    for tier in ARENA_SEAT_TIERS:
+        med_price = _median([t["tiers"][tier]["avg_price"] for t in sampled if t["tiers"][tier]["avg_att"]])
+        med_att = _median([t["tiers"][tier]["avg_att"] for t in sampled])
+        ranked = sorted(sampled, key=lambda t: -(t["tiers"][tier]["avg_rev"] or 0))
+        for i, t in enumerate(ranked, start=1):
+            tt = t["tiers"][tier]
+            tt["rank"] = i
+            p_idx = tt["avg_price"] / med_price if med_price and tt["avg_price"] else None
+            v_idx = tt["avg_att"] / med_att if med_att and tt["avg_att"] else None
+            tt["price_idx"], tt["size_idx"] = p_idx, v_idx
+            if p_idx is None or v_idx is None:
+                tt["driver"] = None
+            else:
+                lp, lv = math.log(p_idx), math.log(v_idx)
+                tt["driver"] = "Price" if lp - lv > ARENA_DRIVER_MARGIN else "Size" if lv - lp > ARENA_DRIVER_MARGIN else "Balanced"
+        for t in teams:
+            if not t["games"]:
+                t["tiers"][tier].update({"rank": None, "price_idx": None, "size_idx": None, "driver": None})
+    for i, t in enumerate(sorted(sampled, key=lambda t: -(t["total_rev"] or 0)), start=1):
+        t["total_rank"] = i
+    for t in teams:
+        t.setdefault("total_rank", None)
+    return teams
+
+def fetch_league_arena_benchmark(session, conn, team_key, our_team_id, division_rows, run_date,
+                                 recent_n=LEAGUE_ARENA_RECENT_HOME_GAMES):
+    """Per Tom: every league team's arena (arena.aspx?teamid=, seats and
+    prices) plus real per-tier attendance from its last `recent_n` home
+    league games (boxscore.aspx), so the Arena tab can show who earns the
+    most from each seat category and whether that's price or size. League
+    games only - cup/friendly/BBM crowds aren't comparable."""
+    # Our own price history is already in the ledger (recorded on every
+    # change since tracking began) - seed it so our past games are valued
+    # at the prices actually in force, not just today's.
+    for snap in load_investment_ledger(conn, team_key).get("arena_snapshots", []):
+        conn.execute("INSERT OR IGNORE INTO league_arena_prices (team_id, date, seats_json, prices_json) VALUES (?, ?, ?, ?)",
+                     (our_team_id, snap["date"], json.dumps(snap["seats"]), json.dumps(snap["prices"])))
+    teams = []
+    for team in division_rows:
+        if not team.get("id"):
+            continue
+        try:
+            snap = arena_snapshot(fetch(session, "arena.aspx", {"teamid": team["id"]}), run_date)
+        except (BBApiError, requests.RequestException):
+            continue
+        if not snap:
+            continue
+        _record_league_arena_price(conn, team["id"], snap)
+        try:
+            matches = _fetch_finished_matches(session, team["id"])
+        except (BBApiError, requests.RequestException):
+            matches = []
+        home = [m for m in matches if m.get("is_home") and (m.get("type") or "").startswith("league")][-recent_n:]
+        games = []
+        for m in home:
+            att = _home_game_attendance(session, conn, team["id"], m)
+            seats, prices, exact = _arena_at_date(conn, team["id"], m["start"][:10])
+            if att is None or seats is None:
+                continue
+            games.append({"attendance": att, "seats": seats, "prices": prices, "exact": exact})
+        teams.append(summarize_team_arena(team, snap, games))
+    conn.commit()
+    if not teams:
+        return None
+    return {"recent_n": recent_n, "teams": classify_arena_drivers(teams)}
+
+def _idx_html(v):
+    if v is None: return '—'
+    color = "var(--positive)" if v >= 1.15 else "var(--negative)" if v <= 0.87 else "var(--ink-soft)"
+    return f'<span style="color:{color}">{v:.2f}×</span>'
+
+def _driver_html(d):
+    if d is None: return '—'
+    cls = {"Price": "tag-calc", "Size": "tag-official", "Balanced": "tag-rec"}[d]
+    return f'<span class="tag {cls}">{d}</span>'
+
+def _pct_html(v):
+    return f'{100 * v:.0f}%' if v is not None else '—'
+
+def _you(t):
+    return ' <span class=sub>(you)</span>' if t["is_us"] else ''
+
+def _row_attr(t):
+    return ' style="background:var(--positive-soft);"' if t["is_us"] else ''
+
+def _league_arena_insight(teams, tier):
+    """One-line answer per tier: who leads, and how (price or size), plus
+    where we sit and the gap to the leader."""
+    ranked = sorted((t for t in teams if t["games"]), key=lambda t: t["tiers"][tier]["rank"])
+    if not ranked:
+        return ''
+    lead, lt = ranked[0], ranked[0]["tiers"][tier]
+    how = {"Price": f'price-led: {lt["price_idx"]:.2f}× the league median ticket at {lt["size_idx"]:.2f}× the median crowd',
+           "Size": f'size-led: {lt["size_idx"]:.2f}× the median crowd at {lt["price_idx"]:.2f}× the median ticket',
+           "Balanced": f'balanced: {lt["price_idx"]:.2f}× median price and {lt["size_idx"]:.2f}× median crowd'}.get(lt["driver"], '')
+    line = (f'<b style="color:var(--ink)">{esc(lead["name"])}</b>{_you(lead)} leads at {money_html(lt["avg_rev"])}/game '
+            f'({lt["avg_att"]:,.0f} of {lt["seats"]:,} seats at ~{money_html(lt["avg_price"])}) &middot; {how}.')
+    us = next((t for t in ranked if t["is_us"]), None)
+    if us and us is not lead:
+        ut = us["tiers"][tier]
+        line += (f' You: {money_html(ut["avg_rev"])}/game, #{ut["rank"]} of {len(ranked)} '
+                 f'({ut["price_idx"]:.2f}× median price, {ut["size_idx"]:.2f}× median crowd, {_pct_html(ut["fill"])} full) &middot; '
+                 f'gap to the leader {money_html(lt["avg_rev"] - ut["avg_rev"])}/game.')
+    return f'<p class="block-note" style="margin:0 0 10px;">{line}</p>'
+
+def auto_league_arenas_html(data):
+    bench = data.get("league_arenas")
+    if not bench or not bench.get("teams"):
+        return '<p class="block-note">League arena data not available this run.</p>'
+    teams = bench["teams"]
+    sampled = sorted((t for t in teams if t["games"]), key=lambda t: t["total_rank"])
+    unsampled = [t for t in teams if not t["games"]]
+    any_est = any(t["estimated"] for t in teams)
+
+    # Overall: total gate per home game, split by tier.
+    rows = ""
+    for t in sampled:
+        tier_cells = "".join(
+            f'<td class="num">{money_html(t["tiers"][tier]["avg_rev"])} <span class="sub">#{t["tiers"][tier]["rank"]}</span></td>'
+            for tier in ARENA_SEAT_TIERS)
+        rows += (f'<tr{_row_attr(t)}><td class="num">{t["total_rank"]}</td><td>{esc(t["name"])}{_you(t)}'
+                 f'{" <span class=sub>*</span>" if t["estimated"] else ""}</td>'
+                 f'<td class="num">{t["wins"] or 0}-{t["losses"] or 0}</td>'
+                 f'<td class="num"><b>{money_html(t["total_rev"])}</b></td>{tier_cells}'
+                 f'<td class="num">{t["total_seats"]:,}</td><td class="num">{_pct_html(t.get("fill"))}</td>'
+                 f'<td class="num">{t["games"]}</td></tr>')
+    for t in unsampled:
+        rows += (f'<tr{_row_attr(t)}><td class="num">—</td><td>{esc(t["name"])}{_you(t)}</td><td class="num">{t["wins"] or 0}-{t["losses"] or 0}</td>'
+                 f'<td class="num">—</td>' + '<td class="num">—</td>' * 4 +
+                 f'<td class="num">{t["total_seats"]:,}</td><td class="num">—</td><td class="num">0</td></tr>')
+    tier_heads = "".join(f'<th class="num sortable" data-col="{4 + i}">{ARENA_TIER_LABELS[tier]}</th>' for i, tier in enumerate(ARENA_SEAT_TIERS))
+    overall = (
+        '<div class="eyebrow" style="margin:4px 0 8px;">Gate revenue per home league game &middot; all tiers</div>'
+        '<div class="tbl-scroll"><table><thead><tr>'
+        '<th class="num sortable" data-col="0">#</th><th class="sortable" data-col="1">Team</th><th class="num sortable" data-col="2">W-L</th>'
+        f'<th class="num sortable" data-col="3">Total/game</th>{tier_heads}'
+        '<th class="num sortable" data-col="8">Seats</th><th class="num sortable" data-col="9">Fill (game day)</th><th class="num sortable" data-col="10">Games</th>'
+        f'</tr></thead><tbody>{rows}</tbody></table></div>'
+    )
+
+    # Per tier: CSS-only tab switcher (radios inside the fragment), one table each.
+    radios = "".join(f'<input type="radio" name="la-tier" id="la-t-{tier}" class="la-radio"{" checked" if i == 0 else ""}>'
+                     for i, tier in enumerate(ARENA_SEAT_TIERS))
+    nav = "".join(f'<label for="la-t-{tier}">{ARENA_TIER_LABELS[tier]}</label>' for tier in ARENA_SEAT_TIERS)
+    panes = ""
+    for tier in ARENA_SEAT_TIERS:
+        trs = ""
+        for t in sorted(sampled, key=lambda t: t["tiers"][tier]["rank"]):
+            tt = t["tiers"][tier]
+            trs += (f'<tr{_row_attr(t)}><td class="num">{tt["rank"]}</td><td>{esc(t["name"])}{_you(t)}</td>'
+                    f'<td class="num"><b>{money_html(tt["avg_rev"])}</b></td>'
+                    f'<td class="num">{tt["seats"]:,}</td><td class="num">{money_html(tt["price"])}</td>'
+                    f'<td class="num">{tt["avg_att"]:,.0f}</td><td class="num">{_pct_html(tt["fill"])}</td>'
+                    f'<td class="num">{_idx_html(tt["price_idx"])}</td><td class="num">{_idx_html(tt["size_idx"])}</td>'
+                    f'<td>{_driver_html(tt["driver"])}</td></tr>')
+        panes += (
+            f'<div class="la-pane la-p-{tier}">{_league_arena_insight(teams, tier)}'
+            '<div class="tbl-scroll"><table><thead><tr>'
+            '<th class="num sortable" data-col="0">#</th><th class="sortable" data-col="1">Team</th>'
+            '<th class="num sortable" data-col="2">Revenue/game</th><th class="num sortable" data-col="3">Seats</th>'
+            '<th class="num sortable" data-col="4">Price now</th><th class="num sortable" data-col="5">Avg crowd</th>'
+            '<th class="num sortable" data-col="6">Fill (game day)</th><th class="num sortable" data-col="7">Price vs median</th>'
+            '<th class="num sortable" data-col="8">Crowd vs median</th><th class="sortable" data-col="9">Driver</th>'
+            f'</tr></thead><tbody>{trs}</tbody></table></div></div>'
+        )
+    tiers_html = (f'<div class="eyebrow" style="margin:22px 0 8px;">By seat category &middot; who earns the most, and how</div>'
+                  f'<div class="la-tabs">{radios}<div class="la-nav">{nav}</div><div class="la-panes">{panes}</div></div>')
+    foot = (f'<p class="block-note" style="margin-top:10px;">Averages over each team\'s last {bench["recent_n"]} home league games '
+            '(cup, friendlies and scrimmages excluded). Revenue/game = real attendance from each boxscore &times; the ticket price '
+            'in force that day. Price/crowd vs median: the team\'s realized ticket price and average crowd in that tier relative to the '
+            'league median; whichever is bigger by more than ~16% is the revenue driver. Fill is against the capacity on each game day, '
+            'so a recent expansion shows as more seats now than the fill implies.'
+            + (' <b style="color:var(--ink)">*</b> Some past games pre-date this tracker\'s price history and are valued at the '
+               'earliest recorded price, so those totals are estimates until the daily history fills in.' if any_est else '')
+            + '</p>')
+    return f'<div class="la-wrap">{overall}{tiers_html}{foot}</div>'
+
+
 def build_report(session, conn, team_key):
     teaminfo = fetch(session, "teaminfo.aspx")
     roster = fetch(session, "roster.aspx")
@@ -2761,6 +3052,11 @@ def build_report(session, conn, team_key):
     data["our_overall_avg"] = our_overall_avg
     top_group_rankings = [r for r in data["power_rankings"] if r.get("in_top_group")]
     data["ratings_watchlist"] = compute_ratings_watchlist(top_group_rankings, our_overall_avg)
+    try:
+        data["league_arenas"] = fetch_league_arena_benchmark(session, conn, team_key, our_team_id,
+                                                              data["division_rows"], data["now"][:10])
+    except (BBApiError, requests.RequestException):
+        data["league_arenas"] = None
     try:
         data["big_hires"] = detect_big_hires(session, conn, data["division_rows"], data["now"][:10])
     except (BBApiError, requests.RequestException):
