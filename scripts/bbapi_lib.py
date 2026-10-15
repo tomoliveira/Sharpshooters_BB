@@ -70,15 +70,6 @@ TRAINEE_SCORE_POPS_SO_FAR = 2.5
 SEASON_TOTAL_MONDAYS = 13
 SEASON_WEEKS_REMAINING = None
 
-# "You (avg)" on the outlier rating cards (Overview tab) - our own team's
-# recent-form rating average. Per Tom, for this season only, that average
-# should be computed from every competitive game since this date, not the
-# same "last 5 games" window used for the other ranked teams. A team-config
-# value (own_rating_since) rather than a constant, since it's a one-season
-# judgment call, not a permanent rule - None means "not set," which falls
-# back to the same last-N-games window everyone else uses.
-OWN_RATING_SINCE = None
-
 def trainee_score(age, potential, tsp):
     """None if age/tsp aren't usable numbers. Otherwise 0-100+ (a player
     ahead of the age-scaled bar can and should score over 100 - that's a
@@ -153,12 +144,11 @@ def load_team_config(config_path):
     from these globals at call time, not at import time, so reassigning here
     is safe as long as it happens first."""
     global TRAINING_COHORT_IDS
-    global LOGIN, CODE, TEAM_KEY, TRAINEE_SCORE_POPS_SO_FAR, SEASON_WEEKS_REMAINING, OWN_RATING_SINCE
+    global LOGIN, CODE, TEAM_KEY, TRAINEE_SCORE_POPS_SO_FAR, SEASON_WEEKS_REMAINING
     cfg = json.loads(Path(config_path).read_text(encoding="utf-8"))
     TRAINING_COHORT_IDS = cfg.get("training_cohort", TRAINING_COHORT_IDS)
     TRAINEE_SCORE_POPS_SO_FAR = cfg.get("trainee_score_pops_so_far", TRAINEE_SCORE_POPS_SO_FAR)
     SEASON_WEEKS_REMAINING = cfg.get("season_weeks_remaining", SEASON_WEEKS_REMAINING)
-    OWN_RATING_SINCE = cfg.get("own_rating_since", OWN_RATING_SINCE)
     TEAM_KEY = cfg.get("team_key") or Path(config_path).stem
     # Separate env var names let one environment hold credentials for several
     # teams at once (each BuzzerBeater login owns exactly one team, so a
@@ -1433,19 +1423,24 @@ def _power_rankings_html(data):
 
     # Per Tom: color each rating cell red if it's above our own average
     # (a category where an opponent outguns us) and green if it's below
-    # (a category where we're already ahead) - same our_overall_avg number
-    # "You (avg)" uses on the outlier cards above, so the two stay consistent.
+    # (a category where we're already ahead). Like-for-like (per Tom,
+    # 2026-10-15): each category cell is compared with OUR average in that
+    # same category - the same per-category "You" value the outlier cards
+    # above use - and only the composite "Avg" column is compared with our
+    # overall composite.
     our_overall_avg = data.get("our_overall_avg")
+    our_rating = data.get("our_rating") or {}
 
     def plain_cell(v):
         return f'{v:.1f}' if v is not None else '—'
 
-    def cell(v):
+    def cell(v, cat="composite"):
         if v is None:
             return '—'
-        if our_overall_avg is None:
+        ref = our_overall_avg if cat == "composite" else our_rating.get(cat)
+        if ref is None:
             return f'{v:.1f}'
-        color = "var(--negative)" if v > our_overall_avg else ("var(--positive)" if v < our_overall_avg else "var(--ink)")
+        color = "var(--negative)" if v > ref else ("var(--positive)" if v < ref else "var(--ink)")
         return f'<span style="color:{color};">{v:.1f}</span>'
 
     def power_cell(v):
@@ -1469,15 +1464,16 @@ def _power_rankings_html(data):
         # Comparing our own row's rating cells against "our own average"
         # would just be circular, so it gets plain (uncolored) cells - the
         # red/green threat coloring only means something for an opponent.
-        rating_cell = plain_cell if r["is_us"] else cell
+        def rating_cell(v, cat="composite"):
+            return plain_cell(v) if r["is_us"] else cell(v, cat)
         return (
             f'<tr class="{"us" if r["is_us"] else ""}"{row_style}>'
             f'<td>{r["power_rank"]}{"*" if r.get("used_fallback_diff") else ""}</td>'
             f'<td>{esc(r["name"])}{" <span class=sub>(you)</span>" if r["is_us"] else ""}{top_badge}{next_badge}</td>'
             f'<td class="num">{esc(r["recent_record"])}</td>'
-            f'<td class="num">{rating_cell(r["outside_scoring"])}</td><td class="num">{rating_cell(r["inside_scoring"])}</td>'
-            f'<td class="num">{rating_cell(r["outside_defense"])}</td><td class="num">{rating_cell(r["inside_defense"])}</td>'
-            f'<td class="num">{rating_cell(r["rebounding"])}</td><td class="num">{rating_cell(r["offensive_flow"])}</td>'
+            f'<td class="num">{rating_cell(r["outside_scoring"], "outside_scoring")}</td><td class="num">{rating_cell(r["inside_scoring"], "inside_scoring")}</td>'
+            f'<td class="num">{rating_cell(r["outside_defense"], "outside_defense")}</td><td class="num">{rating_cell(r["inside_defense"], "inside_defense")}</td>'
+            f'<td class="num">{rating_cell(r["rebounding"], "rebounding")}</td><td class="num">{rating_cell(r["offensive_flow"], "offensive_flow")}</td>'
             f'<td class="num"><b>{rating_cell(r.get("composite"))}</b></td>'
             f'<td class="num">{power_cell(r.get("power_score"))}</td></tr>'
         )
@@ -1544,12 +1540,14 @@ def _power_rankings_html(data):
         'sneak into "Top 6" on one noisy game). A team missing a component (most often "vs Top 6" - it hasn\'t '
         'played all of them yet) has that weight redistributed across whatever components it does have, rather than '
         'being scored 0% on a record it hasn\'t had the chance to build.' + fallback_note + next_opp_note + ' '
-        'Ratings themselves average each team\'s last up to 5 competitive games - league, cup, playoffs, TV, B3; '
-        'friendlies and BBM scrimmages excluded - a different cut than the season-long standings shown elsewhere on '
+        'Ratings themselves average each team\'s last up to 5 regular-season and playoff games (TV-flagged league '
+        'games included; private league, cup, B3, friendlies and BBM excluded) - a different cut than the season-long '
+        'standings shown elsewhere on '
         'this page. <b style="color:var(--ink)">Avg</b> is that team\'s 6 rating categories averaged into one '
         'number - the same composite the Power score\'s rating component is normalized from (see Criteria & '
-        'scores). Each rating cell (not the Power score) is colored against your own overall average '
-        f'({f"{our_overall_avg:.1f}" if our_overall_avg is not None else "n/a"}) - '
+        'scores). Each rating cell (not the Power score) is colored against YOUR average in that same category '
+        '(the "Avg" column against your overall average, '
+        f'{f"{our_overall_avg:.1f}" if our_overall_avg is not None else "n/a"}) - '
         '<span style="color:var(--negative);">red</span> above it (they outgun you there), '
         '<span style="color:var(--positive);">green</span> below it (you\'re already ahead) - except on your own '
         'row, where that comparison would just be circular. '
@@ -2297,12 +2295,18 @@ def fetch_weekly_position_minutes(session, schedule_root, our_team_id):
 def total_minutes(position_minutes, positions=ALL_POSITIONS):
     return sum(position_minutes.get(pos, 0) for pos in positions)
 
-# Match types that don't reflect real competitive form for the power
-# rankings below - friendlies and BBM (bot/practice) games. Per Tom,
-# everything else (league, cup, TV-flagged league games, playoffs, B3,
-# private league) should count. Excluded via a small blocklist rather than
-# an allowlist, so a game type not seen yet isn't silently dropped.
-POWER_RANKING_EXCLUDED_MATCH_TYPES = {"friendly", "bbm"}
+# Per Tom (2026-10-15): only regular-season and playoff matches count toward
+# the power rankings' ratings and records - not private league (pl.*), cup,
+# B3, friendlies or BBM. schedule.aspx match types are dotted, with the
+# competition family first: "league.rs" (regular season), "league.rs.tv"
+# (TV-flagged regular season) and the league playoff types all share the
+# "league" family, which is the same test next_league_opponent_id uses
+# ("regular season or playoff"). An allowlist on the family, so any new
+# non-league type (pl.po, a new cup format, ...) stays out by default.
+POWER_RANKING_MATCH_FAMILIES = {"league"}
+
+def _counts_for_power_rankings(match_type):
+    return (match_type or "").split(".")[0] in POWER_RANKING_MATCH_FAMILIES
 RATING_TAGS = ["outsideScoring", "insideScoring", "outsideDefense", "insideDefense", "rebounding", "offensiveFlow"]
 
 def _parse_boxscore_team_rating(box_root, team_id, match_type):
@@ -2333,8 +2337,8 @@ def _parse_boxscore_team_rating(box_root, team_id, match_type):
     }
 
 def _fetch_finished_matches(session, team_id):
-    """A team's finished, competitive (non-excluded-type) matches this
-    season, each with the opponent's id and both scores - shared raw
+    """A team's finished regular-season and playoff matches this
+    season (see POWER_RANKING_MATCH_FAMILIES), each with the opponent's id and both scores - shared raw
     material for both the head-to-head point-diff ranking below and the
     recent-form boxscore ratings, from a single schedule.aspx call (it
     already carries final scores for played games; no boxscore needed for
@@ -2345,7 +2349,7 @@ def _fetch_finished_matches(session, team_id):
         return []
     out = []
     for m in sched.findall(".//match"):
-        if m.get("type") in POWER_RANKING_EXCLUDED_MATCH_TYPES:
+        if not _counts_for_power_rankings(m.get("type")):
             continue
         away, home = m.find("awayTeam"), m.find("homeTeam")
         if away is None or home is None:
@@ -2537,7 +2541,7 @@ def compute_overall_avg(rating):
 RATING_ICONS = {"outside_scoring": "\U0001F3AF", "inside_scoring": "\U0001F3C0", "outside_defense": "\U0001F9F1",
                  "inside_defense": "\U0001F6E1", "rebounding": "\U0001F504", "offensive_flow": "\U0001F30A"}
 
-def compute_ratings_watchlist(rankings, our_overall_avg=None):
+def compute_ratings_watchlist(rankings, our_rating=None):
     """One card per rating category over the current power-rankings pool.
     Per Tom: outliers are top priority - each card's leader is flagged as a
     statistical outlier when its value is unusual relative to the *other
@@ -2546,11 +2550,13 @@ def compute_ratings_watchlist(rankings, our_overall_avg=None):
     secondary view: the #1 team is shown emphasized with the next two
     teams as runners-up. A team that's a severe NEGATIVE outlier in a
     category (notably worse than the pool, not just last-place) is called
-    out too, separately from the leader/runners-up. `our_overall_avg` -
-    our own team's average rating across all 6 categories, over our own
-    last few games, computed independently of whether we're even in this
-    ranked pool (see build_report) - is attached to every card so the
-    leader's value always has something of ours to compare against."""
+    out too, separately from the leader/runners-up. `our_rating` - our own
+    team's per-category average rating over our last few games (see
+    _rate_team_recent_form), computed independently of whether we're even
+    in this ranked pool (see build_report) - supplies each card's "You"
+    value: OUR average in that SAME category, so the leader's number is
+    compared like-for-like (per Tom, 2026-10-15), never against our overall
+    composite."""
     cards = []
     for cat in RATING_CATEGORY_KEYS:
         vals = [(r, r[cat]) for r in rankings if r.get(cat) is not None]
@@ -2575,34 +2581,30 @@ def compute_ratings_watchlist(rankings, our_overall_avg=None):
             {"team": weak_team["name"], "is_us": weak_team.get("is_us", False), "value": weak_val, "z": weak_z}
             if weak_z <= -OUTLIER_Z_THRESHOLD and weak_team is not leader_team else None
         )
+        our_cat_val = our_rating.get(cat) if our_rating else None
         cards.append({
             "category": cat, "label": RATING_LABELS[cat],
             "leader": {"team": leader_team["name"], "is_us": leader_team.get("is_us", False), "value": leader_val,
                        "is_outlier": z_of(leader_val) >= OUTLIER_Z_THRESHOLD},
             "runners_up": runners_up, "weak_outlier": weak_outlier,
-            "you_avg": our_overall_avg,
-            "you_gap": (leader_val - our_overall_avg) if our_overall_avg is not None else None,
+            "you_avg": our_cat_val,
+            "you_gap": (leader_val - our_cat_val) if our_cat_val is not None else None,
         })
     return {"cards": cards}
 
-def _rate_team_recent_form(session, conn, team, schedules, recent_n=5, since_date=None):
+def _rate_team_recent_form(session, conn, team, schedules, recent_n=5):
     """Average boxscore ratings (+ W-L) over a team's finished games, from
     an already-fetched schedules dict (see compute_top_group_by_head_to_
     head). Shared by fetch_division_power_rankings (for the top-N group,
     always the last `recent_n` games) and by build_report to rate our OWN
     team even when we're not in that top-N group - "vs. your average" in
     the watchlist needs something to compare against regardless of where
-    we sit in the standings. If `since_date` (YYYY-MM-DD) is given, it
-    overrides `recent_n` entirely: every competitive game on or after that
-    date counts, however many that is - per Tom, our own average should
-    reflect the whole (current) season from a chosen date, not a fixed
-    last-N window. Returns None if no rated games are found."""
+    we sit in the standings. Always the last `recent_n` games, for every
+    team including ours (per Tom, 2026-10-15). Returns None if no rated
+    games are found."""
     team_id = team["id"]
     finished = schedules.get(team_id, [])
-    if since_date:
-        recent_matches = [m for m in finished if m["start"][:10] >= since_date]
-    else:
-        recent_matches = finished[-recent_n:]
+    recent_matches = finished[-recent_n:]
     cached = load_cached_match_ratings(conn, team_id, [m["matchid"] for m in recent_matches])
     rows = []
     for m in recent_matches:
@@ -3080,15 +3082,14 @@ def build_report(session, conn, team_key):
     # per Tom, the outlier cards should show the category leader's rating
     # against "my own average" regardless of standing. Always computed
     # fresh (not reused from the group's last-N-games entry even if we
-    # happen to be in it) since OWN_RATING_SINCE, when set, changes the
-    # window to "this whole season from a date" rather than "last 5
-    # games" - a different question from what the ranked table shows.
+    # happen to be in it), so it still exists on weeks our own row isn't
+    # in the ranked pool. Same last-5 window as every other team.
     our_rating = None
     try:
         our_team_row = next((t for t in data["division_rows"] if t.get("is_us")), None)
         if our_team_row:
             our_schedule = {our_team_id: _fetch_finished_matches(session, our_team_id)}
-            our_rating = _rate_team_recent_form(session, conn, our_team_row, our_schedule, since_date=OWN_RATING_SINCE)
+            our_rating = _rate_team_recent_form(session, conn, our_team_row, our_schedule)
             if our_rating is not None:
                 top_group_ids = {r["team_id"] for r in data["power_rankings"] if r.get("in_top_group")}
                 our_rating["vs_top_win_pct"] = _win_pct_vs_group(our_team_id, our_schedule, top_group_ids)
@@ -3101,7 +3102,7 @@ def build_report(session, conn, team_key):
     data["our_rating"] = our_rating
     data["our_overall_avg"] = our_overall_avg
     top_group_rankings = [r for r in data["power_rankings"] if r.get("in_top_group")]
-    data["ratings_watchlist"] = compute_ratings_watchlist(top_group_rankings, our_overall_avg)
+    data["ratings_watchlist"] = compute_ratings_watchlist(top_group_rankings, our_rating)
     try:
         data["league_arenas"] = fetch_league_arena_benchmark(session, conn, team_key, our_team_id,
                                                               data["division_rows"], data["now"][:10])
