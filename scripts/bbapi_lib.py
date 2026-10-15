@@ -1513,7 +1513,7 @@ def _power_rankings_html(data):
         'differential against the current "Top 6" group only - the input to Top 6 selection, not the Power '
         'score; a <code>*</code> means it had no games yet against that group, so its selection weight shifted '
         'entirely onto its rating (see the League power rankings tooltip). <b style="color:var(--ink)">Rating</b> '
-        'is the raw average boxscore composite (last up to 5 competitive games); its component column is that '
+        'is the raw average boxscore composite (last up to 5 regular-season and playoff games); its component column is that '
         f'value min-max normalized 0-100 across the conference, weighted {POWER_WEIGHT_RATINGS * 100:.0f}% of '
         f'Power. <b style="color:var(--ink)">Last-5 / vs Top 6</b> are win% over those samples, weighted '
         f'{POWER_WEIGHT_RECENT_RECORD * 100:.0f}% and {POWER_WEIGHT_VS_TOP_RECORD * 100:.0f}% respectively - a '
@@ -2530,12 +2530,19 @@ RATING_LABELS = {"outside_scoring": "Outside Scoring", "inside_scoring": "Inside
 OUTLIER_Z_THRESHOLD = 1.25
 
 def compute_overall_avg(rating):
-    """Our own single "You (avg)" number: rating's 6 category values,
-    averaged. Shared by build_report (which computes `rating` via
-    _rate_team_recent_form) and _power_rankings_html (which uses the same
-    number to color each rating cell in the ranked table - see Tom's
-    request to color above/below our own average). None if `rating` is
-    None or has no usable category values."""
+    """Our own overall composite: rating's 6 category values, averaged.
+    Used only for the composite "Avg" column in the power rankings table.
+    Every per-category comparison uses OUR value in that same category
+    instead (per Tom, 2026-10-15) - on the outlier cards' "You" line and
+    in that category's table column:
+      - Outside Scoring: rating["outside_scoring"]
+      - Inside Scoring:  rating["inside_scoring"]
+      - Outside Defense: rating["outside_defense"]
+      - Inside Defense:  rating["inside_defense"]
+      - Rebounding:      rating["rebounding"]
+      - Offensive Flow:  rating["offensive_flow"]
+    `rating` comes from _rate_team_recent_form (via build_report). None if
+    `rating` is None or has no usable category values."""
     vals = [rating[k] for k in RATING_CATEGORY_KEYS if rating and rating.get(k) is not None] if rating else []
     return sum(vals) / len(vals) if vals else None
 RATING_ICONS = {"outside_scoring": "\U0001F3AF", "inside_scoring": "\U0001F3C0", "outside_defense": "\U0001F9F1",
