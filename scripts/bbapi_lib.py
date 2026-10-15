@@ -2529,7 +2529,7 @@ RATING_LABELS = {"outside_scoring": "Outside Scoring", "inside_scoring": "Inside
                   "rebounding": "Rebounding", "offensive_flow": "Offensive Flow"}
 # Display order of the outlier cards on the Overview tab only (per Tom,
 # 2026-10-15). RATING_CATEGORY_KEYS stays as-is so nothing else shifts.
-OUTLIER_CARD_ORDER = ("outside_scoring", "outside_defense", "offensive_flow", "inside_scoring", "inside_defense", "rebounding")
+OUTLIER_CARD_ORDER = ("inside_scoring", "inside_defense", "rebounding", "outside_scoring", "outside_defense", "offensive_flow")
 OUTLIER_Z_THRESHOLD = 1.25
 
 def compute_overall_avg(rating):
