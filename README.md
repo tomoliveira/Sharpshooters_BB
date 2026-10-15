@@ -277,8 +277,9 @@ fragment:
   `POWER_WEIGHT_RATINGS` **50%** overall rating (recent-form boxscore
   ratings - outside/inside scoring, outside/inside defense, rebounding,
   offensive flow, averaged over each team's last up to 5 competitive
-  games: league, cup, playoffs, TV-flagged league games, B3; friendlies
-  and BBM scrimmages excluded - then min-max normalized across the whole
+  games, regular season and playoffs only (TV-flagged league games
+  included; private league, cup, B3, friendlies and BBM scrimmages are
+  excluded - an allowlist on the `league` match-type family) - then min-max normalized across the whole
   conference so the best-rated team scores 100 and the worst scores 0),
   `POWER_WEIGHT_RECENT_RECORD` **15%** win% over those same last 5 games,
   `POWER_WEIGHT_VS_TOP_RECORD` **35%** win% specifically against the "Top
@@ -316,14 +317,14 @@ fragment:
   `*` in the table (`used_fallback_diff`) - this only affects "Top 6"
   membership, not the Power score itself.
 
-  Our own team's row uses the same rating window "You (avg)" on the
-  outlier cards uses (`own_rating_since`, when set - not necessarily the
-  same last-5-games window the rest of the table uses), and its rating
-  cells are shown in plain color rather than red/green, since comparing
-  our own values to our own average isn't a threat signal the way an
-  opponent's rating is. Every other team's rating cell is colored against
-  `compute_overall_avg(our_rating)` - red above it (they outgun us there),
-  green below it (we're already ahead). Our **next scheduled league
+  Our own team's row uses the same last-5-games window as every other
+  team, and its rating cells are shown in plain color rather than
+  red/green, since comparing our own values to our own average isn't a
+  threat signal the way an opponent's rating is. Every other team's rating
+  cell is colored against OUR average in that same category
+  (`our_rating[category]`; the composite "Avg" column against
+  `compute_overall_avg(our_rating)`) - red above it (they outgun us
+  there), green below it (we're already ahead). Our **next scheduled league
   opponent** (regular season or playoff - not friendly/cup/B3/etc.,
   resolved from the full schedule in `extract_data` as
   `next_league_opponent_id`) is highlighted and badged in the table even
@@ -346,16 +347,10 @@ fragment:
     injuries aren't exposed anywhere in the BuzzerBeater API, so they're
     not part of any of this - check a team's roster page by hand if that
     matters. Each card also shows **"You (avg)"** - our own team's rating
-    in that category, averaged over our own recent games, so the
-    leader's number always has something of ours to compare against even
-    on weeks we're not in the top-6 group ourselves. Normally the same
-    last-5-games window as everyone else; `config.json`'s
-    `own_rating_since` (a `YYYY-MM-DD` string) overrides that to "every
-    competitive game since this date" instead - a one-season judgment
-    call (per Tom, for the current season only), not a permanent rule,
-    so it's left unset for a fresh season rather than defaulting to
-    always-on. (The card label itself doesn't call out which window is
-    active - per Tom, that's not worth surfacing in the UI.)
+    in that same category, averaged over our last 5 games (the same
+    window as every other team), so the leader's number is compared
+    like-for-like and always has something of ours to compare against even
+    on weeks we're not in the top-6 group ourselves.
 
 ## Methodology tooltips
 
