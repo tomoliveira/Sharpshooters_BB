@@ -1,0 +1,100 @@
+{
+ "levels": {
+  "1": {
+   "n_leagues": 1,
+   "n_teams": 15,
+   "n_bots": 1,
+   "payroll": {
+    "min": 435943,
+    "p10": 561498,
+    "p25": 717184,
+    "median": 790940,
+    "p75": 852430,
+    "p90": 974138,
+    "max": 1092343
+   },
+   "payroll_mean": 780038,
+   "payroll_cv": 0.21,
+   "player_salary": {
+    "p25": 6141,
+    "median": 31364,
+    "p75": 118950,
+    "p90": 168275,
+    "max": 300931
+   },
+   "n_players": 180,
+   "share_players_over_180k": 0.094,
+   "top_player_median": 203236,
+   "top3_share_median": 0.62,
+   "corr_payroll_winpct": 0.78,
+   "roster_size_median": 11
+  },
+  "2": {
+   "n_leagues": 4,
+   "n_teams": 59,
+   "n_bots": 5,
+   "payroll": {
+    "min": 77898,
+    "p10": 275612,
+    "p25": 304684,
+    "median": 388141,
+    "p75": 477406,
+    "p90": 506857,
+    "max": 585923
+   },
+   "payroll_mean": 383579,
+   "payroll_cv": 0.28,
+   "player_salary": {
+    "p25": 5654,
+    "median": 17540,
+    "p75": 51228,
+    "p90": 79142,
+    "max": 262795
+   },
+   "n_players": 707,
+   "share_players_over_180k": 0.007,
+   "top_player_median": 91710,
+   "top3_share_median": 0.59,
+   "corr_payroll_winpct": 0.68,
+   "roster_size_median": 12
+  },
+  "3": {
+   "n_leagues": 16,
+   "n_teams": 120,
+   "n_bots": 136,
+   "payroll": {
+    "min": 22860,
+    "p10": 40996,
+    "p25": 58661,
+    "median": 128647,
+    "p75": 202473,
+    "p90": 274122,
+    "max": 445259
+   },
+   "payroll_mean": 144980,
+   "payroll_cv": 0.64,
+   "player_salary": {
+    "p25": 2667,
+    "median": 5438,
+    "p75": 11723,
+    "p90": 24779,
+    "max": 147874
+   },
+   "n_players": 1620,
+   "share_players_over_180k": 0.0,
+   "top_player_median": 26135,
+   "top3_share_median": 0.51,
+   "corr_payroll_winpct": 0.65,
+   "roster_size_median": 12.0
+  }
+ },
+ "ours": {
+  "payroll": 57193,
+  "max_salary": 11699,
+  "pct_by_level": {
+   "1": 0,
+   "2": 0,
+   "3": 23
+  }
+ }
+}

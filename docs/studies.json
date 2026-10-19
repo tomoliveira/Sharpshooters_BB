@@ -145,6 +145,14 @@
       "date": "2026-09-24",
       "path": "references/game-manual.md",
       "summary": "The official manual, summarized in our own words by topic with links to each chapter: promotion bonuses, the Division III minimum payroll, arena limits, training minutes, tactics, transfers and cups."
+    },
+    {
+      "id": "salary-by-division",
+      "group": "research",
+      "title": "Salaries by division level (Brazil)",
+      "date": "2026-10-18",
+      "path": "studies/salary-by-division.md",
+      "summary": "Median payroll $129k in III, $388k in II, $791k in I; IV–V are all bots. Sharpshooters at $57k, and what staying in Division II would cost."
     }
   ]
 }
