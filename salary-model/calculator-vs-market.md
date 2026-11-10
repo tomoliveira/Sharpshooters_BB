@@ -58,6 +58,10 @@ Method: for each skill, take the calculator's own curve, `f(s) = ln(calc(s) / 17
 - Driving and Handling: nearly free.
 - Jump Shot, Rebounding and Inside Def: the expensive skills. Rebounding is likely even dearer than the calculator says.
 
+**The two salary rules in [Training doctrine](../studies/training-doctrine.md):**
+- **Shot Blocking: not supported.** The doctrine holds Shot Blocking low because "it adds too much salary." Tom confirmed on 2026-11-10 that this rule was a guess. **Calculated:** Season 73 salaries priced Shot Blocking at 1.15× (1.13× at PF/C), and the calculator at 1.65×. Neither shows it as expensive.
+- **Jump Range: supported.** The doctrine holds Jump Range low for the same salary reason. **Calculated:** salaries priced it at 3.95×, above the calculator's 2.38×.
+
 What is formula-dependent and should be re-checked after the rollover: Shot Blocking, Inside Shot (both repriced by the Season 73 patch), and Jump Range.
 
 ## Next steps
