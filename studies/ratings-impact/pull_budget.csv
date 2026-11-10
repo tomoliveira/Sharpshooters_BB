@@ -1,0 +1,8 @@
+part,page_pulls,minutes_at_30_per_min,notes
+Transfer-list search pages,20,0.7,About 15-20 pages
+Player pages,300,10.0,One per sampled player
+Game box scores,1800,60.0,6 games per player x 300 players
+Own games since 8/28,60,2.0,~50 box scores + weekly roster snapshots
+Total,2180,72.7,
+Total with 10% box-score reuse,2000,66.7,Shared box scores pulled once
+Total with 30% box-score reuse,1640,54.7,Shared box scores pulled once
