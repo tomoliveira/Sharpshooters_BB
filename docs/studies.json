@@ -153,6 +153,14 @@
       "date": "2026-10-18",
       "path": "studies/salary-by-division.md",
       "summary": "Median payroll $129k in III, $388k in II, $791k in I; IV–V are all bots. Sharpshooters at $57k, and what staying in Division II would cost."
+    },
+    {
+      "id": "ratings-impact",
+      "group": "research",
+      "title": "Skill impact via match ratings (on hold)",
+      "date": "2026-11-10",
+      "path": "studies/ratings-impact.md",
+      "summary": "Study plan: which skills, by position, drive match ratings and wins, per salary dollar. On hold until the new BuzzerBeater site is mapped."
     }
   ]
 }
