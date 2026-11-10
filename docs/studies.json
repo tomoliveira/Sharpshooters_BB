@@ -161,6 +161,14 @@
       "date": "2026-11-10",
       "path": "studies/ratings-impact.md",
       "summary": "Study plan: which skills, by position, drive match ratings and wins, per salary dollar. On hold until the new BuzzerBeater site is mapped."
+    },
+    {
+      "id": "profit-engine",
+      "group": "research",
+      "title": "Profit engine for winning stints",
+      "date": "2026-11-10",
+      "path": "studies/profit-engine.md",
+      "summary": "A two-season Division II floor stretch costs $2.0M-$2.5M above Div III income (0.9-1.7 seasons of saving); Mloty's teen flips fell from 23 to 2.3 a year but still sold near $200k through 2025; skills-to-price is blocked on transfer-list data."
     }
   ]
 }
