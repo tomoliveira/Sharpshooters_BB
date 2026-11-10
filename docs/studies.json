@@ -161,6 +161,14 @@
       "date": "2026-11-10",
       "path": "studies/ratings-impact.md",
       "summary": "Study plan: which skills, by position, drive match ratings and wins, per salary dollar. On hold until the new BuzzerBeater site is mapped."
+    },
+    {
+      "id": "training-salary-efficiency",
+      "group": "research",
+      "title": "Training per salary dollar",
+      "date": "2026-11-10",
+      "path": "studies/training-salary-efficiency.md",
+      "summary": "At our cohort's current ratings, Shot Blocking is still the cheapest inside training for C/PF; One on One at C/PF would likely beat it. Free Throw: Team Training, or a Training Court we don't own."
     }
   ]
 }
