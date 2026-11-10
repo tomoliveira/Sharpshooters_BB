@@ -10,11 +10,19 @@ This study reconciles the [Training doctrine](training-doctrine.md), the "Minimi
 2. **[Inference]** One on One at C/PF would beat Shot Blocking (est. 1.59 points per $100, about 1.7× better). training.aspx offers "C / PF (90%)" for One on One ([dropdown map](../references/training_dropdown_map.md)), but the [coefficient capture](../references/training_coefficients.md) has no C/PF row, so the estimate is 90% of the SF/PF row. Capturing the real row would settle it.
 3. **Official.** The Free Throw contradiction resolves: both statements are true. Free Throws are only a *training focus* under Team Training ([Training chapter](https://www.buzzerbeater.com/community/rules.aspx?nav=Training)). Separately, the Training Court building "will enable players to work on their free throws during the season", on top of normal training, though "the effect is not nearly as large as dedicating a full week of training to free throws" ([Arena chapter, Team Infrastructure](https://www.buzzerbeater.com/community/rules.aspx?nav=Arena)). It costs $500k for level 1 plus $5k a week per level.
    - **[Inference]** We don't own one: the finance ledger in `docs/report.db` has no facility or maintenance line. So for us, Team Training is still the only way to raise Free Throw.
-4. **Shot Blocking is not expensive in any data we hold, but position may change that.** The doctrine deprioritizes it for salary reasons. Both of our price sources say it is one of the cheapest skills:
+4. **Shot Blocking is not expensive in any data we hold, but position may change that.** The doctrine deprioritizes it for salary reasons, but Tom confirmed on 2026-11-10 that this rule was a guess, not a tested finding. Both of our price sources say it is one of the cheapest skills:
    - **Community (unverified):** the buzzer-manager.com curve is 1.65× from rating 1 to 20, ninth of ten priced skills ([curves](../salary-model/skill-curves-reference.md)).
    - **Calculated:** in the 266-player market regression, SB 5→20 raises predicted salary 1.79×, against 3.49× for Jump Range ([formula history](../salary-model/formula-history.md)).
    - **Official (patch notes):** the season-73 formula "priced up" Shot Blocking everywhere and made centers slightly more expensive ([floor players and deflation](../salary-model/reference-cases/floor-players-and-deflation.md)). Neither source above has a position term, so SB on a center may cost more than they show. This stays open until the skill-salary pricing work tests position.
 5. **[Inference]** Points per dollar is not wins per dollar. A Passing point on a center counts the same here as an Inside Defense point. The ranking needs each skill's weight in winning by position, which [Skill impact via match ratings](ratings-impact.md) is meant to produce.
+
+## Why cheap training matters for profit too
+
+Tom's goal is both wins and profit, with profit paying for the stretches where the team pushes to win (2026-11-10).
+
+- **Official.** Salaries are recalculated once a season from current skills ([formula history](../salary-model/formula-history.md)). The game manual itself suggests training more players than you need and selling the extras ([Training chapter](https://www.buzzerbeater.com/community/rules.aspx?nav=Training)).
+- **[Inference]** So a skill point does two jobs. It helps win games now, and it raises the player's sale value before that player's salary catches up. Cheap-to-train skills keep the payroll low for the season the player is kept, and the gain is still there when he is sold.
+- **[Inference]** This study only measures the salary side. Whether buyers pay more for some skills than others is not measured here; the transfer-list data in [`salary-model/players.csv`](../salary-model/players.csv) has starting (asking) prices, not final sale prices.
 
 ## Method
 
