@@ -62,6 +62,42 @@ def ledger():
     days = sorted({d for d, _ in seen})
     return [(d, -seen.get((d, "playerSalaries"), 0), seen.get((d, "tvMoney"))) for d in days]
 
+def capacity():
+    """Payroll the current Division III income could carry, from the ledger.
+
+    Season view: all dated transactions since the first payday on record
+    (2026-08-17); income = TV + merchandise + gate; fixed costs = staff + scouting.
+    Run-rate view: the last 8 weeks (from 2026-09-21), after newbie income ended.
+    """
+    db = sqlite3.connect(ROOT / "docs/report.db")
+    seen = {}
+    for (dj,) in db.execute("select data_json from snapshots order by fetched_at"):
+        for t in (json.loads(dj).get("economy") or {}).get("transactions", []):
+            seen[(t["date"], t["tag"], t["amount"])] = True
+    def tot(since):
+        out = {}
+        for d, tag, a in seen:
+            if d >= since:
+                out[tag] = out.get(tag, 0) + a
+        return out
+    season = tot("2026-08-10")
+    paydays = sum(1 for d, tag, _ in seen if tag == "tvMoney" and d >= "2026-08-10")
+    inc = season.get("tvMoney", 0) + season.get("merchandise", 0) + season.get("matchRevenue", 0)
+    fixed = -(season.get("staffSalaries", 0) + season.get("scouting", 0))
+    rs = -season.get("revenueSharing", 0)
+    recent = tot("2026-09-21")
+    weeks = 8
+    run = {k: recent.get(k, 0) / weeks for k in ("tvMoney", "merchandise", "matchRevenue", "staffSalaries", "scouting")}
+    return {
+        "season_paydays_on_record": paydays,
+        "season_totals": {k: round(v) for k, v in sorted(season.items())},
+        "season_breakeven_payroll": round((inc - fixed) / paydays),
+        "season_breakeven_after_revenue_sharing": round((inc - fixed - rs) / paydays),
+        "run_rate_weeks": weeks,
+        "run_rate": {k: round(v) for k, v in run.items()},
+        "run_rate_breakeven_payroll": round(sum(run.values())),
+    }
+
 def div_payrolls(level):
     return sorted(int(r["payroll"]) for r in csv.DictReader(open(ROOT / "studies/salary-by-division/teams.csv"))
                   if r["level"] == str(level) and r["is_bot"] == "0" and int(r["n_players"]) >= 5)
@@ -92,6 +128,7 @@ def main():
         "div2": {"n": len(d2), "min": lad["min"], "p10": lad["p10"], "median": lad["median"],
                  "gap_to_p10": round(lad["p10"] - proj),
                  "projected_percentile": round(pct(d2, proj), 1)},
+        "capacity": capacity(),
         "div3_projected_percentile": round(pct(d3, proj), 1),
     }
     json.dump(out, sys.stdout, indent=1, ensure_ascii=False)

@@ -210,5 +210,32 @@
   "gap_to_p10": 166580,
   "projected_percentile": 1.7
  },
+ "capacity": {
+  "season_paydays_on_record": 12,
+  "season_totals": {
+   "arenaExpansion": -1408400,
+   "matchRevenue": 1448548,
+   "merchandise": 343372,
+   "newbieIncome": 280000,
+   "playerSalaries": -679813,
+   "revenueSharing": -125000,
+   "scouting": -120000,
+   "staffSalaries": -421438,
+   "transfer": -286520,
+   "tvMoney": 1008252,
+   "unknown": 44473
+  },
+  "season_breakeven_payroll": 188228,
+  "season_breakeven_after_revenue_sharing": 177811,
+  "run_rate_weeks": 8,
+  "run_rate": {
+   "tvMoney": 84021,
+   "merchandise": 31712,
+   "matchRevenue": 130285,
+   "staffSalaries": -38890,
+   "scouting": -10000
+  },
+  "run_rate_breakeven_payroll": 197128
+ },
  "div3_projected_percentile": 40.8
 }

@@ -9,6 +9,7 @@ Follow-up to [Salaries by division level](salary-by-division.md), which asked fo
 - **Projected payroll after recalculation: about $109k a week**, up from $78.7k on today's roster. Model band $76k–$157k.
 - **That's still far below Division II.** It would rank above only 1 of Division II's 59 human teams (1.7th percentile). The gap to Division II's p10 ($275.6k) is about **$167k a week, or $2.2M a season**, roughly three times the $750k promotion bonus.
 - **The 130%-of-TV-money minimum payroll has never been charged to us.** In the 12 paydays on record, player salaries were 57%–82% of TV money, and the amount paid equals the sum of the roster's salaries. Either the rule is not what our manual summary says, or it is applied on a base we don't know. This needs checking on the official Economy page (see Next steps).
+- **Our Division III income can carry a payroll of about $178k–$197k a week at break-even.** At $109k that leaves roughly $70k–$90k a week for arena expansion and transfers. That's the money that paid for this season's $1.41M of arena expansion.
 
 ## Data
 
@@ -72,6 +73,7 @@ The band (**$76k–$157k**) moves the whole roster up or down by one residual SD
 
 - **Most of the rise is the teenagers we're training.** Akrivopoulos and Støen alone add about $15k a week. That's the doctrine working as intended: the salary catches up with the training.
 - **A sanity check that held up.** Sit Ki Poon isn't being trained ([Zhang vs. Sit Ki](zhang-vs-sit-ki-tco.md)), so his salary should already match his skills. The model puts him at $11,576 against an actual $11,699, 1% off. **[Inferrence]** The three oldest players (42–46) are probably not being trained either, and they land within 2%–15%.
+- **Caveat: Season 74 may change the formula.** [Inferrence] Notion notes from 2026-10-09 quote an official announcement that Season 74 goes back to the Season 72 salary formulas. Our model is fitted on Season 73 salaries, so the real numbers after the recalculation could differ. This hasn't been checked against the source.
 - **Caveat: most of our players are cheaper than the model's sample.** Only 16 of the 266 market players earn under $10k, and 14 of our 17 do. The close fit on the veterans is reassuring, but the cheapest players are an extrapolation.
 
 ## Against Division II
@@ -87,17 +89,38 @@ The band (**$76k–$157k**) moves the whole roster up or down by one residual SD
 
 **Paying for it.** Closing the gap to the p10 means about **$167k more a week**, or **$2.17M** over a 13-payday season ([Season structure](season-structure.md)). Promotion pays a one-time **$750k** into Division II ([Game manual](../references/game-manual.md)). **[Inferrence]** The bonus covers roughly a third of one season at Division II's floor. Staying up has to be paid for by Division II revenue (TV money, gate, merchandise), which we have no figures for yet.
 
+## What our income can carry
+
+The other side of the question: how much payroll can our **current** income pay for? From the same ledger. **Official** figures, break-even **calculated**:
+
+| | Season so far (12 paydays) | Last 8 paydays (from 2026-09-21) |
+|---|---|---|
+| TV money | $1,008,252 | $84,021 per payday |
+| Merchandise | $343,372 | $31,712 |
+| Gate (match revenue) | $1,448,548 | $130,285 |
+| Staff salaries | −$421,438 | −$38,890 |
+| Scouting | −$120,000 | −$10,000 |
+| **Payroll at break-even, per payday** | **$188k** ($178k after the two $62k revenue-sharing charges) | **$197k** |
+
+Left out on purpose: the $280k of newbie income (it ended on 2026-09-21 and won't come back), transfers, and arena expansion, which is spending rather than running cost.
+
+- **We paid $680k in player salaries this season and spent $1.41M on arena expansion.** The arena took everything the operating surplus produced.
+- **At the projected $109k, the surplus drops to about $70k–$90k a week.** That's about $0.9M–$1.15M a season for arena work and transfers, less than this season's $1.41M arena spend.
+- **Division II's p10 ($276k) is $80k–$100k a week above what Division III income can pay.** [Inferrence] Division II TV money, gate and merchandise are probably higher, but we have no figures for them yet, so we can't say how much of that gap they close.
+
 ## What this means
 
 **[Inferrence]**
 
 - **Training alone won't make us Division II-sized by next season.** Recalculation lifts the payroll by about $30k a week; Division II's floor is about $170k higher still. Getting there takes buying players, or several more seasons of training.
 - **That's not automatically bad.** Payroll correlates with winning, but it isn't the whole story. The cheapest Division II team pays $78k and is still in Division II. A cheap, developing roster in Division II earns the promotion bonus and higher income, at the risk of relegation.
-- **The choice depends on what you're optimizing.** Wins now mean buying salary. Money and long-run strength mean staying cheap, accepting relegation risk, and timing the climb. That's a decision for Tom, not something the data settles.
+- **Tom's choice (2026-11-10): balance profit and wins.** Keep the current doctrine (train, keep salaries low, promote) while building the income to carry Division II and, later, top-tier salaries.
+- **In practice, for now:** let payroll grow only through training. Keep it under the break-even line ($178k–$197k a week on today's income) with a surplus left for arena expansion, since gate income is what lets a bigger payroll pay for itself. Raise the payroll target when income rises, not before. The break-even line, not Division II's p10, is the limit worth tracking week to week.
 
 ## Next steps
 
 1. **Check the minimum-payroll rule on the official [Economy page](https://www.buzzerbeater.com/community/rules.aspx?nav=Economy).** This session couldn't reach buzzerbeater.com, so it's still unconfirmed. Note what the percentage applies to, when it's charged, and the Division II figure (187% or 190%).
 2. **Re-run the projection after the recalculation** and compare it with the real new salaries. That tests the model on our own players.
-3. **Get Division II's TV money and gate figures** for a Division II team. Without them, the cost of staying up can't be weighed against Division II income.
-4. **Decide the target: profit or wins.** That decides whether a study of Młoty Stargard-style teenage flips ([How long-run winners are built](../top-teams-research/BB_Top_Teams_Strategy_Report.md)) is worth doing.
+3. **Get Division II's TV money and gate figures** for a Division II team. They move the break-even line, and without them the cost of staying up can't be weighed against Division II income.
+4. **Add the break-even line to the report's Finances tab**, next to the weekly payroll, so the limit is visible every week.
+5. **With the balance target, a Młoty Stargard-style teenage flip study is worth a look** ([How long-run winners are built](../top-teams-research/BB_Top_Teams_Strategy_Report.md)): selling trained teenagers is income that doesn't depend on wins.
