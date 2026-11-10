@@ -10,7 +10,7 @@ Tom's goal (2026-11-10): balance profit and wins, because profit pays for future
 - **Flips still sell, but the engine is a fraction of what it was.** Młoty Stargard's profitable flips fell from **23 a year (2017–2020, $4.8M profit a year)** to **2.3 a year (2024–2026, $163k a year)**. Median sale prices held near $195k–$204k through 2025, so a flip that sells still pays well; there are just far fewer of them. **Calculated** from the 134 recorded flips.
 - **The flip window is open now.** Młoty bought 97% of its flips in the first 14 days of a season (median day 5) and sold at a median day 44 (quartiles day 34–57). Season 74 started around **2026-11-09**, so the buy window runs to about **2026-11-23** and the sell window to about **2026-12-13 to 2027-01-05**. **Calculated** from season dates.
 - **Three flips a season at the 2024–2026 median profit ($78k) would cut the saving time for a Division II stretch by about half a season.** At the 2021–2023 median ($135k) it's closer to a full season. **Calculated.**
-- **We already hold zero-cost flip candidates.** Three players first appeared on our roster in the 2026-11-09 snapshot: Danilo Luza (19, MVP potential, $2,575/wk) and Robson de Castilho and Nizan Stucco (19, superstar potential). **[Inferrence]** They're this season's draftees; the ledger records them as `drafted` with no fee. Młoty's profitable MVP and superstar flips sold at a median **$191k** and **$130k**. Selling one is a live market action, so it's Tom's call (see What this means).
+- **We already hold zero-cost flip candidates.** Three players first appeared on our roster in the 2026-11-09 snapshot: Danilo Luza (19, MVP potential, $2,575/wk) and Robson de Castilho and Nizan Stucco (19, superstar potential). **[Inferrence]** They're this season's draftees; the ledger records them as `drafted` with no fee. Młoty's profitable MVP and superstar flips sold at a median **$191k** and **$130k**. **Tom's decision (2026-11-10): he is selling the new draftees.** Their sale prices are free data points for section 3.
 
 ## 1. What one winning stretch costs
 
@@ -105,12 +105,12 @@ By year since 2023 (**calculated**):
 
 **[Inferrence]** throughout.
 
-- **The cheapest profit engine is our own draft.** A draftee costs no fee. If one of this season's draftees sells near the historical MVP or superstar medians, that's $130k–$190k, about 1.5–2.8 paydays of our projected operating surplus ($69k–$88k a payday at a $109k payroll). The trade-off: the manual says self-drafted players raise merchandise sales, and the training doctrine may want them. Selling is a live action and needs Tom's go-ahead.
+- **The cheapest profit engine is our own draft.** A draftee costs no fee. If one of this season's draftees sells near the historical MVP or superstar medians, that's $130k–$190k, about 1.5–2.8 paydays of our projected operating surplus ($69k–$88k a payday at a $109k payroll). The trade-off: the manual says self-drafted players raise merchandise sales, and the training doctrine may want them. Tom decided on 2026-11-10 to sell this season's draftees. He doesn't want live sales or bids run as experiments; findings come from recorded data only.
 - **Buying to flip is a weaker bet than it was.** Margins halved from 2017–2020 to 2021–2023, and a buyer now pays more up front. A test of one or two buys would cost little, but it can't be judged until the skills-to-price data exists.
 - **For the saving plan:** keep payroll growth to training, keep arena capex below the surplus, and treat a Division II floor stretch as about 1–2 seasons away, or about one season with a modest flip habit. A Division II contender stretch is 2–5 seasons away and also needs a better world rank to buy players above $116,779.
 
 ## Next steps
 
-1. Tom decides whether to list one of this season's draftees as a market test before about 2026-12-13 (the sell window opens around day 34).
+1. Record each draftee's skills, potential, height and salary at listing, and the final price, as the first rows of the skills-to-price data. Młoty's timing puts the best sell window at about 2026-12-13 to 2027-01-05.
 2. Run the transfer-list sweep from Tom's computer during weeks 0–8 of Season 74, then fit the skills-to-price model.
 3. Rerun [`cash_plan.py`](profit-engine/cash_plan.py) once Season 74 salaries post and once Division II income figures are known.
