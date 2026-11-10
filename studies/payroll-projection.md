@@ -108,6 +108,40 @@ Left out on purpose: the $280k of newbie income (it ended on 2026-09-21 and won'
 - **At the projected $109k, the surplus drops to about $70k–$90k a week.** That's about $0.9M–$1.15M a season for arena work and transfers, less than this season's $1.41M arena spend.
 - **Division II's p10 ($276k) is $80k–$100k a week above what Division III income can pay.** [Inferrence] Division II TV money, gate and merchandise are probably higher, but we have no figures for them yet, so we can't say how much of that gap they close.
 
+## Tom's income target
+
+**Tom's goal (2026-11-10):** weekly income at least **$100k above the league's minimum payroll plus expenses**. Tom notes that every income category is higher in the upper leagues.
+
+How we read it: income = TV money + merchandise + gate. Minimum payroll = the manual summary's percentage of league TV money. Expenses = staff salaries + scouting. Figures are per payday over the last 8 paydays. **[Inferrence]** This reading uses the minimum payroll, not our actual payroll, and doesn't include arena expansion.
+
+**Division III today.** **Calculated.**
+
+| | Per payday |
+|---|---|
+| Minimum payroll, 130% × $84,021 | $109,227 |
+| Expenses (staff $38,890 + scouting $10,000) | $48,890 |
+| Margin | $100,000 |
+| **Income needed** | **$258,117** |
+| Income now ($84,021 TV + $31,712 merchandise + $130,285 gate) | $246,018 |
+| **Gap** | **−$12,099 (95% of target)** |
+
+**Division II.** Division II's TV money isn't in our data, but the test can still be written with it as the unknown. TV money counts on the income side and also sets the minimum payroll, so at 187% the target becomes:
+
+`merchandise + gate ≥ 0.87 × Division II TV money + $148,890`
+
+(At 190%: 0.90 ×.) Merchandise plus gate is **$161,997** today.
+
+| Division II TV money per payday | Merchandise + gate needed | Multiple of today's |
+|---|---|---|
+| $84,021 (same as now) | $221,988 | 1.37× |
+| $100,000 | $235,890 | 1.46× |
+| $125,000 | $257,640 | 1.59× |
+| $150,000 | $279,390 | 1.72× |
+
+The Division II TV money values are scenarios, not data. Expenses are held at today's level.
+
+**[Inferrence]** A higher TV payment raises the bar more than it raises income, because 187% of it is owed back as minimum payroll. So hitting the target in Division II depends mostly on **gate and merchandise growing by about 40%–70%**: more seats and higher prices in a bigger league, plus winning. That ties the target to the [arena expansion](arena-expansion-payback.md) work.
+
 ## What this means
 
 **[Inferrence]**
@@ -121,6 +155,6 @@ Left out on purpose: the $280k of newbie income (it ended on 2026-09-21 and won'
 
 1. **Check the minimum-payroll rule on the official [Economy page](https://www.buzzerbeater.com/community/rules.aspx?nav=Economy).** This session couldn't reach buzzerbeater.com, so it's still unconfirmed. Note what the percentage applies to, when it's charged, and the Division II figure (187% or 190%).
 2. **Re-run the projection after the recalculation** and compare it with the real new salaries. That tests the model on our own players.
-3. **Get Division II's TV money and gate figures** for a Division II team. They move the break-even line, and without them the cost of staying up can't be weighed against Division II income.
+3. **Get Division II's TV money and gate figures** for a Division II team. TV money is the one unknown in the Division II target test above. It also moves the break-even line, and without them the cost of staying up can't be weighed against Division II income.
 4. **Add the break-even line to the report's Finances tab**, next to the weekly payroll, so the limit is visible every week.
 5. **With the balance target, a Młoty Stargard-style teenage flip study is worth a look** ([How long-run winners are built](../top-teams-research/BB_Top_Teams_Strategy_Report.md)): selling trained teenagers is income that doesn't depend on wins.
