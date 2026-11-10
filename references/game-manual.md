@@ -44,6 +44,8 @@ The promotion bonus also comes with a boost to season-ticket holders and arena i
   | V, VI | 70% |
 
   **[Inference]** This limits the "keep salaries low" doctrine. Below 130% of our TV money, a lower payroll saves nothing, because the difference is charged anyway. Check our payroll against that floor on the Economy page before turning down a useful salary. After promotion the floor rises to 187%.
+
+  **Unconfirmed in practice (2026-11-10):** our ledger shows salaries of 57%–82% of TV money for 12 straight paydays with no top-up charged. See [Payroll after the next recalculation](../studies/payroll-projection.md#the-minimum-payroll-check). Re-read the official page before relying on this rule.
 - **Merchandise** sales rise with winning, with domestic and self-drafted players (weighted by how good they are), with national-team call-ups, and with league-leading stats.
 - **Debt:** a negative balance costs 5% a week. Below −$500k for two weekly updates, the whole roster is put on the transfer list at $0. If that doesn't recover the balance, the manager is fired.
 - **Taxes:**
