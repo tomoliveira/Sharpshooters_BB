@@ -6,6 +6,7 @@ Tom's goal (2026-11-10): balance profit and wins, because profit pays for future
 
 ## Short answer
 
+- **Tom's income target: weekly income at least $100k above the league's minimum payroll plus expenses.** In Division III we're **$12.1k a payday short** ($246.0k against a $258.1k target), so income needs to rise about 9%. Holding the target after promotion needs every income category about **1.7× today's** in Division II, and about **3.5×** in Division I. **Calculated** (section 1a).
 - **A two-season stretch at Division II's floor payroll costs about $2.0M–$2.5M in salary above what our Division III income carries.** After the $750k promotion bonus and today's $283k cash, that's **0.9–1.7 seasons of saving** at our projected payroll. Contending in Division II (median payroll) takes **3.4–4.9 seasons** of saving. **Calculated**, salary only (see caveats).
 - **Flips still sell, but the engine is a fraction of what it was.** Młoty Stargard's profitable flips fell from **23 a year (2017–2020, $4.8M profit a year)** to **2.3 a year (2024–2026, $163k a year)**. Median sale prices held near $195k–$204k through 2025, so a flip that sells still pays well; there are just far fewer of them. **Calculated** from the 134 recorded flips.
 - **The flip window is open now.** Młoty bought 97% of its flips in the first 14 days of a season (median day 5) and sold at a median day 44 (quartiles day 34–57). Season 74 started around **2026-11-09**, so the buy window runs to about **2026-11-23** and the sell window to about **2026-12-13 to 2027-01-05**. **Calculated** from season dates.
@@ -42,6 +43,31 @@ Tom's goal (2026-11-10): balance profit and wins, because profit pays for future
 - **Arena spending competes for the same surplus.** This season's $1.41M of arena expansion used up the whole operating surplus ([Payroll projection](https://github.com/tomoliveira/Sharpshooters_BB/pull/10)). Every season of arena capex at that size adds about a season to the saving times above.
 - **Acquisition limit.** At world rank 13,701 we could only buy players earning up to $116,779 a week ([Top teams report](../top-teams-research/BB_Top_Teams_Strategy_Report.md), section 7). A Division II contender roster needs a few players above that, so it has to be trained or bought after our rank improves.
 - **Cash ceilings don't bind.** The hoarding tax starts at $25M ([Game manual](../references/game-manual.md)), far above any figure here. The floor that matters is debt: below −$500k for two weekly updates, the whole roster is listed at $0. **[Inferrence]** Keep at least one season's stretch deficit in reserve before starting a stretch, so a bad season can't trigger a forced sale.
+
+## 1a. Tom's income target
+
+**Tom (2026-11-10):** keep weekly income **$100k above the league's minimum payroll plus expenses**. Every income category is higher in the upper leagues.
+
+**How we read it.** Target = minimum payroll + staff and scouting costs + $100k, per Monday payday. At the floor payroll, meeting it saves at least **$1.3M a season** (13 paydays) for winning stretches.
+
+**Inputs** (per payday, last 8 paydays, 2026-09-21 to 2026-11-09, from the [payroll projection](https://github.com/tomoliveira/Sharpshooters_BB/pull/10) ledger, **official**):
+
+- Income: TV $84,021 + merchandise $31,712 + gate $130,285 = **$246,018**.
+- Expenses: staff $38,890 + scouting $10,000 = **$48,890**.
+- Minimum payroll: 130% of TV money in Division III, 187% in II and 241.5% in I ([Game manual](../references/game-manual.md)). The arena handoff gives 190% for Division II.
+
+**Results** (**calculated**, [`income_target.py`](profit-engine/income_target.py), [`income_target.csv`](profit-engine/income_target.csv)):
+
+| Division | Minimum payroll | Target at today's TV money | Short by | Income multiple needed vs. today |
+|---|---|---|---|---|
+| III | 130% of TV | $258,117 | $12,099 | **1.09×** |
+| II | 187% (190%) | $306,009 ($308,530) | — | **1.67×** (1.72×) |
+| I | 241.5% | $351,801 | — | **3.45×** |
+
+- **The multiple column is the useful one for the upper leagues.** We don't know Division II's figures. If every income category scales by the same factor and expenses stay flat, the target holds once income reaches 1.67× today's. The minimum payroll grows with TV money too, so the needed multiple is bigger than the target's dollar increase suggests. **[Inferrence]** Staff costs may also rise after promotion, which would push the multiple up.
+- **Division III is close.** About $12k a payday more income would meet it. **[Inferrence]** The obvious levers are gate (arena pricing and fill) and merchandise (which rises with winning and self-drafted players).
+- **Caveat: the 130% floor has never been charged to us.** Our payroll was 57%–82% of TV money for 12 paydays with no top-up ([payroll projection](https://github.com/tomoliveira/Sharpshooters_BB/pull/10)). The target still works as a yardstick, but if the floor rule is different the target moves with it.
+- **Effect on the cash plan.** Our projected payroll after the recalculation ($109,032) is almost exactly the Division III floor ($109,227). So at the target we'd save $1.3M a season, against $0.9M–$1.15M now. That's about the top of the saving range used in section 1.
 
 ## 2. Do post-draft flips still pay?
 
@@ -113,4 +139,4 @@ By year since 2023 (**calculated**):
 
 1. Record each draftee's skills, potential, height and salary at listing, and the final price, as the first rows of the skills-to-price data. Młoty's timing puts the best sell window at about 2026-12-13 to 2027-01-05.
 2. Run the transfer-list sweep from Tom's computer during weeks 0–8 of Season 74, then fit the skills-to-price model.
-3. Rerun [`cash_plan.py`](profit-engine/cash_plan.py) once Season 74 salaries post and once Division II income figures are known.
+3. Rerun [`cash_plan.py`](profit-engine/cash_plan.py) and [`income_target.py`](profit-engine/income_target.py) once Season 74 salaries post and once Division II income figures are known.
