@@ -21,7 +21,7 @@ This study reconciles the [Training doctrine](training-doctrine.md), the "Minimi
 Tom's goal is both wins and profit, with profit paying for the stretches where the team pushes to win (2026-11-10).
 
 - **Official.** Salaries are recalculated once a season from current skills ([formula history](../salary-model/formula-history.md)). The game manual itself suggests training more players than you need and selling the extras ([Training chapter](https://www.buzzerbeater.com/community/rules.aspx?nav=Training)).
-- **[Inference]** So a skill point does two jobs. It helps win games now, and it raises the player's sale value before that player's salary catches up. Cheap-to-train skills keep the payroll low for the season the player is kept, and the gain is still there when he is sold.
+- **[Inference]** So a skill point does two jobs. It helps win games now, and it raises the player's sale value before that player's salary catches up. Cheap-to-train skills keep the payroll low for the season the player is kept, and the gain is still there when the player is sold.
 - **[Inference]** This study only measures the salary side. Whether buyers pay more for some skills than others is not measured here; the transfer-list data in [`salary-model/players.csv`](../salary-model/players.csv) has starting (asking) prices, not final sale prices.
 
 ## Method
