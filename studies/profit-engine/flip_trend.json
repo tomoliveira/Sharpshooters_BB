@@ -1,0 +1,148 @@
+{
+  "by_year": {
+    "2017": {
+      "n": 21,
+      "median_buy": 10000.0,
+      "median_sale": 195000.0,
+      "median_profit": 184000.0,
+      "total_profit": 4397967.0,
+      "median_days": 36.0
+    },
+    "2018": {
+      "n": 27,
+      "median_buy": 13000.0,
+      "median_sale": 198000.0,
+      "median_profit": 192000.0,
+      "total_profit": 5681024.0,
+      "median_days": 36.0
+    },
+    "2019": {
+      "n": 24,
+      "median_buy": 61645.0,
+      "median_sale": 299500.0,
+      "median_profit": 242950.0,
+      "total_profit": 5583756.0,
+      "median_days": 37.0
+    },
+    "2020": {
+      "n": 20,
+      "median_buy": 27777.5,
+      "median_sale": 199000.0,
+      "median_profit": 187000.0,
+      "total_profit": 3669635.0,
+      "median_days": 35.5
+    },
+    "2021": {
+      "n": 14,
+      "median_buy": 38166.5,
+      "median_sale": 181000.0,
+      "median_profit": 145500.0,
+      "total_profit": 2093466.0,
+      "median_days": 43.0
+    },
+    "2022": {
+      "n": 14,
+      "median_buy": 66666.0,
+      "median_sale": 252500.0,
+      "median_profit": 141500.0,
+      "total_profit": 2339114.0,
+      "median_days": 39.0
+    },
+    "2023": {
+      "n": 7,
+      "median_buy": 101000.0,
+      "median_sale": 195000.0,
+      "median_profit": 102400.0,
+      "total_profit": 798423.0,
+      "median_days": 53.0
+    },
+    "2024": {
+      "n": 1,
+      "median_buy": 21000.0,
+      "median_sale": 99000.0,
+      "median_profit": 78000.0,
+      "total_profit": 78000.0,
+      "median_days": 59.0
+    },
+    "2025": {
+      "n": 3,
+      "median_buy": 83600.0,
+      "median_sale": 204000.0,
+      "median_profit": 120000.0,
+      "total_profit": 279400.0,
+      "median_days": 37.0
+    },
+    "2026": {
+      "n": 3,
+      "median_buy": 6000.0,
+      "median_sale": 51700.0,
+      "median_profit": 45700.0,
+      "total_profit": 131900.0,
+      "median_days": 43.0
+    }
+  },
+  "by_potential": {
+    "superstar": {
+      "n": 11,
+      "median_buy": 10000.0,
+      "median_sale": 130000.0
+    },
+    "MVP": {
+      "n": 49,
+      "median_buy": 22222.0,
+      "median_sale": 190800.0
+    },
+    "hall of famer": {
+      "n": 74,
+      "median_buy": 44222.0,
+      "median_sale": 228550.0
+    }
+  },
+  "by_period": {
+    "2017-2020": {
+      "n": 92,
+      "flips_per_year": 23.0,
+      "median_buy": 22222.0,
+      "median_sale": 203050.0,
+      "median_profit": 194550.0,
+      "profit_per_year": 4833096
+    },
+    "2021-2023": {
+      "n": 35,
+      "flips_per_year": 11.7,
+      "median_buy": 55555.0,
+      "median_sale": 187000.0,
+      "median_profit": 135000.0,
+      "profit_per_year": 1743668
+    },
+    "2024-2026": {
+      "n": 7,
+      "flips_per_year": 2.3,
+      "median_buy": 26000.0,
+      "median_sale": 99000.0,
+      "median_profit": 78000.0,
+      "profit_per_year": 163100
+    }
+  },
+  "timing": {
+    "median_buy_day_of_season": 5.0,
+    "share_bought_in_first_14_days": 0.97,
+    "median_sell_day_of_season": 44.0,
+    "sell_day_quartiles": [
+      34.0,
+      44.0,
+      57.0
+    ]
+  },
+  "recent_season_length_days": [
+    97,
+    98,
+    97,
+    97,
+    98,
+    98,
+    98,
+    96
+  ],
+  "next_season_start_estimate": "2026-11-09"
+}

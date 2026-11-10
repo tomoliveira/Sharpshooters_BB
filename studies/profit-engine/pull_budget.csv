@@ -1,0 +1,5 @@
+step,pages_per_item,items,pulls,minutes_at_30_per_min,note
+Transfer-list search pages (age 18-19 filter),1,20,20,0.7,"~20 result pages per sweep [Inferrence: page count not yet checked on the new site]"
+Player page at listing (skills, potential, height, salary),1,200,200,6.7,one per listed teenager
+Player transfer history after the deadline (final price or unsold),1,200,200,6.7,one per listed teenager
+Total per weekly sweep,,,420,14,"repeat weekly for weeks 0-8 of the season: ~3,800 pulls, ~2 hours in total"
