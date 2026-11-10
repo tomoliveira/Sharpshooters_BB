@@ -108,6 +108,27 @@ Two regular-season pairs of home games tell the same story:
 - Demand grew over the season while prices also rose. That pushes the estimate toward zero, so true demand may be even more price-sensitive.
 - The −0.4 in `sharpshooters_arena_optimizer.py` shouldn't be used for our arena until this is refit on more games.
 
+## Against Tom's income target
+
+**Tom's goal (2026-11-10):** weekly income at least **$100k above the league's minimum payroll plus expenses**. The test and figures come from the Payroll projection study ([PR #10](https://github.com/tomoliveira/Sharpshooters_BB/pull/10), `studies/payroll-projection.md`). They're per payday, over the last 8 paydays.
+
+- **Division III: $12,099 a week short (95% of target).** Gate averages **$130,285** a payday.
+- **Division II:** merchandise plus gate has to reach **$221,988–$279,390** a payday, against **$161,997** today. That's **+$60k to +$117k a week**.
+
+What the arena can add, at today's demand:
+
+| Lever | Added per home game | Basis |
+|---|---|---|
+| Price each tier to just sell out | Small, a few $k | **[Inference]** The playoff bleachers price that sells out is $13.7 vs $14. Regular-season demand at today's prices isn't observed yet. |
+| Sell every seat at today's prices | Up to **+$40k** vs the 2026-10-24 game ($152,142) | **Calculated.** The full house at current prices is $192,400 (`arena_live.max_sellout`). |
+| Fill the $362,000 expansion | ~**$18k** if it fills like the built ones | **[Inference]** $51,220 × 362/1,046. That needs demand above today's capacity. |
+
+**[Inference]** What it means for the target:
+
+- **The arena can close the Division III gap.** About $12k a week is within reach of better pricing plus some demand growth.
+- **It can't reach the Division II target at Division III demand.** Selling every seat at today's prices every week adds about $62k a payday over the $130k average, which only reaches the low end of the +$60k to +$117k needed. The rest has to come from the demand boost that promotion gives season tickets and arena income (**Official**, [Standings](https://www.buzzerbeater.com/community/rules.aspx?nav=Standings)), and from merchandise.
+- **More seats bought ahead of demand work against the target.** The $362,000 expansion equals about 3.6 weeks of the $100k margin. Until a tier sells out in a regular-season game, cash is better kept for payroll, which also counts against the target.
+
 ## Next steps
 
 1. **Before setting next season's prices:** find out which seats the $362,000 expansion adds, then set each tier to the price that sells it out (the elasticity above gives a starting point). Any change on buzzerbeater.com needs Tom's go-ahead.
