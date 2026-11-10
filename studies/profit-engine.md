@@ -67,7 +67,7 @@ Tom's goal (2026-11-10): balance profit and wins, because profit pays for future
 - **The multiple column is the useful one for the upper leagues.** We don't know Division II's figures. If every income category scales by the same factor and expenses stay flat, the target holds once income reaches 1.67× today's. The minimum payroll grows with TV money too, so the needed multiple is bigger than the target's dollar increase suggests. **[Inferrence]** Staff costs may also rise after promotion, which would push the multiple up.
 - **Division III is close.** About $12k a payday more income would meet it. **[Inferrence]** The obvious levers are gate (arena pricing and fill) and merchandise (which rises with winning and self-drafted players).
 - **Caveat: the 130% floor has never been charged to us.** Our payroll was 57%–82% of TV money for 12 paydays with no top-up ([payroll projection](https://github.com/tomoliveira/Sharpshooters_BB/pull/10)). The target still works as a yardstick, but if the floor rule is different the target moves with it.
-- **Effect on the cash plan.** Our projected payroll after the recalculation ($109,032) is almost exactly the Division III floor ($109,227). So at the target we'd save $1.3M a season, against $0.9M–$1.15M now. That's about the top of the saving range used in section 1.
+- **Effect on the cash plan.** Our projected payroll after the recalculation ($109,032) is almost exactly the Division III floor ($109,227). So at the target we'd save $1.3M a season, a little above the $0.90M–$1.14M saving range used in section 1, which cuts each saving time there by roughly 15–30%.
 
 ## 2. Do post-draft flips still pay?
 
