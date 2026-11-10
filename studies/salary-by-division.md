@@ -59,7 +59,7 @@ Strongly, at every level. This is a same-snapshot correlation, not causal: winni
 - **The best team in each Division III league spends a median of $245k.** That's the human team with the most wins in each of the 12 Division III leagues that have human teams, ranging from $135k to $445k. It's about 4.3× our payroll.
 - **Division II's floor is around $275k.** That's its p10, and the 15 Division II teams with the fewest wins have a median payroll of $298k. Even the cheapest human team in II pays $78k, more than we do now.
 
-**[Inference]** Promotion out of III.15 doesn't take Division III-leader money, since the league's top two pay $200k and $89k. Staying in Division II probably does: a payroll near $300k a week is roughly 5× today's. The plan to get there is players who were trained up in III. Their salaries rise at the season-start recalculation, so the payroll should grow before promotion, not after it. This is worth modeling as its own study: a projection of our payroll after the next recalculation, set against Division II's floor.
+**[Inference]** Promotion out of III.15 doesn't take Division III-leader money, since the league's top two pay $200k and $89k. Staying in Division II probably does: a payroll near $300k a week is roughly 5× today's. The plan to get there is players who were trained up in III. Their salaries rise at the season-start recalculation, so the payroll should grow before promotion, not after it. Modeled in [Payroll after the next recalculation vs. Division II](payroll-projection.md).
 
 ## Caveats
 
