@@ -1,8 +1,8 @@
 # Skill impact via match ratings
 
-Added 2026-11-10. Study plan; no data collected yet. Pull budget in [`ratings-impact/`](ratings-impact/).
+Added 2026-11-10. Pull budget in [`ratings-impact/`](ratings-impact/).
 
-**Status: on hold.** BuzzerBeater moved to a new website on 2026-11-10. The collector waits for a mapping pass on the new site (see [Next steps](#next-steps)).
+**Status:** Layer 2 first pass done with data already in `docs/report.db`: see [Layer 2 results](ratings-impact/layer2-results.md). Rating gaps explain about 90% of final margin on held-out games, one summed rating point is worth about 4.5 points, and rebounding and outside defense are worth the most per point. Layer 1 (transfer list) is still on hold: BuzzerBeater moved to a new website on 2026-11-10, and the collector waits for a mapping pass on the new site (see [Next steps](#next-steps)).
 
 **Goal:** measure how much each skill, at each position, contributes to winning, then divide by salary cost to find salary-efficient skills ("produce more than salary is expected to").
 
@@ -39,6 +39,7 @@ Source: https://www.buzzerbeater.com/community/rules.aspx?nav=Nomenclature
 - Efficiency = actual average rating - expected rating for salary.
 
 ### Layer 2: team level (own games)
+- First pass used the 135 division matches with both teams' ratings already cached in `match_ratings` ([results](ratings-impact/layer2-results.md)).
 - Every Sharpshooters game since 2026-08-28 (~50) plus new games.
 - Validate that ratings predict margin and wins; convert rating units into points.
 - Fit lineup skills -> team ratings.
@@ -67,3 +68,5 @@ See [`ratings-impact/pull_budget.csv`](ratings-impact/pull_budget.csv) (live ver
 | 2 | Confirm which fields still exist (rating links, tactics, both teams' ratings) and their new names | Waiting for new site |
 | 3 | Check whether the official API still works after the redesign, to save page pulls | Waiting for new site |
 | 4 | Write the collector spec against the new structure (max 30 pulls/min) | Not started |
+| 5 | Layer 2: ratings vs margin with holdout tests, points per rating point | Done 2026-11-10 ([results](ratings-impact/layer2-results.md)) |
+| 6 | Layer 2: fit lineup skills by position to each team rating (roster snapshots) | Not started |
