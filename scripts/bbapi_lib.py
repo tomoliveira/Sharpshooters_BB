@@ -348,12 +348,16 @@ def height_str(inches):
     return f'{ft}\'{rem}" / {cm} cm'
 
 def build_training_cohort_cards(roster_root):
+    """One card per current roster player. Which of them the Training
+    Strategy tab actually shows is decided client-side by the Roster tab's
+    "Train?" checkboxes (localStorage, see ssbbGetCandidates in
+    docs/sharpshooters/index.html) - per Tom (2026-11-11), so both tabs
+    always show the same candidates. TRAINING_COHORT_IDS is only exported
+    separately (data["training_cohort_default"]) as the first-visit default
+    for those checkboxes."""
     cards = []
-    for pid, known_name in TRAINING_COHORT_IDS.items():
-        p = roster_root.find(f".//player[@id='{pid}']")
-        if p is None:
-            cards.append({"playerid": pid, "name": known_name, "on_roster": False})
-            continue
+    for p in roster_root.findall(".//player"):
+        pid = p.get("id")
         skills = p.find("skills")
         name = f"{p.findtext('firstName') or ''} {p.findtext('lastName') or ''}".strip()
         cards.append({
@@ -892,6 +896,7 @@ def extract_data(conn, team_key, teaminfo, roster, economy, schedule, standings,
         row["on_roster"] = row["playerid"] in current_roster_ids
     data["roster_skills"] = build_roster_skills_table(roster)
     data["training_cards"] = build_training_cohort_cards(roster)
+    data["training_cohort_default"] = list(TRAINING_COHORT_IDS.keys())
     # Raw per-player, per-position weekly minutes - the report page applies
     # whichever training combo is selected in its calculator to these, so
     # training minutes and Clears/Short status are only ever computed client-side.
@@ -2173,11 +2178,7 @@ def auto_training_cards_html(data):
     cards = data["training_cards"]
     out = []
     for c in cards:
-        if not c["on_roster"]:
-            out.append(
-                f'<div class="card" style="border-color:var(--warning);"><div class="eyebrow" style="color:var(--warning); margin-bottom:6px;">{esc(c["name"])}</div>'
-                '<p class="block-note" style="margin:0;">No longer on the roster — dropped from live tracking.</p></div>'
-            )
+        if not c.get("on_roster", True):
             continue
         left_tags = ["jumpShot", "outsideDef", "driving", "insideShot", "rebound", "stamina"]
         right_tags = ["range", "handling", "passing", "insideDef", "block", "freeThrow"]
@@ -2194,7 +2195,9 @@ def auto_training_cards_html(data):
         # selected in the report's calculator, so both start neutral here and
         # ssbbApplyTrainingCards sets them. js-clears-badge always exists in the
         # DOM (hidden) so the JS only ever toggles it.
-        card_style = "position:relative;"
+        # Hidden until ssbbApplyTrainingCards reveals the ones ticked on the
+        # Roster tab, so unticked players never flash on load.
+        card_style = "position:relative; display:none;"
         badge_style = "position:absolute; top:14px; right:14px; display:none;"
         out.append(
             f'<div class="card training-cohort-card" data-playerid="{esc(c["playerid"])}" style="{card_style}">'
@@ -2215,7 +2218,9 @@ def auto_training_cards_html(data):
             f'<div style="display:grid; grid-template-columns:1fr 1fr; gap:3px 16px; font-size:13px; padding-top:8px; border-top:1px solid var(--line);">{skill_rows}</div>'
             '</div>'
         )
-    return '<div class="training-cards">' + "".join(out) + '</div>'
+    return ('<p class="block-note js-no-training-candidates" style="display:none;">No training candidates marked yet - '
+            'tick the Train? box next to a player in the Roster tab\'s skill table.</p>'
+            '<div class="training-cards">' + "".join(out) + '</div>')
 
 def build_fragments(data):
     """Same marker->generator mapping the original patch_template() used,

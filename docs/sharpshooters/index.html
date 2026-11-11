@@ -836,7 +836,7 @@
 
     <section class="block">
       <div class="block-head">
-        <h2>Training candidates &amp; skills<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-rec">[Inference]</span> Laid out like the in-game player page, live from the official API each run. A few fields shown in-game aren't exposed by the API and are left out rather than guessed. Word labels and colors use the Game Manual's exact 1&ndash;20 scale and stylesheet. Weekly minutes are computed live each run by summing boxscore.aspx across matches played since the most recent Friday reset. <span class="tag tag-rec">Per Tom</span> Only minutes played at one of the focused positions count toward the threshold. The focused positions are the combo selected in the training calculator above. Thresholds: 45 min (age 18–19), 48 min (20–26), 40 min (27+). The Clears/Short/Well-short bucketing is our own heuristic, not an official in-game label.</span></span></h2>
+        <h2>Training candidates &amp; skills<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-rec">[Inference]</span> Laid out like the in-game player page, live from the official API each run. A few fields shown in-game aren't exposed by the API and are left out rather than guessed. Word labels and colors use the Game Manual's exact 1&ndash;20 scale and stylesheet. <span class="tag tag-rec">Per Tom</span> Shows exactly the players ticked in the Roster tab's Train? column (saved in this browser only). Weekly minutes are computed live each run by summing boxscore.aspx across matches played since the most recent Friday reset. <span class="tag tag-rec">Per Tom</span> Only minutes played at one of the focused positions count toward the threshold. The focused positions are the combo selected in the training calculator above. Thresholds: 45 min (age 18–19), 48 min (20–26), 40 min (27+). The Clears/Short/Well-short bucketing is our own heuristic, not an official in-game label.</span></span></h2>
         <span class="auto-badge">Auto-updated daily</span>
       </div>
       <!-- AUTO:TRAINING_CARDS -->
@@ -1513,15 +1513,18 @@
       var raw = localStorage.getItem(CANDIDATES_KEY);
       if (raw) return new Set(JSON.parse(raw));
     } catch (e) {}
-    // First-ever visit on this browser: default-check whoever was already
-    // in the hand-curated cohort (see "Training candidates & skills" in
-    // the Training Strategy tab), so this opens matching what's already
-    // shown there instead of empty. Persisted immediately so this default
-    // only gets computed once.
+    // First-ever visit on this browser: default-check the cohort listed in
+    // teams/<team>/config.json ("training_cohort", exported as
+    // training_cohort_default), so this doesn't open empty. Persisted
+    // immediately so this default only gets computed once. These ticks are
+    // the single source for the Training Strategy tab's cards too (see
+    // ssbbApplyTrainingCards) - per Tom (2026-11-11). Older snapshots
+    // without training_cohort_default only carried cohort cards, so fall
+    // back to those.
     var data = window.SSBB_DATA;
-    var defaults = new Set(
-      ((data && data.training_cards) || []).filter(function (c) { return c.on_roster; }).map(function (c) { return c.playerid; })
-    );
+    var defaultIds = (data && data.training_cohort_default)
+      || ((data && data.training_cards) || []).filter(function (c) { return c.on_roster; }).map(function (c) { return c.playerid; });
+    var defaults = new Set(defaultIds);
     ssbbSetCandidates(defaults);
     return defaults;
   }
@@ -1834,6 +1837,20 @@
   function ssbbApplyTrainingCards() {
     var data = window.SSBB_DATA;
     if (!data) return;
+    // Show exactly the players ticked on the Roster tab (same
+    // ssbbGetCandidates set the skill table and recommendation use), so the
+    // two tabs can't disagree. Runs before the combo check below so the
+    // filter applies even before a combo is picked.
+    var candidates = ssbbGetCandidates();
+    var shown = 0;
+    document.querySelectorAll(".training-cohort-card[data-playerid]").forEach(function (card) {
+      var on = candidates.has(card.getAttribute("data-playerid"));
+      card.style.display = on ? "" : "none";
+      if (on) shown++;
+    });
+    document.querySelectorAll(".js-no-training-candidates").forEach(function (el) {
+      el.style.display = shown ? "none" : "";
+    });
     var comboSel = document.getElementById("tc-combo");
     if (!comboSel || !comboSel.value) return;
     var opt = ssbbParseTrainingOption(comboSel.value);
@@ -1884,6 +1901,7 @@
       var pid = e.target.getAttribute("data-playerid");
       if (e.target.checked) candidates.add(pid); else candidates.delete(pid);
       ssbbSetCandidates(candidates);
+      ssbbApplyTrainingCards();
       ssbbRenderTrainingRecommendation();
     } else if (e.target.name === "rec-mode") {
       ssbbSetRecommendationMode(e.target.value);
