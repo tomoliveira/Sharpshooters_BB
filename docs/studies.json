@@ -157,10 +157,18 @@
     {
       "id": "ratings-impact",
       "group": "research",
-      "title": "Skill impact via match ratings (on hold)",
+      "title": "Skill impact via match ratings",
       "date": "2026-11-10",
       "path": "studies/ratings-impact.md",
-      "summary": "Study plan: which skills, by position, drive match ratings and wins, per salary dollar. On hold until the new BuzzerBeater site is mapped."
+      "summary": "Study plan: which skills, by position, drive match ratings and wins, per salary dollar. Layer 1 on hold until the new BuzzerBeater site is mapped."
+    },
+    {
+      "id": "ratings-impact-layer2",
+      "group": "research",
+      "title": "Team match ratings vs the scoreboard",
+      "date": "2026-11-10",
+      "path": "studies/ratings-impact/layer2-results.md",
+      "summary": "135 division matches: rating gaps explain ~90% of margin on held-out games; one summed rating point is ~4.5 points; rebounding and outside defense pay most. Sharpshooters trail Castelo mostly on outside defense."
     }
   ]
 }

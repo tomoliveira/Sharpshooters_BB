@@ -1,0 +1,706 @@
+{
+  "data": {
+    "paired_matches": 135,
+    "team_game_rows": 287,
+    "teams": 16,
+    "date_range": [
+      "2026-08-29",
+      "2026-11-07"
+    ],
+    "match_types": {
+      "league.rs": 104,
+      "league.rs.tv": 17,
+      "league.relegation": 6,
+      "league.quarterfinal": 4,
+      "league.semifinal": 2,
+      "league.final": 2
+    },
+    "margin_sd": 41.40714134469336,
+    "home_win_share": 0.5555555555555556
+  },
+  "full_sample_fit": {
+    "in_sample": {
+      "r2": 0.9314262715846727,
+      "rmse": 10.802882323255638,
+      "mae": 8.507394262439135,
+      "winner_accuracy": 0.9407407407407408,
+      "n": 135
+    },
+    "intercept_home_edge": {
+      "coef": 0.3431793659505752,
+      "se": 1.0434456351946373
+    },
+    "points_per_rating_point": {
+      "outside_scoring": {
+        "coef": 3.433130166894409,
+        "se": 1.3981562710379374,
+        "ci95": [
+          0.6927438756600521,
+          6.173516458128766
+        ],
+        "points_per_1sd_of_diff": 4.8372081230075255
+      },
+      "inside_scoring": {
+        "coef": 0.4094325083719749,
+        "se": 0.9020124143774577,
+        "ci95": [
+          -1.3585118238078422,
+          2.177376840551792
+        ],
+        "points_per_1sd_of_diff": 0.6228771266755605
+      },
+      "outside_defense": {
+        "coef": 6.397016154577663,
+        "se": 0.8683885325985597,
+        "ci95": [
+          4.694974630684486,
+          8.09905767847084
+        ],
+        "points_per_1sd_of_diff": 12.240925673508443
+      },
+      "inside_defense": {
+        "coef": 3.763086850362787,
+        "se": 1.4908912409197363,
+        "ci95": [
+          0.8409400181601034,
+          6.68523368256547
+        ],
+        "points_per_1sd_of_diff": 8.847158485233582
+      },
+      "rebounding": {
+        "coef": 6.667347393205471,
+        "se": 1.565184159053534,
+        "ci95": [
+          3.5995864414605445,
+          9.735108344950397
+        ],
+        "points_per_1sd_of_diff": 13.886637000161677
+      },
+      "offensive_flow": {
+        "coef": 4.727747497230281,
+        "se": 1.0568903634284623,
+        "ci95": [
+          2.656242384910495,
+          6.7992526095500665
+        ],
+        "points_per_1sd_of_diff": 5.802015361276429
+      }
+    },
+    "residual_sd": 11.094341877226741,
+    "sum_model_points_per_rating_point": {
+      "coef": 4.524919328642678,
+      "se": 0.12043119148857707
+    }
+  },
+  "bootstrap_coefficients": {
+    "outside_scoring": {
+      "p05": 1.1859418470028857,
+      "median": 3.421874634676856,
+      "p95": 5.824671944616923,
+      "share_largest": 0.0085,
+      "share_below_zero": 0.0055
+    },
+    "inside_scoring": {
+      "p05": -1.3779105209696323,
+      "median": 0.40253583522525815,
+      "p95": 2.100808634077963,
+      "share_largest": 0.0,
+      "share_below_zero": 0.359
+    },
+    "outside_defense": {
+      "p05": 4.918921006789883,
+      "median": 6.41935107823933,
+      "p95": 7.869498561653348,
+      "share_largest": 0.422,
+      "share_below_zero": 0.0
+    },
+    "inside_defense": {
+      "p05": 1.328666601965121,
+      "median": 3.808417170297688,
+      "p95": 6.310536966691371,
+      "share_largest": 0.0175,
+      "share_below_zero": 0.0045
+    },
+    "rebounding": {
+      "p05": 3.984070280975861,
+      "median": 6.603306773856088,
+      "p95": 9.278691671417631,
+      "share_largest": 0.5175,
+      "share_below_zero": 0.0005
+    },
+    "offensive_flow": {
+      "p05": 2.7880339470679014,
+      "median": 4.670399546256016,
+      "p95": 6.467384859210423,
+      "share_largest": 0.0345,
+      "share_below_zero": 0.0
+    }
+  },
+  "sum_gap_for_win_probability": {
+    "60%": 0.68,
+    "75%": 1.82,
+    "90%": 3.45,
+    "95%": 4.43
+  },
+  "team_profiles": {
+    "Tubar\u00e3o": {
+      "games": 18,
+      "names_seen": [
+        "Tubar\u00e3o"
+      ],
+      "avg_margin": 4.388888888888889,
+      "rating_gap_vs_league": {
+        "outside_scoring": 0.07,
+        "inside_scoring": -1.05,
+        "outside_defense": -0.16,
+        "inside_defense": -0.07,
+        "rebounding": 0.47,
+        "offensive_flow": -0.24
+      },
+      "points_vs_league": {
+        "outside_scoring": 0.2,
+        "inside_scoring": -0.4,
+        "outside_defense": -1.0,
+        "inside_defense": -0.3,
+        "rebounding": 3.1,
+        "offensive_flow": -1.1
+      }
+    },
+    "Paran\u00e1 Bluebird": {
+      "games": 19,
+      "names_seen": [
+        "Escada Barons",
+        "Paran\u00e1 Bluebird",
+        "Time do Povo"
+      ],
+      "avg_margin": -24.736842105263158,
+      "rating_gap_vs_league": {
+        "outside_scoring": -0.51,
+        "inside_scoring": -0.67,
+        "outside_defense": -0.5,
+        "inside_defense": -1.32,
+        "rebounding": -0.84,
+        "offensive_flow": -0.46
+      },
+      "points_vs_league": {
+        "outside_scoring": -1.8,
+        "inside_scoring": -0.3,
+        "outside_defense": -3.2,
+        "inside_defense": -5.0,
+        "rebounding": -5.6,
+        "offensive_flow": -2.2
+      }
+    },
+    "Lepra Le\u00f5es": {
+      "games": 15,
+      "names_seen": [
+        "Lepra Le\u00f5es"
+      ],
+      "avg_margin": -21.733333333333334,
+      "rating_gap_vs_league": {
+        "outside_scoring": -0.71,
+        "inside_scoring": -0.89,
+        "outside_defense": -1.55,
+        "inside_defense": -1.37,
+        "rebounding": -0.97,
+        "offensive_flow": -0.16
+      },
+      "points_vs_league": {
+        "outside_scoring": -2.4,
+        "inside_scoring": -0.4,
+        "outside_defense": -9.9,
+        "inside_defense": -5.1,
+        "rebounding": -6.5,
+        "offensive_flow": -0.8
+      }
+    },
+    "Filiipe Strasburg": {
+      "games": 17,
+      "names_seen": [
+        "DougSixers",
+        "Filiipe Strasburg",
+        "Honda Fever"
+      ],
+      "avg_margin": -28.529411764705884,
+      "rating_gap_vs_league": {
+        "outside_scoring": -1.22,
+        "inside_scoring": -0.36,
+        "outside_defense": -1.2,
+        "inside_defense": -1.34,
+        "rebounding": -1.58,
+        "offensive_flow": -1.06
+      },
+      "points_vs_league": {
+        "outside_scoring": -4.2,
+        "inside_scoring": -0.1,
+        "outside_defense": -7.7,
+        "inside_defense": -5.0,
+        "rebounding": -10.6,
+        "offensive_flow": -5.0
+      }
+    },
+    "Blumenau Drunkers": {
+      "games": 18,
+      "names_seen": [
+        "Blumenau Drunkers"
+      ],
+      "avg_margin": 28.22222222222222,
+      "rating_gap_vs_league": {
+        "outside_scoring": 0.92,
+        "inside_scoring": 0.94,
+        "outside_defense": 2.23,
+        "inside_defense": 1.52,
+        "rebounding": 1.38,
+        "offensive_flow": -0.71
+      },
+      "points_vs_league": {
+        "outside_scoring": 3.2,
+        "inside_scoring": 0.4,
+        "outside_defense": 14.2,
+        "inside_defense": 5.7,
+        "rebounding": 9.2,
+        "offensive_flow": -3.4
+      }
+    },
+    "M6ia Nov9 Club": {
+      "games": 19,
+      "names_seen": [
+        "M6ia Nov9 Club"
+      ],
+      "avg_margin": 22.210526315789473,
+      "rating_gap_vs_league": {
+        "outside_scoring": 2.01,
+        "inside_scoring": 0.24,
+        "outside_defense": 0.89,
+        "inside_defense": 1.42,
+        "rebounding": 0.55,
+        "offensive_flow": 1.52
+      },
+      "points_vs_league": {
+        "outside_scoring": 6.9,
+        "inside_scoring": 0.1,
+        "outside_defense": 5.7,
+        "inside_defense": 5.3,
+        "rebounding": 3.7,
+        "offensive_flow": 7.2
+      }
+    },
+    "Braga Monsters": {
+      "games": 19,
+      "names_seen": [
+        "Braga Monsters"
+      ],
+      "avg_margin": 8.473684210526315,
+      "rating_gap_vs_league": {
+        "outside_scoring": 0.02,
+        "inside_scoring": 1.28,
+        "outside_defense": 0.38,
+        "inside_defense": 0.18,
+        "rebounding": 0.1,
+        "offensive_flow": 0.97
+      },
+      "points_vs_league": {
+        "outside_scoring": 0.1,
+        "inside_scoring": 0.5,
+        "outside_defense": 2.4,
+        "inside_defense": 0.7,
+        "rebounding": 0.7,
+        "offensive_flow": 4.6
+      }
+    },
+    "Star Sun": {
+      "games": 17,
+      "names_seen": [
+        "Santo Andr\u00e9 Saints",
+        "Star Sun"
+      ],
+      "avg_margin": -11.352941176470589,
+      "rating_gap_vs_league": {
+        "outside_scoring": -0.61,
+        "inside_scoring": -0.66,
+        "outside_defense": -0.63,
+        "inside_defense": -0.84,
+        "rebounding": -0.76,
+        "offensive_flow": -0.58
+      },
+      "points_vs_league": {
+        "outside_scoring": -2.1,
+        "inside_scoring": -0.3,
+        "outside_defense": -4.0,
+        "inside_defense": -3.1,
+        "rebounding": -5.1,
+        "offensive_flow": -2.8
+      }
+    },
+    "Sharpshooters": {
+      "games": 24,
+      "names_seen": [
+        "Sharpshooters"
+      ],
+      "avg_margin": 18.916666666666668,
+      "rating_gap_vs_league": {
+        "outside_scoring": 0.14,
+        "inside_scoring": 1.32,
+        "outside_defense": 0.66,
+        "inside_defense": 1.86,
+        "rebounding": 1.73,
+        "offensive_flow": 0.86
+      },
+      "points_vs_league": {
+        "outside_scoring": 0.5,
+        "inside_scoring": 0.5,
+        "outside_defense": 4.2,
+        "inside_defense": 7.0,
+        "rebounding": 11.5,
+        "offensive_flow": 4.1
+      }
+    },
+    "Esporte Clube Almirante": {
+      "games": 16,
+      "names_seen": [
+        "Esporte Clube Almirante",
+        "pokemon"
+      ],
+      "avg_margin": 1.125,
+      "rating_gap_vs_league": {
+        "outside_scoring": 0.18,
+        "inside_scoring": -0.2,
+        "outside_defense": 0.39,
+        "inside_defense": 0.17,
+        "rebounding": 0.16,
+        "offensive_flow": 0.83
+      },
+      "points_vs_league": {
+        "outside_scoring": 0.6,
+        "inside_scoring": -0.1,
+        "outside_defense": 2.5,
+        "inside_defense": 0.7,
+        "rebounding": 1.1,
+        "offensive_flow": 3.9
+      }
+    },
+    "MathBalls": {
+      "games": 17,
+      "names_seen": [
+        "MathBalls",
+        "X-Salada"
+      ],
+      "avg_margin": -25.352941176470587,
+      "rating_gap_vs_league": {
+        "outside_scoring": -0.85,
+        "inside_scoring": -0.86,
+        "outside_defense": -0.52,
+        "inside_defense": -1.35,
+        "rebounding": -1.15,
+        "offensive_flow": -1.06
+      },
+      "points_vs_league": {
+        "outside_scoring": -2.9,
+        "inside_scoring": -0.4,
+        "outside_defense": -3.3,
+        "inside_defense": -5.1,
+        "rebounding": -7.7,
+        "offensive_flow": -5.0
+      }
+    },
+    "Novo Mundo Last Dance": {
+      "games": 18,
+      "names_seen": [
+        "Novo Mundo Last Dance"
+      ],
+      "avg_margin": 6.0,
+      "rating_gap_vs_league": {
+        "outside_scoring": 0.72,
+        "inside_scoring": 0.7,
+        "outside_defense": -0.99,
+        "inside_defense": 2.36,
+        "rebounding": 1.28,
+        "offensive_flow": -0.29
+      },
+      "points_vs_league": {
+        "outside_scoring": 2.5,
+        "inside_scoring": 0.3,
+        "outside_defense": -6.3,
+        "inside_defense": 8.9,
+        "rebounding": 8.6,
+        "offensive_flow": -1.4
+      }
+    },
+    "HiperHoppers": {
+      "games": 15,
+      "names_seen": [
+        "HiperHoppers",
+        "Mbal"
+      ],
+      "avg_margin": -31.466666666666665,
+      "rating_gap_vs_league": {
+        "outside_scoring": -0.84,
+        "inside_scoring": -0.7,
+        "outside_defense": -1.19,
+        "inside_defense": -1.7,
+        "rebounding": -1.75,
+        "offensive_flow": -1.25
+      },
+      "points_vs_league": {
+        "outside_scoring": -2.9,
+        "inside_scoring": -0.3,
+        "outside_defense": -7.6,
+        "inside_defense": -6.4,
+        "rebounding": -11.7,
+        "offensive_flow": -5.9
+      }
+    },
+    "Harlem Knicks": {
+      "games": 17,
+      "names_seen": [
+        "Harlem Knicks"
+      ],
+      "avg_margin": -37.88235294117647,
+      "rating_gap_vs_league": {
+        "outside_scoring": -1.25,
+        "inside_scoring": -1.11,
+        "outside_defense": -1.49,
+        "inside_defense": -2.47,
+        "rebounding": -2.05,
+        "offensive_flow": -0.61
+      },
+      "points_vs_league": {
+        "outside_scoring": -4.3,
+        "inside_scoring": -0.5,
+        "outside_defense": -9.5,
+        "inside_defense": -9.3,
+        "rebounding": -13.7,
+        "offensive_flow": -2.9
+      }
+    },
+    "Castelo Basquete": {
+      "games": 21,
+      "names_seen": [
+        "Castelo Basquete"
+      ],
+      "avg_margin": 43.57142857142857,
+      "rating_gap_vs_league": {
+        "outside_scoring": 1.39,
+        "inside_scoring": 0.57,
+        "outside_defense": 2.63,
+        "inside_defense": 1.75,
+        "rebounding": 2.3,
+        "offensive_flow": 1.07
+      },
+      "points_vs_league": {
+        "outside_scoring": 4.8,
+        "inside_scoring": 0.2,
+        "outside_defense": 16.8,
+        "inside_defense": 6.6,
+        "rebounding": 15.3,
+        "offensive_flow": 5.0
+      }
+    },
+    "BBBB Team": {
+      "games": 17,
+      "names_seen": [
+        "BBBB Team",
+        "Gurizes"
+      ],
+      "avg_margin": -1.7058823529411764,
+      "rating_gap_vs_league": {
+        "outside_scoring": -0.29,
+        "inside_scoring": 0.44,
+        "outside_defense": -0.29,
+        "inside_defense": -0.58,
+        "rebounding": -0.6,
+        "offensive_flow": 0.28
+      },
+      "points_vs_league": {
+        "outside_scoring": -1.0,
+        "inside_scoring": 0.2,
+        "outside_defense": -1.9,
+        "inside_defense": -2.2,
+        "rebounding": -4.0,
+        "offensive_flow": 1.3
+      }
+    }
+  },
+  "rating_diff_correlations": {
+    "d_outside_scoring": {
+      "d_outside_scoring": 1.0,
+      "d_inside_scoring": 0.33,
+      "d_outside_defense": 0.64,
+      "d_inside_defense": 0.77,
+      "d_rebounding": 0.7,
+      "d_offensive_flow": 0.59
+    },
+    "d_inside_scoring": {
+      "d_outside_scoring": 0.33,
+      "d_inside_scoring": 1.0,
+      "d_outside_defense": 0.49,
+      "d_inside_defense": 0.61,
+      "d_rebounding": 0.6,
+      "d_offensive_flow": 0.41
+    },
+    "d_outside_defense": {
+      "d_outside_scoring": 0.64,
+      "d_inside_scoring": 0.49,
+      "d_outside_defense": 1.0,
+      "d_inside_defense": 0.61,
+      "d_rebounding": 0.72,
+      "d_offensive_flow": 0.52
+    },
+    "d_inside_defense": {
+      "d_outside_scoring": 0.77,
+      "d_inside_scoring": 0.61,
+      "d_outside_defense": 0.61,
+      "d_inside_defense": 1.0,
+      "d_rebounding": 0.93,
+      "d_offensive_flow": 0.51
+    },
+    "d_rebounding": {
+      "d_outside_scoring": 0.7,
+      "d_inside_scoring": 0.6,
+      "d_outside_defense": 0.72,
+      "d_inside_defense": 0.93,
+      "d_rebounding": 1.0,
+      "d_offensive_flow": 0.56
+    },
+    "d_offensive_flow": {
+      "d_outside_scoring": 0.59,
+      "d_inside_scoring": 0.41,
+      "d_outside_defense": 0.52,
+      "d_inside_defense": 0.51,
+      "d_rebounding": 0.56,
+      "d_offensive_flow": 1.0
+    }
+  },
+  "cv_5fold_x200": {
+    "home_only": {
+      "r2": {
+        "mean": -0.01753834782133769,
+        "p05": -0.03853551135511807,
+        "p95": -0.00426960684524136
+      },
+      "rmse": {
+        "mean": 41.61308841948114,
+        "p05": 41.341470803349075,
+        "p95": 42.04084527113599
+      },
+      "mae": {
+        "mean": 34.995657750342936,
+        "p05": 34.75222222222223,
+        "p95": 35.32080932784637
+      },
+      "winner_accuracy": {
+        "mean": 0.5555555555555555,
+        "p05": 0.5555555555555556,
+        "p95": 0.5555555555555556
+      }
+    },
+    "sum_of_rating_diffs": {
+      "r2": {
+        "mean": 0.9107441267361779,
+        "p05": 0.9081031369256279,
+        "p95": 0.9128732910744888
+      },
+      "rmse": {
+        "mean": 12.324263307584138,
+        "p05": 12.176891000260797,
+        "p95": 12.505788964031712
+      },
+      "mae": {
+        "mean": 10.106870237313915,
+        "p05": 9.968872206103596,
+        "p95": 10.29895998489784
+      },
+      "winner_accuracy": {
+        "mean": 0.9454074074074075,
+        "p05": 0.9333333333333333,
+        "p95": 0.9555555555555556
+      }
+    },
+    "six_rating_diffs": {
+      "r2": {
+        "mean": 0.9221864483408393,
+        "p05": 0.917939726550344,
+        "p95": 0.926073336370552
+      },
+      "rmse": {
+        "mean": 11.50615607626245,
+        "p05": 11.21660210116256,
+        "p95": 11.817543162810576
+      },
+      "mae": {
+        "mean": 9.08216831979444,
+        "p05": 8.864602290244706,
+        "p95": 9.336041247096935
+      },
+      "winner_accuracy": {
+        "mean": 0.9402222222222223,
+        "p05": 0.9259259259259259,
+        "p95": 0.9555555555555556
+      }
+    }
+  },
+  "chronological_holdout": {
+    "home_only": {
+      "r2": -0.06730517833911787,
+      "rmse": 40.88584239128757,
+      "mae": 35.114802149487055,
+      "winner_accuracy": 0.6304347826086957,
+      "n": 46,
+      "train_dates": [
+        "2026-08-29",
+        "2026-10-10"
+      ],
+      "test_dates": [
+        "2026-10-13",
+        "2026-11-07"
+      ]
+    },
+    "sum_of_rating_diffs": {
+      "r2": 0.8914935685374978,
+      "rmse": 13.036361117513563,
+      "mae": 11.558636265969396,
+      "winner_accuracy": 0.9565217391304348,
+      "n": 46,
+      "train_dates": [
+        "2026-08-29",
+        "2026-10-10"
+      ],
+      "test_dates": [
+        "2026-10-13",
+        "2026-11-07"
+      ]
+    },
+    "six_rating_diffs": {
+      "r2": 0.9025118239092893,
+      "rmse": 12.35676008169158,
+      "mae": 10.699413931582495,
+      "winner_accuracy": 0.9565217391304348,
+      "n": 46,
+      "train_dates": [
+        "2026-08-29",
+        "2026-10-10"
+      ],
+      "test_dates": [
+        "2026-10-13",
+        "2026-11-07"
+      ]
+    }
+  },
+  "pregame_forecast_walk_forward": {
+    "ratings_model": {
+      "r2": 0.7406728005476975,
+      "rmse": 21.614086477281084,
+      "mae": 17.38168522711426,
+      "winner_accuracy": 0.851063829787234,
+      "n": 94
+    },
+    "point_diff_baseline": {
+      "r2": 0.6949658947526579,
+      "rmse": 23.441589126515073,
+      "mae": 19.218149563013842,
+      "winner_accuracy": 0.7978723404255319,
+      "n": 94
+    },
+    "first_date": "2026-09-19"
+  }
+}
