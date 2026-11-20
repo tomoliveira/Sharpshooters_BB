@@ -99,6 +99,14 @@
       "summary": "Priority order for big men (ISP first) and guards (OSP first), the Stamina/Free Throw targets, and how Team Training fits in."
     },
     {
+      "id": "calculator-vs-market",
+      "group": "research",
+      "title": "Skill prices: calculator curves vs. the real market",
+      "date": "2026-11-10",
+      "path": "salary-model/calculator-vs-market.md",
+      "summary": "Tests the calculator's per-skill curves against 266 real salaries. Rebounding and Jump Range cost more than the calculator says; Inside Shot and Shot Blocking cost less. Season 74 may bring back the Season 72 formula."
+    },
+    {
       "id": "skill-salary-costs",
       "group": "research",
       "title": "Which skills are cheapest to develop, salary-wise",

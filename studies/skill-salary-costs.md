@@ -4,6 +4,8 @@ Added 2026-09-12. Moved here from the report's Investments tab on 2026-09-24.
 
 Each skill point adds a different amount to weekly salary. The ground-truth curves come from buzzer-manager.com's salary estimator. Each of the 12 rated skills was queried at every rating from 1 to 20, holding age, nationality, potential and the other 11 skills fixed at 10. A separate 266-player real-market regression ranked the skills the same way.
 
+**Update 2026-11-10:** tested against real salaries in [Skill prices: calculator vs. market](../salary-model/calculator-vs-market.md). The market prices Rebounding (about 8.7×) and Jump Range (about 4×) above the table below, and Inside Shot (1.3×) and Shot Blocking (1.15×) well below it. Season 74 may bring back the Season 72 formula, so re-check after the rollover.
+
 Full data: [Skill-to-salary curves](../salary-model/skill-curves-reference.md) and [Salary model: formula history](../salary-model/formula-history.md).
 
 | Skill | 1→20 salary multiplier | Shape |
