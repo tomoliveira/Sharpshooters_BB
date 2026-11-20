@@ -2,6 +2,8 @@
 
 Added 2026-09-10. Moved here from the report's Investments tab on 2026-09-24. Static analysis, not recomputed by the daily job.
 
+> **Superseded 2026-11-10** by [Arena expansions: payback recheck with real fill](arena-expansion-recheck.md). With real attendance this expansion pays back in 1.46 seasons, not 1.75. Its bleacher seats filled 77%, not 96.1%, but price rises made up for it. It was also the first of seven expansions ($1,408,400 in total).
+
 Payback and surplus analysis of the real, already-executed **$205,800** arena expansion, using the report's own live arena data at the time.
 
 | Measure | Value | How |

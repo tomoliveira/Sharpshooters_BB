@@ -1,0 +1,5 @@
+tier,seats_added,cost,cost_per_seat,rev_per_added_seat_per_full_game,payback_seasons_baseline
+bleachers,2462,492400,200,8.74,2.08
+lowerTier,220,154000,700,36.05,1.77
+courtside,152,304000,2000,117.6,1.55
+luxury,6,96000,16000,948.17,1.53
