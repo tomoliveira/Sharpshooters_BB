@@ -1,0 +1,19 @@
+target,target_payroll,flips,break_even,save_per_season,stint_cost_2_seasons,promotion_bonus,cash_needed_after_bonus_and_cash_now,seasons_of_saving
+Div III league winner (median),245000,no flips,178000,897000,1742000,0,1458859,1.63
+Div III league winner (median),245000,no flips,197000,1144000,1248000,0,964859,0.84
+Div III league winner (median),245000,3 flips at 2024-26 median profit ($78k),178000,1131000,1274000,0,990859,0.88
+Div III league winner (median),245000,3 flips at 2024-26 median profit ($78k),197000,1378000,780000,0,496859,0.36
+Div III league winner (median),245000,3 flips at 2021-23 median profit ($135k),178000,1302000,932000,0,648859,0.5
+Div III league winner (median),245000,3 flips at 2021-23 median profit ($135k),197000,1549000,438000,0,154859,0.1
+Div II p10 (survive),276000,no flips,178000,897000,2548000,750000,1514859,1.69
+Div II p10 (survive),276000,no flips,197000,1144000,2054000,750000,1020859,0.89
+Div II p10 (survive),276000,3 flips at 2024-26 median profit ($78k),178000,1131000,2080000,750000,1046859,0.93
+Div II p10 (survive),276000,3 flips at 2024-26 median profit ($78k),197000,1378000,1586000,750000,552859,0.4
+Div II p10 (survive),276000,3 flips at 2021-23 median profit ($135k),178000,1302000,1738000,750000,704859,0.54
+Div II p10 (survive),276000,3 flips at 2021-23 median profit ($135k),197000,1549000,1244000,750000,210859,0.14
+Div II median (contend),388000,no flips,178000,897000,5460000,750000,4426859,4.94
+Div II median (contend),388000,no flips,197000,1144000,4966000,750000,3932859,3.44
+Div II median (contend),388000,3 flips at 2024-26 median profit ($78k),178000,1131000,4992000,750000,3958859,3.5
+Div II median (contend),388000,3 flips at 2024-26 median profit ($78k),197000,1378000,4498000,750000,3464859,2.51
+Div II median (contend),388000,3 flips at 2021-23 median profit ($135k),178000,1302000,4650000,750000,3616859,2.78
+Div II median (contend),388000,3 flips at 2021-23 median profit ($135k),197000,1549000,4156000,750000,3122859,2.02
