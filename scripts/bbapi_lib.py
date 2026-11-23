@@ -157,6 +157,7 @@ POTENTIAL_WORD_SCALE = {0: "announcer", 1: "bench warmer", 2: "role player", 3: 
 
 load_dotenv(SCRIPT_DIR.parent / ".env")
 load_dotenv(SCRIPT_DIR / ".env", override=True)
+PLAYER_ROLES = {}
 LOGIN = os.environ.get("BB_LOGIN")
 CODE = os.environ.get("BB_CODE")
 TEAM_KEY = "default"
@@ -170,6 +171,15 @@ def load_team_config(config_path):
     global LOGIN, CODE, TEAM_KEY, TRAINEE_SCORE_POPS_SO_FAR, SEASON_WEEKS_REMAINING
     cfg = json.loads(Path(config_path).read_text(encoding="utf-8"))
     TRAINING_COHORT_IDS = cfg.get("training_cohort", TRAINING_COHORT_IDS)
+    # Per Tom (2026-11-23): each player gets a role picked from the report's
+    # Roster tab - "trainee", "role" (role player) or "locker" (locker room).
+    # The page commits the full map back to this config file via the GitHub
+    # API. Once it exists it replaces training_cohort: trainees ARE the
+    # training cohort (skill-pop tracking, Training Strategy cards).
+    global PLAYER_ROLES
+    PLAYER_ROLES = cfg.get("player_roles") or {}
+    if PLAYER_ROLES:
+        TRAINING_COHORT_IDS = {pid: "" for pid, role in PLAYER_ROLES.items() if role == "trainee"}
     TRAINEE_SCORE_POPS_SO_FAR = cfg.get("trainee_score_pops_so_far", TRAINEE_SCORE_POPS_SO_FAR)
     SEASON_WEEKS_REMAINING = cfg.get("season_weeks_remaining", SEASON_WEEKS_REMAINING)
     TEAM_KEY = cfg.get("team_key") or Path(config_path).stem
@@ -372,12 +382,10 @@ def height_str(inches):
 
 def build_training_cohort_cards(roster_root):
     """One card per current roster player. Which of them the Training
-    Strategy tab actually shows is decided client-side by the Roster tab's
-    "Train?" checkboxes (localStorage, see ssbbGetCandidates in
-    docs/sharpshooters/index.html) - per Tom (2026-11-11), so both tabs
-    always show the same candidates. TRAINING_COHORT_IDS is only exported
-    separately (data["training_cohort_default"]) as the first-visit default
-    for those checkboxes."""
+    Strategy tab actually shows is decided client-side: the players whose
+    Roster-tab role is "trainee" (see ssbbGetCandidates in
+    docs/sharpshooters/index.html; roles live in the team config's
+    player_roles) - per Tom (2026-11-23), so both tabs always agree."""
     cards = []
     for p in roster_root.findall(".//player"):
         pid = p.get("id")
@@ -920,6 +928,7 @@ def extract_data(conn, team_key, teaminfo, roster, economy, schedule, standings,
     data["roster_skills"] = build_roster_skills_table(roster)
     data["training_cards"] = build_training_cohort_cards(roster)
     data["training_cohort_default"] = list(TRAINING_COHORT_IDS.keys())
+    data["player_roles"] = dict(PLAYER_ROLES)
     # Raw per-player, per-position weekly minutes - the report page applies
     # whichever training combo is selected in its calculator to these, so
     # training minutes and Clears/Short status are only ever computed client-side.
@@ -2115,7 +2124,7 @@ def auto_roster_skills_html(data):
             f'{TRAINEE_SCORE_LOW_POTENTIAL_THRESHOLD} (halves the score) - a deliberately blunt stand-in until a '
             'proper TSP/potential ratio replaces it.'
         ) + '</th>'
-        '<th rowspan="2" class="sortable" data-col="5">Train?</th>'
+        '<th rowspan="2" class="sortable" data-col="5">Role</th>'
         f'{group_header_cells}'
         f'<th rowspan="2" class="num sortable" data-col="{minutes_col}">Minutes / threshold</th>'
         f'<th rowspan="2" class="sortable" data-col="{status_col}">Status</th></tr>'
