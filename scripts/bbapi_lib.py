@@ -1048,7 +1048,7 @@ def render_text(data):
 AUTO_MARKERS = ["META", "OVERVIEW_STATS", "RECOMMENDATIONS", "INVESTMENTS", "ROSTER_SKILLS", "ROSTER_BY_POSITION",
                 "TRAINING_CARDS", "TRANSACTION_LEDGER", "FINANCE_WEEKLY", "SEASON_PROJECTION",
                 "ROSTER_CHANGES", "STAFF", "MINUTES_VS_MONEY", "ARENA_GLANCE", "ARENA_PRICE_BARS",
-                "LEAGUE_ARENAS"]
+                "LEAGUE_ARENAS", "NEXT_GAME"]
 
 def esc(v):
     return html.escape(str(v)) if v is not None else ""
@@ -2239,7 +2239,8 @@ def build_fragments(data):
                   "ROSTER_CHANGES": auto_roster_changes_html,
                   "STAFF": auto_staff_html, "MINUTES_VS_MONEY": auto_minutes_vs_money_html,
                   "ARENA_GLANCE": auto_arena_glance_html, "ARENA_PRICE_BARS": auto_arena_price_bars_html,
-                  "LEAGUE_ARENAS": auto_league_arenas_html}
+                  "LEAGUE_ARENAS": auto_league_arenas_html,
+                  "NEXT_GAME": auto_next_game_html}
     return {name: generators[name](data) for name in AUTO_MARKERS}
 
 def most_recent_training_week_start(now_utc):
@@ -2341,7 +2342,7 @@ def _parse_boxscore_team_rating(box_root, team_id, match_type):
         "rebounding": ratings["rebounding"], "offensive_flow": ratings["offensiveFlow"],
     }
 
-def _fetch_finished_matches(session, team_id):
+def _fetch_finished_matches(session, team_id, counts=None):
     """A team's finished regular-season and playoff matches this
     season (see POWER_RANKING_MATCH_FAMILIES), each with the opponent's id and both scores - shared raw
     material for both the head-to-head point-diff ranking below and the
@@ -2354,7 +2355,7 @@ def _fetch_finished_matches(session, team_id):
         return []
     out = []
     for m in sched.findall(".//match"):
-        if not _counts_for_power_rankings(m.get("type")):
+        if not (counts or _counts_for_power_rankings)(m.get("type")):
             continue
         away, home = m.find("awayTeam"), m.find("homeTeam")
         if away is None or home is None:
@@ -3076,6 +3077,223 @@ def auto_league_arenas_html(data):
     return f'<div class="la-wrap"><div class="la-tabs">{body}</div>{foot}</div>'
 
 
+# ---------------------------------------------------------------------------
+# Next game analysis tab
+# ---------------------------------------------------------------------------
+# Per Tom (2026-11-23): the Next Game tab only takes regular-season, TV,
+# rival and playoff matches into account. schedule.aspx types seen so far:
+# "league.rs" (regular season), "league.rs.tv" (TV), "league.quarterfinal",
+# "league.semifinal", "league.final" (playoffs). Deliberately NOT counted:
+# "league.relegation", cup, private league (pl.*), friendlies, scrimmages,
+# BBM. No rival-flagged match type has appeared in the stored data yet, so
+# any type with a "rival" segment counts, whatever its family - an
+# assumption to confirm once a real rival game shows up in the schedule.
+NEXT_GAME_PLAYOFF_ROUNDS = {"quarterfinal", "semifinal", "final"}
+NEXT_GAME_RECENT_N = 5
+
+def counts_for_next_game(match_type):
+    parts = (match_type or "").lower().split(".")
+    if "rival" in parts:
+        return True
+    return len(parts) >= 2 and parts[0] == "league" and (parts[1] == "rs" or parts[1] in NEXT_GAME_PLAYOFF_ROUNDS)
+
+def _next_game_type_label(match_type):
+    parts = (match_type or "").lower().split(".")
+    if "rival" in parts: return "Rival"
+    if "tv" in parts: return "TV"
+    if len(parts) >= 2 and parts[1] in NEXT_GAME_PLAYOFF_ROUNDS: return "Playoff " + parts[1]
+    if len(parts) >= 2 and parts[1] == "rs": return "Regular season"
+    return match_type or "?"
+
+def _find_next_counted_game(schedule_root, our_team_id):
+    for m in sorted(schedule_root.findall(".//match"), key=lambda m: m.get("start", "")):
+        if not counts_for_next_game(m.get("type")):
+            continue
+        away, home = m.find("awayTeam"), m.find("homeTeam")
+        if away is None or home is None:
+            continue
+        if away.findtext("score") is not None and home.findtext("score") is not None:
+            continue  # already played
+        away_id, home_id = away.get("id"), home.get("id")
+        if our_team_id not in (away_id, home_id):
+            continue
+        is_home = home_id == our_team_id
+        opp = away if is_home else home
+        return {"matchid": m.get("id"), "start": m.get("start", ""), "type": m.get("type"),
+                "type_label": _next_game_type_label(m.get("type")), "is_home": is_home,
+                "opp_id": opp.get("id"), "opp_name": team_name(opp) or "?"}
+    return None
+
+def _team_recent_counted_form(session, conn, team_id, name, recent_n=NEXT_GAME_RECENT_N):
+    """Averages + per-game rows over a team's last `recent_n` finished
+    counted games (counts_for_next_game). Reuses the same boxscore-rating
+    cache (match_ratings) as the power rankings."""
+    finished = _fetch_finished_matches(session, team_id, counts=counts_for_next_game)
+    recent = finished[-recent_n:]
+    summary = _rate_team_recent_form(session, conn, {"id": team_id, "name": name}, {team_id: recent}, recent_n)
+    cached = load_cached_match_ratings(conn, team_id, [m["matchid"] for m in recent])
+    games = []
+    for m in reversed(recent):  # newest first
+        r = cached.get(m["matchid"]) or {}
+        games.append({"date": m["start"][:10], "type_label": _next_game_type_label(m.get("type")),
+                      "is_home": m["is_home"], "opponent": r.get("opponent_name"),
+                      "team_score": m["team_score"], "opp_score": m["opp_score"],
+                      **{k: r.get(k) for k in RATING_CATEGORY_KEYS}})
+    return {"summary": summary, "games": games}
+
+def _fetch_team_roster_rows(session, team_id):
+    root = fetch(session, "roster.aspx", {"teamid": team_id})
+    rows = []
+    for p in root.findall(".//player"):
+        name = f"{p.findtext('firstName') or ''} {p.findtext('lastName') or ''}".strip()
+        def num(tag):
+            try: return float(p.findtext(tag))
+            except (TypeError, ValueError): return None
+        skills_el = p.find("skills")
+        skills = {}
+        if skills_el is not None:
+            for key, _label in SKILL_DISPLAY_COLUMNS:
+                v = skills_el.findtext(key)
+                if v is not None:
+                    skills[key] = v
+        rows.append({"playerid": p.get("id"), "name": name, "position": p.findtext("bestPosition"),
+                     "age": p.findtext("age"), "height": p.findtext("height"),
+                     "salary": num("salary"), "dmi": num("dmi"), "skills": skills})
+    rows.sort(key=lambda r: (r["salary"] is None, -(r["salary"] or 0)))
+    return rows
+
+def fetch_next_game_analysis(session, conn, schedule_root, our_team_id, our_name, recent_n=NEXT_GAME_RECENT_N):
+    game = _find_next_counted_game(schedule_root, our_team_id)
+    if game is None:
+        return {"game": None}
+    us = _team_recent_counted_form(session, conn, our_team_id, our_name, recent_n)
+    them = _team_recent_counted_form(session, conn, game["opp_id"], game["opp_name"], recent_n)
+    try:
+        opp_roster = _fetch_team_roster_rows(session, game["opp_id"])
+    except (BBApiError, requests.RequestException):
+        opp_roster = None
+    conn.commit()
+    return {"game": game, "recent_n": recent_n, "us": us, "them": them, "opp_roster": opp_roster}
+
+# Attack-vs-defense pairings for the matchup table: each side's scoring
+# rating is read against the other side's matching defense rating.
+NEXT_GAME_MATCHUPS = [
+    ("Our outside scoring vs their outside defense", "us", "outside_scoring", "them", "outside_defense"),
+    ("Our inside scoring vs their inside defense", "us", "inside_scoring", "them", "inside_defense"),
+    ("Their outside scoring vs our outside defense", "them", "outside_scoring", "us", "outside_defense"),
+    ("Their inside scoring vs our inside defense", "them", "inside_scoring", "us", "inside_defense"),
+    ("Rebounding", "us", "rebounding", "them", "rebounding"),
+    ("Offensive flow", "us", "offensive_flow", "them", "offensive_flow"),
+]
+
+def _fmt_rating(v):
+    return f"{v:.1f}" if isinstance(v, (int, float)) else "&ndash;"
+
+def _edge_html(ours, theirs, our_side_first=True):
+    """`ours`/`theirs` from OUR point of view: positive = good for us."""
+    if not isinstance(ours, (int, float)) or not isinstance(theirs, (int, float)):
+        return '<span class="block-note">no data</span>'
+    d = ours - theirs
+    if abs(d) < 0.25:
+        return '<span class="mono">even</span>'
+    color = "var(--positive)" if d > 0 else "var(--negative)"
+    who = "Us" if d > 0 else "Them"
+    return f'<b class="mono" style="color:{color}">{who} +{abs(d):.1f}</b>'
+
+def auto_next_game_html(data):
+    ng = data.get("next_game") or {}
+    game = ng.get("game")
+    if not game:
+        return '<p class="block-note">No upcoming regular-season, TV, rival or playoff game on the schedule.</p>'
+    n = ng.get("recent_n", NEXT_GAME_RECENT_N)
+    us_sum = (ng.get("us") or {}).get("summary") or {}
+    them_sum = (ng.get("them") or {}).get("summary") or {}
+    where = "Home" if game["is_home"] else "Away"
+    when = (game["start"] or "").replace("T", " ").replace("Z", " UTC")
+    head = (f'<div class="stat-row" style="margin-top:12px;">'
+            f'<div class="stat-card"><div class="label">Opponent</div><div class="value" style="font-size:18px;">{esc(game["opp_name"])}</div>'
+            f'<div class="foot">{where} &middot; {esc(game["type_label"])}</div></div>'
+            f'<div class="stat-card"><div class="label">Tip-off</div><div class="value" style="font-size:16px;">{esc(when)}</div><div class="foot">from schedule.aspx</div></div>'
+            f'<div class="stat-card"><div class="label">Our last {n}</div><div class="value">{esc(us_sum.get("recent_record") or "N/A")}</div>'
+            f'<div class="foot">avg rating {_fmt_rating(us_sum.get("composite"))}</div></div>'
+            f'<div class="stat-card"><div class="label">Their last {n}</div><div class="value">{esc(them_sum.get("recent_record") or "N/A")}</div>'
+            f'<div class="foot">avg rating {_fmt_rating(them_sum.get("composite"))}</div></div></div>')
+
+    scope_tip = info_tip(f'<span class="tag tag-calc">Calculated</span> Average boxscore team ratings over each side\'s last {n} finished '
+                         'regular-season, TV, rival and playoff games (relegation, cup, private league, friendlies and scrimmages excluded). '
+                         'Edge = difference between the two averages; gaps under 0.25 read as even.')
+    cat_rows = "".join(
+        f'<tr><td>{esc(RATING_LABELS[k])}</td><td class="num">{_fmt_rating(us_sum.get(k))}</td>'
+        f'<td class="num">{_fmt_rating(them_sum.get(k))}</td><td class="num">{_edge_html(us_sum.get(k), them_sum.get(k))}</td></tr>'
+        for k in RATING_CATEGORY_KEYS)
+    ratings = (f'<section class="block"><div class="block-head"><h2>Ratings head-to-head{scope_tip}</h2>'
+               f'<span class="auto-badge">Auto-updated daily</span></div>'
+               f'<div style="overflow-x:auto;"><table style="min-width:420px;"><thead><tr><th>Category</th><th class="num">Us</th>'
+               f'<th class="num">{esc(game["opp_name"])}</th><th class="num">Edge</th></tr></thead><tbody>{cat_rows}</tbody></table></div>')
+    side = {"us": us_sum, "them": them_sum}
+    mu_rows = ""
+    for label, a_side, a_key, b_side, b_key in NEXT_GAME_MATCHUPS:
+        a, b = side[a_side].get(a_key), side[b_side].get(b_key)
+        ours, theirs = (a, b) if a_side == "us" else (b, a)
+        mu_rows += (f'<tr><td>{esc(label)}</td><td class="num">{_fmt_rating(a)}</td><td class="num">{_fmt_rating(b)}</td>'
+                    f'<td class="num">{_edge_html(ours, theirs)}</td></tr>')
+    mu_tip = info_tip('<span class="tag tag-rec">[Inference]</span> Reads each side\'s scoring rating against the other side\'s matching '
+                      'defense rating. BuzzerBeater ratings are not guaranteed to be on directly comparable scales across categories, '
+                      'so treat these as a rough guide.')
+    ratings += (f'<h3 style="margin:22px 0 6px;">Attack vs defense{mu_tip}</h3>'
+                f'<div style="overflow-x:auto;"><table style="min-width:420px;"><thead><tr><th>Matchup</th><th class="num">Attack</th>'
+                f'<th class="num">Defense</th><th class="num">Edge</th></tr></thead><tbody>{mu_rows}</tbody></table></div></section>')
+
+    def form_table(games):
+        if not games:
+            return '<p class="block-note">No counted games yet.</p>'
+        rows = ""
+        for g in games:
+            ts, os_ = g.get("team_score"), g.get("opp_score")
+            res = ""
+            if isinstance(ts, int) and isinstance(os_, int):
+                won = ts > os_
+                res = f'<b style="color:{"var(--positive)" if won else "var(--negative)"}">{"W" if won else "L"}</b> {ts}-{os_}'
+            rows += (f'<tr><td class="mono" style="white-space:nowrap;">{esc(g["date"])}</td><td>{"vs" if g["is_home"] else "@"} {esc(g.get("opponent") or "?")}</td>'
+                     f'<td>{esc(g["type_label"])}</td><td class="num">{res}</td>'
+                     + "".join(f'<td class="num">{_fmt_rating(g.get(k))}</td>' for k in RATING_CATEGORY_KEYS) + '</tr>')
+        heads = "".join(f'<th class="num">{esc(RATING_LABELS[k])}</th>' for k in RATING_CATEGORY_KEYS)
+        return (f'<div style="overflow-x:auto;"><table style="min-width:820px;"><thead><tr><th>Date</th><th>Opponent</th><th>Type</th>'
+                f'<th class="num">Result</th>{heads}</tr></thead><tbody>{rows}</tbody></table></div>')
+
+    form_tip = info_tip(f'<span class="tag tag-official">Official API</span> Their last {n} counted games, newest first, with their own boxscore ratings.')
+    form = (f'<section class="block"><div class="block-head"><h2>{esc(game["opp_name"])} &mdash; recent form{form_tip}</h2>'
+            f'<span class="auto-badge">Auto-updated daily</span></div>'
+            + form_table((ng.get("them") or {}).get("games") or [])
+            + f'<h3 style="margin:22px 0 6px;">Our recent form</h3>'
+            + form_table((ng.get("us") or {}).get("games") or []) + '</section>')
+
+    roster = ng.get("opp_roster")
+    if roster is None:
+        roster_html = '<p class="block-note">Opponent roster could not be fetched this run.</p>'
+    elif not roster:
+        roster_html = '<p class="block-note">Opponent roster is empty.</p>'
+    else:
+        skill_keys = [k for k, _ in SKILL_DISPLAY_COLUMNS if any(k in r["skills"] for r in roster)]
+        skill_heads = "".join(f'<th class="num">{esc(lbl)}</th>' for k, lbl in SKILL_DISPLAY_COLUMNS if k in skill_keys)
+        rows = ""
+        for r in roster:
+            dmi_str = f'{r["dmi"]:,.0f}' if r.get("dmi") is not None else ""
+            rows += (f'<tr><td>{esc(r["name"])}</td><td>{esc(r.get("position") or "")}</td><td class="num">{esc(r.get("age") or "")}</td>'
+                     f'<td class="num">{esc(height_str(r["height"]) if r.get("height") else "")}</td>'
+                     f'<td class="num">{money_html(r["salary"]) if r.get("salary") is not None else ""}</td>'
+                     f'<td class="num">{dmi_str}</td>'
+                     + "".join(f'<td class="num">{esc(r["skills"].get(k, ""))}</td>' for k in skill_keys) + '</tr>')
+        min_w = 620 + 70 * len(skill_keys)
+        roster_html = (f'<div style="overflow-x:auto;"><table style="min-width:{min_w}px;"><thead><tr><th>Player</th><th>Pos</th>'
+                       f'<th class="num">Age</th><th class="num">Height</th><th class="num">Salary</th><th class="num">DMI</th>{skill_heads}'
+                       f'</tr></thead><tbody>{rows}</tbody></table></div>')
+    roster_tip = info_tip('<span class="tag tag-official">Official API</span> roster.aspx for the opponent, sorted by salary. Columns the API does not return for other teams are left out.')
+    roster_sec = (f'<section class="block"><div class="block-head"><h2>{esc(game["opp_name"])} &mdash; roster{roster_tip}</h2>'
+                  f'<span class="auto-badge">Auto-updated daily</span></div>{roster_html}</section>')
+    return head + ratings + form + roster_sec
+
+
 def build_report(session, conn, team_key):
     teaminfo = fetch(session, "teaminfo.aspx")
     roster = fetch(session, "roster.aspx")
@@ -3127,6 +3345,10 @@ def build_report(session, conn, team_key):
         data["big_hires"] = detect_big_hires(session, conn, data["division_rows"], data["now"][:10])
     except (BBApiError, requests.RequestException):
         data["big_hires"] = []
+    try:
+        data["next_game"] = fetch_next_game_analysis(session, conn, schedule, our_team_id, data["team"]["name"])
+    except (BBApiError, requests.RequestException):
+        data["next_game"] = None
     # Only overwrite the persisted roster snapshot after a fully successful
     # run, so a failed run can't corrupt the diff baseline for next time.
     save_roster_xml(conn, team_key, roster)
