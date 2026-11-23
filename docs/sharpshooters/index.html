@@ -424,6 +424,7 @@
   }
 
   #r-overview:checked ~ .panels #panel-overview,
+  #r-nextgame:checked ~ .panels #panel-nextgame,
   #r-investments:checked ~ .panels #panel-investments,
   #r-finances:checked ~ .panels #panel-finances,
   #r-arena:checked ~ .panels #panel-arena,
@@ -434,6 +435,7 @@
   #r-studies:checked ~ .panels #panel-studies { display: block; }
 
   #r-overview:checked ~ .tabs-nav label[for="r-overview"],
+  #r-nextgame:checked ~ .tabs-nav label[for="r-nextgame"],
   #r-investments:checked ~ .tabs-nav label[for="r-investments"],
   #r-finances:checked ~ .tabs-nav label[for="r-finances"],
   #r-arena:checked ~ .tabs-nav label[for="r-arena"],
@@ -444,6 +446,7 @@
   #r-studies:checked ~ .tabs-nav label[for="r-studies"] { color: var(--accent); border-bottom-color: var(--accent); border-left-color: var(--accent); }
 
   #r-overview:focus-visible ~ .tabs-nav label[for="r-overview"],
+  #r-nextgame:focus-visible ~ .tabs-nav label[for="r-nextgame"],
   #r-investments:focus-visible ~ .tabs-nav label[for="r-investments"],
   #r-finances:focus-visible ~ .tabs-nav label[for="r-finances"],
   #r-arena:focus-visible ~ .tabs-nav label[for="r-arena"],
@@ -591,6 +594,7 @@
   <!-- ================= TABS (pure CSS — no JS dependency) ================= -->
   <div class="tabs">
     <input type="radio" name="ss-tabs" id="r-overview" class="tab-radio" checked>
+    <input type="radio" name="ss-tabs" id="r-nextgame" class="tab-radio">
     <input type="radio" name="ss-tabs" id="r-investments" class="tab-radio">
     <input type="radio" name="ss-tabs" id="r-finances" class="tab-radio">
     <input type="radio" name="ss-tabs" id="r-arena" class="tab-radio">
@@ -602,6 +606,7 @@
 
     <div class="tabs-nav">
       <label class="tab-btn" for="r-overview">Overview</label>
+      <label class="tab-btn" for="r-nextgame">Next Game</label>
       <span class="tab-divider"></span>
       <label class="tab-btn" for="r-investments">Investments</label>
       <label class="tab-btn" for="r-finances">Finances</label>
@@ -647,6 +652,19 @@
   <!-- AUTO:RECOMMENDATIONS -->
   <p class="block-note">Loading live data…</p>
   <!-- /AUTO:RECOMMENDATIONS -->
+
+  </div>
+
+  <!-- ================= PANEL: NEXT GAME ================= -->
+  <div class="tab-panel" id="panel-nextgame">
+
+  <div class="block-head" style="margin-top:20px;">
+    <h2 style="font-size:19px;">Next game analysis<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-official">Official API</span> The next regular-season, TV, rival or playoff game on our schedule. Only those match types count anywhere in this tab - relegation, cup, private league, friendlies and scrimmages are left out. Refreshed every day by the GitHub Actions job.</span></span></h2>
+    <span class="auto-badge">Auto-updated daily</span>
+  </div>
+  <!-- AUTO:NEXT_GAME -->
+  <p class="block-note">Loading live data…</p>
+  <!-- /AUTO:NEXT_GAME -->
 
   </div>
 
@@ -2187,7 +2205,7 @@
   var TEAM_KEY = "sharpshooters";
   var AUTO_MARKERS = ["META", "OVERVIEW_STATS", "RECOMMENDATIONS", "INVESTMENTS", "ROSTER_SKILLS",
     "ROSTER_BY_POSITION", "TRAINING_CARDS", "TRANSACTION_LEDGER", "FINANCE_WEEKLY",
-    "SEASON_PROJECTION", "ROSTER_CHANGES", "STAFF", "MINUTES_VS_MONEY", "ARENA_GLANCE", "ARENA_PRICE_BARS", "LEAGUE_ARENAS"];
+    "SEASON_PROJECTION", "ROSTER_CHANGES", "STAFF", "MINUTES_VS_MONEY", "ARENA_GLANCE", "ARENA_PRICE_BARS", "LEAGUE_ARENAS", "NEXT_GAME"];
 
   function patch(sourceHtml, fragments) {
     var out = sourceHtml;
