@@ -22,6 +22,29 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 # system tzdata package being present (it isn't on stock Windows Python;
 # not guaranteed on every CI runner either).
 BRASILIA_TZ = timezone(timedelta(hours=-3))
+
+def _parse_iso_utc(s):
+    """BuzzerBeater API timestamps are UTC ("2026-11-24T22:00:00Z", sometimes
+    without the Z). Returns an aware datetime, or None for date-only/blank."""
+    if not s or "T" not in str(s):
+        return None
+    try:
+        return datetime.strptime(str(s)[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+def local_date(s):
+    """Display date in Brasília time (per Tom, 2026-11-23: every timestamp in
+    the report uses his own time zone). Full API timestamps are converted
+    from UTC - a 01:00 UTC entry belongs to the previous Brasília day.
+    Date-only values (run dates, which are already Brasília dates) pass
+    through unchanged."""
+    dt = _parse_iso_utc(s)
+    return dt.astimezone(BRASILIA_TZ).strftime("%Y-%m-%d") if dt else (str(s)[:10] if s else "")
+
+def local_datetime(s):
+    dt = _parse_iso_utc(s)
+    return dt.astimezone(BRASILIA_TZ).strftime("%Y-%m-%d %H:%M") if dt else (str(s) if s else "")
 TRAINING_REMINDER = "Training report not available via API - check https://buzzerbeater.com/manage/training.aspx manually."
 SKILL_TAGS = ["jumpShot", "range", "outsideDef", "handling", "driving", "passing",
               "insideShot", "insideDef", "rebound", "block", "stamina", "freeThrow"]
@@ -942,7 +965,7 @@ def extract_data(conn, team_key, teaminfo, roster, economy, schedule, standings,
     last_match_dt = max((parse_bb_datetime(m.get("start", "")) for m in matches), default=None, key=lambda d: d or datetime.min.replace(tzinfo=timezone.utc))
     now_utc = datetime.now(timezone.utc)
     data["season"] = {
-        "last_match_date": last_match_dt.strftime("%Y-%m-%d") if last_match_dt else None,
+        "last_match_date": last_match_dt.astimezone(BRASILIA_TZ).strftime("%Y-%m-%d") if last_match_dt else None,
         "weeks_remaining": count_monday_resets_remaining(now_utc, last_match_dt) if last_match_dt else None,
     }
     for conf in standings.findall(".//conference"):
@@ -1117,7 +1140,7 @@ def auto_transaction_ledger_html(data):
             continue
         items = txns_by_label.get(label, [])
         rows = "".join(
-            '<tr><td>' + esc(t["date"][:10]) + '</td><td>' + esc(humanize(t["tag"])) + '</td>'
+            '<tr><td>' + esc(local_date(t["date"])) + '</td><td>' + esc(humanize(t["tag"])) + '</td>'
             '<td class="num ' + ("credit" if t["amount"] >= 0 else "debit") + '">'
             + signed_money(t["amount"]).replace("+", "+$").replace("-", "-$") + '</td></tr>'
             for t in reversed(items)
@@ -1169,7 +1192,7 @@ def auto_overview_stats_html(data):
     record_str = f"{record_row['wins']}-{record_row['losses']}" if record_row else "N/A"
     record_foot = f"rank {record_row['rank']} of {total_teams} in conference" if record_row else "not found"
     next_game_str = f"{esc(next_game['away'])} @ {esc(next_game['home'])}" if next_game else "none scheduled"
-    next_game_foot = next_game["start"][:10] if next_game else ""
+    next_game_foot = (local_datetime(next_game["start"]) + " (Bras&iacute;lia time)") if next_game else ""
     return (f'<div class="stat-row" style="margin-top:12px;">'
             f'<div class="stat-card {"alert" if cash_class == "neg" else ""}"><div class="label">Cash on hand</div>'
             f'<div class="value {cash_class}">{money_html(cash_now) if cash_now is not None else "N/A"}</div>'
@@ -1829,7 +1852,7 @@ def _player_reports_html(rows):
         acquired_note = ' <span class="sub">(estimated)</span>' if r.get("acquisition") == "drafted" else ''
         blocks.append(
             f'<details class="note" style="margin-bottom:10px;" id="{_player_report_id(r["playerid"])}">'
-            f'<summary>{esc(r["name"])} &middot; acquired {esc(r["date"][:10])}{acquired_note}</summary>'
+            f'<summary>{esc(r["name"])} &middot; acquired {esc(local_date(r["date"]))}{acquired_note}</summary>'
             '<div class="block-note" style="margin:8px 0;">'
             f'Acquisition cost <b style="color:var(--ink)">{money_html(r["price"])}</b> &middot; '
             f'{len(payments)} salary payment{"" if len(payments) == 1 else "s"} totaling '
@@ -1868,13 +1891,13 @@ def _expansion_reports_html(capex_list, regimes):
     for i, (c, regime) in enumerate(zip(capex_sorted, following_regimes)):
         matches = sorted(regime["matches"], key=lambda m: m["date"], reverse=True)
         match_rows = "".join(
-            f'<tr><td>{esc(m["date"][:10])}</td><td class="num">{money_html(m["amount"])}</td></tr>' for m in matches
+            f'<tr><td>{esc(local_date(m["date"]))}</td><td class="num">{money_html(m["amount"])}</td></tr>' for m in matches
         ) or '<tr><td colspan="2" class="sub">no home games recorded since this expansion yet</td></tr>'
-        window = f'{esc(c["date"][:10])} &rarr; {esc(regime["end"][:10]) if regime["end"] else "now"}'
+        window = f'{esc(local_date(c["date"]))} &rarr; {esc(local_date(regime["end"])) if regime["end"] else "now"}'
         avg_note = f' &middot; avg {money_html(regime["avg"])}/game' if regime.get("avg") is not None else ''
         blocks.append(
             f'<details class="note" style="margin-bottom:10px;" id="{_expansion_report_id(i)}">'
-            f'<summary>{esc(c["label"])} &middot; {esc(c["date"][:10])} &middot; {money_html(c["amount"])}</summary>'
+            f'<summary>{esc(c["label"])} &middot; {esc(local_date(c["date"]))} &middot; {money_html(c["amount"])}</summary>'
             '<div class="block-note" style="margin:8px 0;">'
             f'Window {window} &middot; {regime["count"]} home game{"" if regime["count"] == 1 else "s"} &middot; '
             f'total gate revenue <b style="color:var(--ink)">{money_html(regime["total"])}</b>{avg_note}</div>'
@@ -1900,7 +1923,7 @@ def auto_investments_html(data):
     stat_row = (
         '<div class="stat-row" style="margin-top:12px;">'
         f'<div class="stat-card"><div class="label">Total capital deployed</div><div class="value">{money_html(-total_invested)}</div>'
-        f'<div class="foot">tracked since {esc(min((r["date"][:10] for r in rows), default="—"))}</div></div>'
+        f'<div class="foot">tracked since {esc(min((local_date(r["date"]) for r in rows), default="—"))}</div></div>'
         f'<div class="stat-card"><div class="label">Player acquisitions</div><div class="value">{money_html(-inv["total_buys"])}</div>'
         f'<div class="foot">{inv["count"]} purchase{"s" if inv["count"] != 1 else ""} tracked</div></div>'
         f'<div class="stat-card"><div class="label">Facility &amp; capex spend</div><div class="value">{money_html(-total_capex)}</div>'
@@ -1917,7 +1940,7 @@ def auto_investments_html(data):
                 sale_cell = (f'{money_html(r["sale"]["amount"])} <span style="color:var({"--positive" if gain >= 0 else "--negative"})">'
                              f'({"+" if gain >= 0 else ""}{money_html(gain)} vs TCO)</span>')
                 status = (f'<span class="tag" style="background:var({"--positive-soft" if gain >= 0 else "--negative-soft"}); '
-                          f'color:var({"--positive" if gain >= 0 else "--negative"});">Sold {esc(r["sale"]["date"][:10])}</span>')
+                          f'color:var({"--positive" if gain >= 0 else "--negative"});">Sold {esc(local_date(r["sale"]["date"]))}</span>')
             elif r["on_roster"]:
                 sale_cell = '<span class="sub">still held</span>'
                 status = '<span class="tag tag-official" style="background:var(--positive-soft); color:var(--positive);">On roster</span>'
@@ -1926,7 +1949,7 @@ def auto_investments_html(data):
                 status = '<span class="tag" style="background:var(--warning-soft); color:var(--warning);">Off roster (release/trade, no sale recorded)</span>'
             skill_cell = f'{r["skill_now"]:g}' if r["skill_now"] is not None else "—"
             tco_per_skill_cell = f'${r["tco_per_skill"]:,.0f}' if r["tco_per_skill"] else "—"
-            acquired_cell = esc(r["date"][:10])
+            acquired_cell = esc(local_date(r["date"]))
             if r.get("acquisition") == "drafted":
                 acquired_cell += ' <span class="sub" title="Drafted/home-grown - BuzzerBeater has no official transfer record for these, so this date is the best available estimate (a manually-supplied date, or failing that the day this ledger first tracked them), not an official acquisition date.">(estimated)</span>'
             report_link = f' <a href="#{_player_report_id(r["playerid"])}" class="report-link">Report</a>'
@@ -1958,7 +1981,7 @@ def auto_investments_html(data):
 
     if inv["capex"]:
         capex_rows = "".join(
-            f'<tr><td>{esc(c["date"][:10])}</td><td>{esc(c["label"])} '
+            f'<tr><td>{esc(local_date(c["date"]))}</td><td>{esc(c["label"])} '
             f'<a href="#{_expansion_report_id(capex_report_index[id(c)])}" class="report-link">Report</a></td>'
             f'<td class="num debit">{money_html(c["amount"])}</td></tr>'
             for c in sorted(inv["capex"], key=lambda c: c["date"], reverse=True)
@@ -1995,7 +2018,7 @@ def auto_arena_revenue_html(data):
         for r in regimes:
             snap = r["snapshot"]
             seats_str = f'{snap["total_seats"]:,} seats'
-            window = f'{esc(r["start"][:10])} &rarr; {esc(r["end"][:10]) if r["end"] else "now"}'
+            window = f'{esc(local_date(r["start"]))} &rarr; {esc(local_date(r["end"])) if r["end"] else "now"}'
             avg_str = money_html(r["avg"]) if r["avg"] is not None else "<span class=\"sub\">no home dates yet</span>"
             delta_str = ""
             if r["delta_vs_prev"] is not None:
@@ -2924,7 +2947,7 @@ def fetch_league_arena_benchmark(session, conn, team_key, our_team_id, division_
             seats, prices, exact = _arena_at_date(conn, team["id"], m["start"][:10])
             if att is None or seats is None:
                 continue
-            games.append({"attendance": att, "seats": seats, "prices": prices, "exact": exact, "date": m["start"][:10]})
+            games.append({"attendance": att, "seats": seats, "prices": prices, "exact": exact, "date": local_date(m["start"])})
         teams.append(summarize_team_arena(team, snap, games))
         # Same team, just its most recent home league game - the page's
         # "Last home game" toggle (ranked and classified on its own).
@@ -3135,7 +3158,7 @@ def _team_recent_counted_form(session, conn, team_id, name, recent_n=NEXT_GAME_R
     games = []
     for m in reversed(recent):  # newest first
         r = cached.get(m["matchid"]) or {}
-        games.append({"date": m["start"][:10], "type_label": _next_game_type_label(m.get("type")),
+        games.append({"date": local_date(m["start"]), "type_label": _next_game_type_label(m.get("type")),
                       "is_home": m["is_home"], "opponent": r.get("opponent_name"),
                       "team_score": m["team_score"], "opp_score": m["opp_score"],
                       **{k: r.get(k) for k in RATING_CATEGORY_KEYS}})
@@ -3209,11 +3232,11 @@ def auto_next_game_html(data):
     us_sum = (ng.get("us") or {}).get("summary") or {}
     them_sum = (ng.get("them") or {}).get("summary") or {}
     where = "Home" if game["is_home"] else "Away"
-    when = (game["start"] or "").replace("T", " ").replace("Z", " UTC")
+    when = local_datetime(game["start"])
     head = (f'<div class="stat-row" style="margin-top:12px;">'
             f'<div class="stat-card"><div class="label">Opponent</div><div class="value" style="font-size:18px;">{esc(game["opp_name"])}</div>'
             f'<div class="foot">{where} &middot; {esc(game["type_label"])}</div></div>'
-            f'<div class="stat-card"><div class="label">Tip-off</div><div class="value" style="font-size:16px;">{esc(when)}</div><div class="foot">from schedule.aspx</div></div>'
+            f'<div class="stat-card"><div class="label">Tip-off</div><div class="value" style="font-size:16px;">{esc(when)}</div><div class="foot">Bras&iacute;lia time</div></div>'
             f'<div class="stat-card"><div class="label">Our last {n}</div><div class="value">{esc(us_sum.get("recent_record") or "N/A")}</div>'
             f'<div class="foot">avg rating {_fmt_rating(us_sum.get("composite"))}</div></div>'
             f'<div class="stat-card"><div class="label">Their last {n}</div><div class="value">{esc(them_sum.get("recent_record") or "N/A")}</div>'

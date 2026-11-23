@@ -1784,15 +1784,20 @@
   var UPCOMING_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   var UPCOMING_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  // "2026-09-19T21:00:00Z" -> "Sep-19 Sat" - parsed via UTC getters (not
-  // local-timezone ones) since the source timestamp is UTC and a local
-  // conversion could shift the displayed day near midnight.
+  // "2026-09-19T21:00:00Z" -> "Sep-19 Sat 18:00" in Brasília time (UTC-3,
+  // no DST since 2019) - per Tom, every timestamp in the report uses his own
+  // time zone. Shifted by -3h then read with UTC getters, so the result does
+  // not depend on the viewer's browser time zone.
   function ssbbFormatUpcomingDate(iso) {
     var d = new Date(iso);
     if (isNaN(d.getTime())) return iso;
+    d = new Date(d.getTime() - 3 * 3600 * 1000);
+    var hh = String(d.getUTCHours()), mm = String(d.getUTCMinutes());
+    if (hh.length < 2) hh = "0" + hh;
+    if (mm.length < 2) mm = "0" + mm;
     var day = String(d.getUTCDate());
     if (day.length < 2) day = "0" + day;
-    return UPCOMING_MONTHS[d.getUTCMonth()] + "-" + day + " " + UPCOMING_WEEKDAYS[d.getUTCDay()];
+    return UPCOMING_MONTHS[d.getUTCMonth()] + "-" + day + " " + UPCOMING_WEEKDAYS[d.getUTCDay()] + " " + hh + ":" + mm;
   }
 
   function ssbbRenderUpcomingSchedule() {
