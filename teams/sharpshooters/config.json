@@ -1,12 +1,34 @@
 {
   "team_key": "sharpshooters",
   "training_cohort": {
+    "55910729": "Gunnar Støen",
     "56146672": "Lauro Mendonça",
     "56146678": "Élder Landim",
-    "56146681": "Fiorindo Valença",
-    "55910729": "Gunnar Støen"
+    "56146681": "Fiorindo Valença"
   },
   "bb_login_env": "BB_LOGIN",
   "bb_code_env": "BB_CODE",
-  "trainee_score_pops_so_far": 2.5
+  "trainee_score_pops_so_far": 2.5,
+  "player_roles": {
+    "47057752": "role",
+    "48050982": "role",
+    "48787579": "role",
+    "50587783": "locker",
+    "52593250": "role",
+    "52862321": "role",
+    "53691481": "role",
+    "55226281": "trainee",
+    "55597492": "trainee",
+    "55825529": "trainee",
+    "55865203": "trainee",
+    "55897694": "role",
+    "55910729": "trainee",
+    "55976843": "trainee",
+    "56058314": "role",
+    "56058333": "role",
+    "56146672": "role",
+    "56146678": "role",
+    "56146681": "role",
+    "56170999": "role"
+  }
 }
