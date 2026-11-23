@@ -785,7 +785,7 @@
 
     <section class="block">
       <div class="block-head">
-        <h2>Skill ratings (as shown in-game)<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-official">Official · Game Manual, rules.aspx?nav=Nomenclature + contentbox.css</span> Word labels (on hover) are the manual's verbatim 1&ndash;20 adjective scale; colors are the exact hex values from the game's own stylesheet (.lev1&ndash;.lev20). Dark-mode colors are lightness-boosted for legibility, since the game has no dark theme of its own to match. <span class="tag tag-calc">Calculated</span> The trailing Train?/Minutes/Status columns are filled in live by this page's own script from whichever training combo is currently selected above (see the training minutes calculator, Training Strategy tab) - not part of the daily snapshot. Tick a player to mark them a training candidate; that choice is saved in this browser only. Skills are grouped OSP/ISP/Other and shown as numbers; hover a value for its word.</span></span></h2>
+        <h2>Skill ratings (as shown in-game)<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-official">Official · Game Manual, rules.aspx?nav=Nomenclature + contentbox.css</span> Word labels (on hover) are the manual's verbatim 1&ndash;20 adjective scale; colors are the exact hex values from the game's own stylesheet (.lev1&ndash;.lev20). Dark-mode colors are lightness-boosted for legibility, since the game has no dark theme of its own to match. <span class="tag tag-calc">Calculated</span> The Minutes/Status columns are filled in live by this page's own script from whichever training combo is currently selected (training minutes calculator, Training Strategy tab) - not part of the daily snapshot. <span class="tag tag-rec">Per Tom</span> Pick each player's Role: trainees are the ones shown in Training Strategy, role players fill the positions trainees aren't using, locker room players only fill minutes when needed. The table is split by role (role players, trainees, then locker room collapsed). Roles are saved to the GitHub repo (teams/sharpshooters/config.json) with this page's GitHub token, so they're the same on every device. Skills are grouped OSP/ISP/Other and shown as numbers; hover a value for its word.</span></span></h2>
         <span class="auto-badge">Auto-updated daily</span>
       </div>
       <!-- AUTO:ROSTER_SKILLS -->
@@ -870,7 +870,7 @@
 
     <section class="block">
       <div class="block-head">
-        <h2>Training candidates &amp; skills<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-rec">[Inference]</span> Laid out like the in-game player page, live from the official API each run. A few fields shown in-game aren't exposed by the API and are left out rather than guessed. Word labels and colors use the Game Manual's exact 1&ndash;20 scale and stylesheet. <span class="tag tag-rec">Per Tom</span> Shows exactly the players ticked in the Roster tab's Train? column (saved in this browser only). Weekly minutes are computed live each run by summing boxscore.aspx across matches played since the most recent Friday reset. <span class="tag tag-rec">Per Tom</span> Only minutes played at one of the focused positions count toward the threshold. The focused positions are the combo selected in the training calculator above. Thresholds: 45 min (age 18–19), 48 min (20–26), 40 min (27+). The Clears/Short/Well-short bucketing is our own heuristic, not an official in-game label.</span></span></h2>
+        <h2>Training candidates &amp; skills<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-rec">[Inference]</span> Laid out like the in-game player page, live from the official API each run. A few fields shown in-game aren't exposed by the API and are left out rather than guessed. Word labels and colors use the Game Manual's exact 1&ndash;20 scale and stylesheet. <span class="tag tag-rec">Per Tom</span> Shows exactly the players whose Role is Trainee on the Roster tab. Weekly minutes are computed live each run by summing boxscore.aspx across matches played since the most recent Friday reset. <span class="tag tag-rec">Per Tom</span> Only minutes played at one of the focused positions count toward the threshold. The focused positions are the combo selected in the training calculator above. Thresholds: 45 min (age 18–19), 48 min (20–26), 40 min (27+). The Clears/Short/Well-short bucketing is our own heuristic, not an official in-game label.</span></span></h2>
         <span class="auto-badge">Auto-updated daily</span>
       </div>
       <!-- AUTO:TRAINING_CARDS -->
@@ -1079,9 +1079,9 @@
     try { stored = localStorage.getItem(GH_TOKEN_KEY); } catch (e) {}
     if (stored && !forcePrompt) return stored;
     var entered = window.prompt(
-      "Paste a GitHub personal access token to trigger the update workflow.\n\n" +
+      "Paste a GitHub personal access token for this report (Refresh now + saving player roles).\n\n" +
       "Use a FINE-GRAINED token scoped to just the " + GH_REPO + " repo, with only " +
-      "\"Actions: Read and write\" permission - never a classic token with full access.\n\n" +
+      "\"Actions: Read and write\" and \"Contents: Read and write\" permissions - never a classic token with full access.\n\n" +
       "Stored only in this browser (localStorage), never sent anywhere but api.github.com.",
       ""
     );
@@ -1524,47 +1524,233 @@
     if (recModeEl) recModeEl.checked = true;
     ssbbRenderTrainingCalc();
     ssbbApplyTrainingColumns();
+    ssbbLayoutRosterSections();
     ssbbApplyTrainingCards();
     ssbbRenderTrainingRecommendation();
     ssbbRenderUpcomingSchedule();
+    ssbbLoadRemoteRoles();
   }
 
-  // ---- Roster tab: Train?/Minutes/Status columns on the skill table ----
-  // Which players are checked lives only in this browser's localStorage -
-  // there's nowhere on a static GitHub Pages site to write that back to
-  // report.db, so it's a per-viewer, per-device preference, not shared or
-  // part of the daily snapshot. Minutes/threshold/status for every roster
-  // player (not just checked ones - useful context either way) come from
-  // whatever combo is currently selected in #tc-type/#tc-combo above, the
-  // same calculator dropdowns, not a separate selector of their own. These
-  // three columns are injected into the server-rendered skill table (via
-  // each row's data-playerid) rather than built as their own table, so
-  // there's one roster table, not two.
-  var CANDIDATES_KEY = "ssbb-training-candidates";
+  // ---- Roster tab: player roles (per Tom, 2026-11-23) ----
+  // Every player has one role, picked from a dropdown in the Roster tab's
+  // skill table:
+  //   trainee - shown in the Training Strategy tab (the training cohort)
+  //   role    - role player: fills the positions trainees aren't using
+  //   locker  - locker room: only fills minutes when needed
+  // The skill table is split into three sections in that order (role
+  // players, trainees, locker room - the last collapsed). Roles are saved
+  // to the repo itself (teams/sharpshooters/config.json, "player_roles")
+  // with the GitHub token this page already keeps for "Refresh now", so
+  // they are the same on every device and the daily job can use them. A
+  // player with no saved role is a role player. Minutes/threshold/status
+  // for every row still come from whichever combo is selected in
+  // #tc-type/#tc-combo (Training Strategy tab).
+  var ROLE_ORDER = ["role", "trainee", "locker"];
+  var ROLE_LABELS = { role: "Role player", trainee: "Trainee", locker: "Locker room" };
+  var DEFAULT_ROLE = "role";
+  var ROLES_CONFIG_PATH = "teams/sharpshooters/config.json";
+  var CANDIDATES_KEY = "ssbb-training-candidates"; // old per-browser Train? ticks, read once for migration only
 
-  function ssbbGetCandidates() {
+  function ssbbInitialRoles() {
+    var data = window.SSBB_DATA || {};
+    if (data.player_roles && Object.keys(data.player_roles).length) return Object.assign({}, data.player_roles);
+    // No roles saved yet: start trainees from the old Train? ticks in this
+    // browser, else the config's training_cohort. Nothing is written until
+    // the first dropdown change, which then saves the whole map.
+    var trainees = null;
     try {
       var raw = localStorage.getItem(CANDIDATES_KEY);
-      if (raw) return new Set(JSON.parse(raw));
+      if (raw) trainees = JSON.parse(raw);
     } catch (e) {}
-    // First-ever visit on this browser: default-check the cohort listed in
-    // teams/<team>/config.json ("training_cohort", exported as
-    // training_cohort_default), so this doesn't open empty. Persisted
-    // immediately so this default only gets computed once. These ticks are
-    // the single source for the Training Strategy tab's cards too (see
-    // ssbbApplyTrainingCards) - per Tom (2026-11-11). Older snapshots
-    // without training_cohort_default only carried cohort cards, so fall
-    // back to those.
-    var data = window.SSBB_DATA;
-    var defaultIds = (data && data.training_cohort_default)
-      || ((data && data.training_cards) || []).filter(function (c) { return c.on_roster; }).map(function (c) { return c.playerid; });
-    var defaults = new Set(defaultIds);
-    ssbbSetCandidates(defaults);
-    return defaults;
+    if (!trainees) {
+      trainees = data.training_cohort_default
+        || (data.training_cards || []).filter(function (c) { return c.on_roster; }).map(function (c) { return c.playerid; });
+    }
+    var roles = {};
+    (trainees || []).forEach(function (pid) { roles[pid] = "trainee"; });
+    return roles;
   }
 
-  function ssbbSetCandidates(set) {
-    try { localStorage.setItem(CANDIDATES_KEY, JSON.stringify(Array.from(set))); } catch (e) {}
+  function ssbbGetRoles() {
+    if (!window.SSBB_ROLES) window.SSBB_ROLES = ssbbInitialRoles();
+    return window.SSBB_ROLES;
+  }
+
+  function ssbbRoleOf(pid) {
+    var r = ssbbGetRoles()[pid];
+    return ROLE_LABELS[r] ? r : DEFAULT_ROLE;
+  }
+
+  // Kept under its old name: the training calculator, recommendation and
+  // Training Strategy cards all ask for "the candidates" = the trainees.
+  function ssbbGetCandidates() {
+    var roles = ssbbGetRoles();
+    return new Set(Object.keys(roles).filter(function (pid) { return roles[pid] === "trainee"; }));
+  }
+
+  function ssbbRolesStatus(text, isError) {
+    var el = document.getElementById("roles-save-status");
+    if (!el) return;
+    el.textContent = text;
+    el.style.color = isError ? "var(--negative)" : "var(--ink-faint)";
+  }
+
+  function ssbbB64DecodeUtf8(b64) {
+    var bin = atob(b64.replace(/\s/g, ""));
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder("utf-8").decode(bytes);
+  }
+
+  function ssbbB64EncodeUtf8(text) {
+    var bytes = new TextEncoder().encode(text);
+    var bin = "";
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  }
+
+  async function ssbbFetchRolesConfig(token) {
+    var headers = { Accept: "application/vnd.github+json" };
+    if (token) headers.Authorization = "Bearer " + token;
+    var res = await fetch("https://api.github.com/repos/" + GH_OWNER + "/" + GH_REPO + "/contents/" + ROLES_CONFIG_PATH + "?ref=master&t=" + Date.now(), { headers: headers, cache: "no-store" });
+    if (!res.ok) { var err = new Error("GitHub " + res.status); err.status = res.status; throw err; }
+    var json = await res.json();
+    return { sha: json.sha, config: JSON.parse(ssbbB64DecodeUtf8(json.content)) };
+  }
+
+  // On load, pick up roles saved since the last daily snapshot (the
+  // snapshot's copy can be up to a day old). Quietly keeps the snapshot's
+  // roles if GitHub can't be reached.
+  async function ssbbLoadRemoteRoles() {
+    var token = null;
+    try { token = localStorage.getItem(GH_TOKEN_KEY); } catch (e) {}
+    try {
+      var got = await ssbbFetchRolesConfig(token);
+      if (got.config.player_roles && Object.keys(got.config.player_roles).length && !window.SSBB_ROLES_DIRTY) {
+        window.SSBB_ROLES = Object.assign({}, got.config.player_roles);
+        ssbbRefreshRoleViews();
+      }
+    } catch (e) {}
+  }
+
+  // Saves are queued so two quick dropdown changes become two commits in
+  // order instead of racing on the same file sha.
+  var ssbbRolesSaveChain = Promise.resolve();
+
+  function ssbbSaveRoles(message) {
+    window.SSBB_ROLES_DIRTY = true;
+    ssbbRolesSaveChain = ssbbRolesSaveChain.then(function () { return ssbbSaveRolesNow(message, false); });
+    return ssbbRolesSaveChain;
+  }
+
+  async function ssbbSaveRolesNow(message, retried) {
+    var token = ssbbGetGhToken(retried);
+    if (!token) { ssbbRolesStatus("Not saved - a GitHub token is needed to save roles.", true); return; }
+    ssbbRolesStatus("Saving roles to GitHub…", false);
+    try {
+      var got = await ssbbFetchRolesConfig(token);
+      var cfg = got.config;
+      // Save the full map for every current roster player, so the file
+      // always says exactly what this table shows.
+      var roles = {};
+      var data = window.SSBB_DATA || {};
+      ((data.roster_skills && data.roster_skills.rows) || []).forEach(function (r) { roles[r.playerid] = ssbbRoleOf(r.playerid); });
+      cfg.player_roles = roles;
+      var res = await fetch("https://api.github.com/repos/" + GH_OWNER + "/" + GH_REPO + "/contents/" + ROLES_CONFIG_PATH, {
+        method: "PUT",
+        headers: { Accept: "application/vnd.github+json", Authorization: "Bearer " + token, "Content-Type": "application/json" },
+        body: JSON.stringify({ message: message, content: ssbbB64EncodeUtf8(JSON.stringify(cfg, null, 2) + "\n"), sha: got.sha, branch: "master" })
+      });
+      if ((res.status === 401 || res.status === 403 || res.status === 404) && !retried) {
+        ssbbRolesStatus("This token can't save roles - it needs \"Contents: Read and write\" on " + GH_REPO + ".", true);
+        return ssbbSaveRolesNow(message, true);
+      }
+      if (!res.ok) throw new Error("GitHub " + res.status);
+      var t = new Date();
+      ssbbRolesStatus("Roles saved to GitHub at " + String(t.getHours()).padStart(2, "0") + ":" + String(t.getMinutes()).padStart(2, "0") + ".", false);
+    } catch (e) {
+      ssbbRolesStatus("Roles NOT saved (" + (e.message || e) + "). They'll reset on reload - try changing one again.", true);
+    }
+  }
+
+  // Splits the server-rendered skill table into one table per role. The
+  // first call builds the three sections (each a copy of the original
+  // table's header) and moves the original table into the first one; every
+  // later call just moves rows between them.
+  function ssbbLayoutRosterSections() {
+    var base = document.getElementById("roster-skills-table");
+    if (!base) return;
+    var host = document.getElementById("roster-role-sections");
+    if (!host) {
+      var scroll = base.closest(".tbl-scroll") || base;
+      host = document.createElement("div");
+      host.id = "roster-role-sections";
+      scroll.parentNode.insertBefore(host, scroll);
+      var status = document.createElement("p");
+      status.id = "roles-save-status";
+      status.className = "block-note";
+      status.style.margin = "0 0 10px";
+      status.textContent = "Pick each player's role in the Role column - it's saved to GitHub.";
+      host.appendChild(status);
+      ROLE_ORDER.forEach(function (role) {
+        var wrap = role === "locker" ? document.createElement("details") : document.createElement("div");
+        wrap.className = "roster-role-section";
+        wrap.setAttribute("data-role", role);
+        wrap.style.margin = "18px 0 0";
+        var title = document.createElement(role === "locker" ? "summary" : "h3");
+        title.className = "js-role-title";
+        title.style.cssText = "margin:0 0 8px;font-size:15px;cursor:" + (role === "locker" ? "pointer" : "default") + ";";
+        wrap.appendChild(title);
+        var sc = document.createElement("div");
+        sc.className = "tbl-scroll";
+        var table;
+        if (role === "role") {
+          table = base; // keep the original element (its id, classes, sort state)
+        } else {
+          table = base.cloneNode(false);
+          table.id = "roster-skills-table-" + role;
+          table.appendChild(base.tHead.cloneNode(true));
+          table.appendChild(document.createElement("tbody"));
+        }
+        sc.appendChild(table);
+        wrap.appendChild(sc);
+        var empty = document.createElement("p");
+        empty.className = "block-note js-role-empty";
+        empty.textContent = "No players with this role.";
+        wrap.appendChild(empty);
+        host.appendChild(wrap);
+      });
+      if (scroll !== base && scroll.parentNode) scroll.parentNode.removeChild(scroll);
+    }
+    var bodies = {};
+    host.querySelectorAll(".roster-role-section").forEach(function (sec) {
+      bodies[sec.getAttribute("data-role")] = sec.querySelector("tbody");
+    });
+    var rows = Array.prototype.slice.call(host.querySelectorAll("tr[data-playerid]"));
+    rows.sort(function (a, b) {
+      var na = (a.querySelector(".name-cell") || a).textContent, nb = (b.querySelector(".name-cell") || b).textContent;
+      return na.localeCompare(nb);
+    });
+    rows.forEach(function (tr) {
+      var body = bodies[ssbbRoleOf(tr.getAttribute("data-playerid"))];
+      if (body && tr.parentNode !== body) body.appendChild(tr);
+    });
+    host.querySelectorAll(".roster-role-section").forEach(function (sec) {
+      var role = sec.getAttribute("data-role");
+      var n = sec.querySelectorAll("tbody tr[data-playerid]").length;
+      var label = role === "role" ? "Role players" : role === "trainee" ? "Trainees" : "Locker room";
+      sec.querySelector(".js-role-title").textContent = label + " (" + n + ")";
+      sec.querySelector(".tbl-scroll").style.display = n ? "" : "none";
+      sec.querySelector(".js-role-empty").style.display = n ? "none" : "";
+    });
+  }
+
+  function ssbbRefreshRoleViews() {
+    ssbbApplyTrainingColumns();
+    ssbbLayoutRosterSections();
+    ssbbApplyTrainingCards();
+    ssbbRenderTrainingRecommendation();
+    if (document.getElementById("tc-proj-toggle")) ssbbRenderTrainingCalc();
   }
 
   // Persists the calculator's own type/combo picks across sessions (same
@@ -1846,13 +2032,12 @@
     var data = window.SSBB_DATA;
     if (!data) return;
     var comboSel = document.getElementById("tc-combo");
-    if (!comboSel || !comboSel.value) return;
-    var opt = ssbbParseTrainingOption(comboSel.value);
+    // The Role dropdown is drawn even before a training combo is picked;
+    // only Minutes/Status need one.
+    var opt = (comboSel && comboSel.value) ? ssbbParseTrainingOption(comboSel.value) : null;
     var posMinutes = data.position_minutes || {};
     var rowsByPid = {};
     ((data.roster_skills && data.roster_skills.rows) || []).forEach(function (r) { rowsByPid[r.playerid] = r; });
-    var candidates = ssbbGetCandidates();
-
     document.querySelectorAll("tr[data-playerid]").forEach(function (tr) {
       var pid = tr.getAttribute("data-playerid");
       var r = rowsByPid[pid];
@@ -1861,7 +2046,11 @@
       var statusCell = tr.querySelector(".js-status-cell");
       if (!r || !trainCell || !minutesCell || !statusCell) return;
 
-      trainCell.innerHTML = '<input type="checkbox" class="candidate-checkbox" data-playerid="' + ssbbEsc(pid) + '"' + (candidates.has(pid) ? " checked" : "") + ">";
+      var role = ssbbRoleOf(pid);
+      trainCell.innerHTML = '<select class="role-select" data-playerid="' + ssbbEsc(pid) + '" aria-label="Role">'
+        + ROLE_ORDER.map(function (k) { return '<option value="' + k + '"' + (k === role ? " selected" : "") + ">" + ROLE_LABELS[k] + "</option>"; }).join("")
+        + "</select>";
+      if (!opt) return;
 
       var res = ssbbComputeMinutesStatus(pid, r.age, opt, posMinutes);
       minutesCell.textContent = res.threshold == null ? "—" : (res.minutes + " / " + res.threshold + " min");
@@ -1935,13 +2124,14 @@
     } else if (e.target.id === "tc-proj-toggle") {
       ssbbRenderTrainingCalc();
       ssbbSaveTrainingSelection(document.getElementById("tc-type").value, document.getElementById("tc-combo").value, e.target.checked);
-    } else if (e.target.className === "candidate-checkbox") {
-      var candidates = ssbbGetCandidates();
+    } else if (e.target.className === "role-select") {
       var pid = e.target.getAttribute("data-playerid");
-      if (e.target.checked) candidates.add(pid); else candidates.delete(pid);
-      ssbbSetCandidates(candidates);
-      ssbbApplyTrainingCards();
-      ssbbRenderTrainingRecommendation();
+      var role = e.target.value;
+      ssbbGetRoles()[pid] = role;
+      var tr = e.target.closest("tr");
+      var name = tr && tr.querySelector(".name-cell") ? tr.querySelector(".name-cell").textContent.trim() : pid;
+      ssbbRefreshRoleViews();
+      ssbbSaveRoles("Set " + name + "'s role to " + ROLE_LABELS[role] + " (from the report)");
     } else if (e.target.name === "rec-mode") {
       ssbbSetRecommendationMode(e.target.value);
       ssbbRenderTrainingRecommendation();
@@ -1992,6 +2182,8 @@
     if (!td) return "";
     var cb = td.querySelector('input[type="checkbox"]');
     if (cb) return cb.checked ? 1 : 0;
+    var sel = td.querySelector("select");
+    if (sel) return (sel.options[sel.selectedIndex] || {}).text || sel.value;
     var text = (td.textContent || "").trim();
     // Strip thousands-separator commas before parsing ("$142,792" -> 142792)
     // - without this, parseFloat stops at the first comma and every money

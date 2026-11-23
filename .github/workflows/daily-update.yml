@@ -40,4 +40,8 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add docs/report.db
           git diff --cached --quiet || git commit -m "Daily BuzzerBeater snapshot: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          # The report page can commit player-role changes to
+          # teams/sharpshooters/config.json while this job runs - rebase onto
+          # those instead of failing the push as non-fast-forward.
+          git pull --rebase origin "${GITHUB_REF_NAME}"
           git push
