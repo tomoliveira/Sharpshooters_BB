@@ -93,6 +93,21 @@ TRAINEE_SCORE_POPS_SO_FAR = 2.5
 SEASON_TOTAL_MONDAYS = 13
 SEASON_WEEKS_REMAINING = None
 
+# Season boundary for the Training overview's season pop/drop totals. Per
+# Tom (2026-11-25): count only this season's pops, not everything since
+# tracking started. A season is 14 Friday training resets (see
+# studies/season-structure.md), so the current season's first training week
+# is this anchor plus a whole number of 14-week cycles. The anchor is the
+# Friday 05:00:01 UTC reset that opened a known season: 2026-11-13, the first
+# reset after last season's final (2026-11-07). Cross-check: 14 weeks back,
+# 2026-08-07 through the 2026-11-06 week, holds all of last season's league
+# games (first one 2026-08-25, final 2026-11-07), and this season's 14 weeks
+# (through the 2027-02-12 week) hold every match in the current schedule
+# (last one 2027-02-06). Team-config override:
+# season_start_anchor (any known season-opening Friday, YYYY-MM-DD).
+SEASON_TRAINING_WEEKS = 14
+SEASON_START_ANCHOR = "2026-11-13"
+
 def trainee_score(age, potential, tsp):
     """None if age/tsp aren't usable numbers. Otherwise 0-100+ (a player
     ahead of the age-scaled bar can and should score over 100 - that's a
@@ -168,7 +183,7 @@ def load_team_config(config_path):
     from these globals at call time, not at import time, so reassigning here
     is safe as long as it happens first."""
     global TRAINING_COHORT_IDS
-    global LOGIN, CODE, TEAM_KEY, TRAINEE_SCORE_POPS_SO_FAR, SEASON_WEEKS_REMAINING
+    global LOGIN, CODE, TEAM_KEY, TRAINEE_SCORE_POPS_SO_FAR, SEASON_WEEKS_REMAINING, SEASON_START_ANCHOR
     cfg = json.loads(Path(config_path).read_text(encoding="utf-8"))
     TRAINING_COHORT_IDS = cfg.get("training_cohort", TRAINING_COHORT_IDS)
     # Per Tom (2026-11-23): each player gets a role picked from the report's
@@ -182,6 +197,7 @@ def load_team_config(config_path):
         TRAINING_COHORT_IDS = {pid: "" for pid, role in PLAYER_ROLES.items() if role == "trainee"}
     TRAINEE_SCORE_POPS_SO_FAR = cfg.get("trainee_score_pops_so_far", TRAINEE_SCORE_POPS_SO_FAR)
     SEASON_WEEKS_REMAINING = cfg.get("season_weeks_remaining", SEASON_WEEKS_REMAINING)
+    SEASON_START_ANCHOR = cfg.get("season_start_anchor", SEASON_START_ANCHOR)
     TEAM_KEY = cfg.get("team_key") or Path(config_path).stem
     # Separate env var names let one environment hold credentials for several
     # teams at once (each BuzzerBeater login owns exactly one team, so a
@@ -445,20 +461,32 @@ def update_skill_pop_tracking(ledger, roster_root, now_utc):
             if delta != 0:
                 week_bucket[humanize(tag)] = delta
 
+def current_season_start_week(now_utc):
+    """The Friday training-week start (YYYY-MM-DD) that opened the current
+    season: SEASON_START_ANCHOR plus/minus whole 14-week cycles, the latest
+    one not after this week's own start. See SEASON_START_ANCHOR."""
+    this_week = most_recent_training_week_start(now_utc).date()
+    anchor = datetime.strptime(SEASON_START_ANCHOR, "%Y-%m-%d").date()
+    cycle_days = SEASON_TRAINING_WEEKS * 7
+    cycles = (this_week - anchor).days // cycle_days  # floor, so also works before the anchor
+    return (anchor + timedelta(days=cycles * cycle_days)).strftime("%Y-%m-%d")
+
 def summarize_training_pops(ledger, now_utc):
     """Per Tom: "recent" should mean this training week (since the most
     recent Friday 05:00:01 UTC reset - see most_recent_training_week_start),
     not just "since the daily job last ran." Also builds a season-to-date
     per-skill breakdown for each cohort player, both derived from
     ledger["skill_pops"][pid]["weeks"] (see update_skill_pop_tracking).
-    Season totals only cover training weeks observed since this tracking
-    started - a week that finished before this feature existed has no
-    record here (the game's own `pop` flag resets every Friday, so there's
-    no way to recover it after the fact)."""
+    Per Tom (2026-11-25): season totals count only training weeks of the
+    current season (week start on/after current_season_start_week); older
+    weeks stay in the ledger but aren't counted. A week that finished before
+    this tracking started (2026-09-11) has no record at all (the game's own
+    `pop` flag resets every Friday, so there's no way to recover it)."""
     week_start = most_recent_training_week_start(now_utc).strftime("%Y-%m-%d")
+    season_start = current_season_start_week(now_utc)
     players = []
     for pid, entry in (ledger.get("skill_pops") or {}).items():
-        weeks = entry.get("weeks") or {}
+        weeks = {wk: v for wk, v in (entry.get("weeks") or {}).items() if wk >= season_start}
         this_week_by_skill = weeks.get(week_start, {})
         season_by_skill = {}
         for wk_skills in weeks.values():
@@ -474,7 +502,7 @@ def summarize_training_pops(ledger, now_utc):
             "season_by_skill": season_by_skill,
         })
     players.sort(key=lambda p: (-(p["this_week_pops"] + p["this_week_drops"]), -p["season_pops"]))
-    return {"week_start": week_start, "players": players}
+    return {"week_start": week_start, "season_start": season_start, "players": players}
 
 def build_roster_skills_table(roster_root):
     rows = []
@@ -1316,6 +1344,7 @@ def _training_pops_html(data):
     pops = data.get("training_pops") or {}
     players = pops.get("players") or []
     week_start = pops.get("week_start")
+    season_start = pops.get("season_start")
 
     def skill_list(by_skill):
         return ", ".join(
@@ -1358,14 +1387,18 @@ def _training_pops_html(data):
                          '<th class="sortable" data-col="3">By skill (season)</th></tr></thead>'
                          f'<tbody>{rows}</tbody></table></div>')
     else:
-        totals_block = ""
+        totals_block = (f'<p class="block-note" style="margin:0;">No pops or drops yet this season '
+                        f'(since the {esc(season_start)} Friday reset).</p>' if season_start else "")
+    if season_players and season_start:
+        totals_block = (f'<p style="margin:0 0 6px;"><b>This season</b> (since the {esc(season_start)} Friday reset):</p>'
+                        + totals_block)
     tip = info_tip(
         '<span class="tag tag-rec">[Inference]</span> '
         'Pops and drops come directly from roster.aspx\'s own live \'pop\' flag on each skill - a signed net change '
         'since the current training week\'s Friday reset - bucketed by which training week they landed in, not '
-        'just "since the last daily check." Season totals only cover training weeks observed since this tracking '
-        'started (2026-09-11) - a week that finished before that has no record here, since the game\'s own flag '
-        'resets every Friday and can\'t be recovered after the fact.'
+        'just "since the last daily check." Season totals count only this season\'s training weeks: a season is 14 '
+        'Friday resets, counted from the 2026-11-13 reset that followed last season\'s final (2026-11-07). Weeks '
+        'from earlier seasons are kept but not counted.'
     )
     return (
         f'<div class="eyebrow" style="margin:14px 0 6px;">Training overview{tip}</div>' + recent_block + totals_block
