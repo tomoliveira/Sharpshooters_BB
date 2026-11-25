@@ -1348,55 +1348,71 @@ def _training_pops_html(data):
             for skill, amt in sorted(by_skill.items(), key=lambda kv: -kv[1])
         )
 
+    # Per Tom (2026-11-25): only players marked "Trainee" on the Roster tab.
+    # Every tracked player is rendered with data-playerid so the page can
+    # re-filter instantly when a role changes (ssbbApplyTrainingPops, same
+    # trainee set as the Training Strategy cards); players who aren't
+    # trainees in this run's config start hidden.
+    def hidden(p):
+        return "" if p["playerid"] in TRAINING_COHORT_IDS else ' style="display:none;"'
+
+    def week_summary(p):
+        bits = []
+        if p["this_week_pops"]:
+            bits.append(f'<span style="color:var(--positive);">{p["this_week_pops"]} '
+                        f'pop{"" if p["this_week_pops"] == 1 else "s"}</span>')
+        if p["this_week_drops"]:
+            bits.append(f'<span style="color:var(--negative);">{p["this_week_drops"]} '
+                        f'drop{"" if p["this_week_drops"] == 1 else "s"}</span>')
+        return " and ".join(bits)
+
     this_week = [p for p in players if p["this_week_pops"] or p["this_week_drops"]]
-    if this_week:
-        def week_summary(p):
-            bits = []
-            if p["this_week_pops"]:
-                bits.append(f'<span style="color:var(--positive);">{p["this_week_pops"]} '
-                            f'pop{"" if p["this_week_pops"] == 1 else "s"}</span>')
-            if p["this_week_drops"]:
-                bits.append(f'<span style="color:var(--negative);">{p["this_week_drops"]} '
-                            f'drop{"" if p["this_week_drops"] == 1 else "s"}</span>')
-            return " and ".join(bits)
-        items = "".join(
-            f'<li>{esc(p["name"])}: <b>{week_summary(p)}</b> &mdash; {skill_list(p["this_week_by_skill"])}</li>'
-            for p in this_week
-        )
-        recent_block = (f'<p style="margin:0 0 6px;"><b>This training week</b> (since the {esc(week_start)} Friday reset):</p>'
-                         f'<ul style="margin:0 0 10px; padding-left:18px;">{items}</ul>')
-    else:
-        recent_block = f'<p class="block-note" style="margin:0 0 10px;">No pops or drops yet this training week (since {esc(week_start)}).</p>'
+    week_any = any(p["playerid"] in TRAINING_COHORT_IDS for p in this_week)
+    items = "".join(
+        f'<li class="js-pop-item" data-playerid="{esc(p["playerid"])}"{hidden(p)}>{esc(p["name"])}: '
+        f'<b>{week_summary(p)}</b> &mdash; {skill_list(p["this_week_by_skill"])}</li>'
+        for p in this_week
+    )
+    recent_block = (
+        f'<div class="js-pops-group"{"" if week_any else ' style="display:none;"'}>'
+        f'<p style="margin:0 0 6px;"><b>This training week</b> (since the {esc(week_start)} Friday reset):</p>'
+        f'<ul style="margin:0 0 10px; padding-left:18px;">{items}</ul></div>'
+        f'<p class="block-note js-pops-empty" style="margin:0 0 10px;{"display:none;" if week_any else ""}">'
+        f'No pops or drops for trainees yet this training week (since {esc(week_start)}).</p>'
+    )
 
     season_players = [p for p in players if p["season_pops"] or p["season_drops"]]
-    if season_players:
-        rows = "".join(
-            f'<tr><td>{esc(p["name"])}</td>'
-            f'<td class="num" style="color:var(--positive);">{p["season_pops"]}</td>'
-            f'<td class="num" style="color:var(--negative);">{p["season_drops"]}</td>'
-            f'<td>{skill_list(p["season_by_skill"])}</td></tr>'
-            for p in season_players
-        )
-        totals_block = ('<div class="tbl-scroll"><table style="min-width:0;"><thead><tr><th class="sortable" data-col="0">Training cohort</th>'
-                         '<th class="num sortable" data-col="1">Pops</th><th class="num sortable" data-col="2">Drops</th>'
-                         '<th class="sortable" data-col="3">By skill (season)</th></tr></thead>'
-                         f'<tbody>{rows}</tbody></table></div>')
-    else:
-        totals_block = (f'<p class="block-note" style="margin:0;">No pops or drops yet this season '
-                        f'(season started Monday {esc(season_start)}).</p>' if season_start else "")
-    if season_players and season_start:
-        totals_block = (f'<p style="margin:0 0 6px;"><b>This season</b> (started Monday {esc(season_start)}):</p>'
-                        + totals_block)
+    season_any = any(p["playerid"] in TRAINING_COHORT_IDS for p in season_players)
+    rows = "".join(
+        f'<tr class="js-pop-item" data-playerid="{esc(p["playerid"])}"{hidden(p)}><td>{esc(p["name"])}</td>'
+        f'<td class="num" style="color:var(--positive);">{p["season_pops"]}</td>'
+        f'<td class="num" style="color:var(--negative);">{p["season_drops"]}</td>'
+        f'<td>{skill_list(p["season_by_skill"])}</td></tr>'
+        for p in season_players
+    )
+    since = f' (started Monday {esc(season_start)})' if season_start else ""
+    totals_block = (
+        f'<div class="js-pops-group"{"" if season_any else ' style="display:none;"'}>'
+        f'<p style="margin:0 0 6px;"><b>This season</b>{since}:</p>'
+        '<div class="tbl-scroll"><table style="min-width:0;"><thead><tr><th class="sortable" data-col="0">Trainee</th>'
+        '<th class="num sortable" data-col="1">Pops</th><th class="num sortable" data-col="2">Drops</th>'
+        '<th class="sortable" data-col="3">By skill (season)</th></tr></thead>'
+        f'<tbody>{rows}</tbody></table></div></div>'
+        f'<p class="block-note js-pops-empty" style="margin:0;{"display:none;" if season_any else ""}">'
+        f'No pops or drops for trainees yet this season{since}.</p>'
+    )
     tip = info_tip(
         '<span class="tag tag-rec">[Inference]</span> '
         'Pops and drops come directly from roster.aspx\'s own live \'pop\' flag on each skill - a signed net change '
         'since the current training week\'s Friday reset - bucketed by which training week they landed in, not '
         'just "since the last daily check." Season totals count only this season\'s training weeks: the season starts on '
         'the Monday before our first league match in schedule.aspx, and a week counts if its Friday reset falls '
-        'on or after that Monday. Weeks from earlier seasons are kept but not counted.'
+        'on or after that Monday. Weeks from earlier seasons are kept but not counted. Only players marked Trainee '
+        'on the Roster tab are listed; a newly marked trainee\'s pops are tracked from the next daily run.'
     )
     return (
-        f'<div class="eyebrow" style="margin:14px 0 6px;">Training overview{tip}</div>' + recent_block + totals_block
+        f'<div class="js-training-pops"><div class="eyebrow" style="margin:14px 0 6px;">Training overview{tip}</div>'
+        + recent_block + totals_block + '</div>'
     )
 
 def _teams_to_watch_html(data):

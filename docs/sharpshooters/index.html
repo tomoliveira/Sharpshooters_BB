@@ -2062,7 +2062,28 @@
   // minutes/threshold status and the Clears border/badge all come from the
   // same #tc-type/#tc-combo selection as the skill table (the server only
   // renders placeholders).
+  // Training overview (pops/drops): per Tom (2026-11-25), list only the
+  // players marked Trainee on the Roster tab - the same ssbbGetCandidates
+  // set as the Training Strategy cards (and re-applied wherever those are,
+  // via ssbbApplyTrainingCards). Each group (this week / this season)
+  // falls back to its "no pops yet" note when no trainee is left in it.
+  function ssbbApplyTrainingPops() {
+    var candidates = ssbbGetCandidates();
+    document.querySelectorAll(".js-training-pops .js-pops-group").forEach(function (group) {
+      var shown = 0;
+      group.querySelectorAll(".js-pop-item[data-playerid]").forEach(function (el) {
+        var on = candidates.has(el.getAttribute("data-playerid"));
+        el.style.display = on ? "" : "none";
+        if (on) shown++;
+      });
+      group.style.display = shown ? "" : "none";
+      var note = group.nextElementSibling;
+      if (note && note.classList.contains("js-pops-empty")) note.style.display = shown ? "none" : "";
+    });
+  }
+
   function ssbbApplyTrainingCards() {
+    ssbbApplyTrainingPops();
     var data = window.SSBB_DATA;
     if (!data) return;
     // Show exactly the players ticked on the Roster tab (same
