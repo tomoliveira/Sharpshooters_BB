@@ -1945,40 +1945,84 @@ def _player_reports_html(rows):
 def _expansion_report_id(i):
     return f"expansion-report-{i}"
 
+# Seat build prices from docs/game-manual.md (Arena section): "$200 per
+# bleacher seat, $700 per lower-tier seat, $2,000 per courtside seat and
+# $16,000 per luxury box, paid when you confirm".
+ARENA_SEAT_BUILD_COST = {"bleachers": 200, "lowerTier": 700, "courtside": 2000, "luxury": 16000}
+
+def _arena_seat_openings(regimes):
+    """Every point where the tracked seat counts went up (price-only changes
+    also open a regime, so regimes are NOT one per expansion). Each opening
+    carries the build cost the added seats imply at manual prices."""
+    openings = []
+    for i in range(1, len(regimes)):
+        prev, cur = regimes[i - 1]["snapshot"]["seats"], regimes[i]["snapshot"]["seats"]
+        added = {t: cur.get(t, 0) - prev.get(t, 0) for t in cur}
+        if any(n > 0 for n in added.values()):
+            cost = sum(max(n, 0) * ARENA_SEAT_BUILD_COST.get(t, 0) for t, n in added.items())
+            openings.append({"index": i, "start": regimes[i]["start"], "added": added, "cost": cost})
+    return openings
+
+def _pair_expansions_with_openings(capex_sorted, openings):
+    """Manual (Arena): construction is not immediate ("a day for every 500
+    seats you add, up to 30 days") and "you cannot start new work until the
+    last job is finished". So each expansion pairs with the first unclaimed
+    seat opening on/after its payment date, preferring the one whose
+    implied build cost equals what was paid. None = still under construction
+    (or opened before tracking began)."""
+    claimed, pairs = set(), []
+    for c in capex_sorted:
+        cands = [o for o in openings if o["index"] not in claimed and o["start"][:10] >= c["date"][:10]]
+        exact = [o for o in cands if abs(o["cost"] - abs(c["amount"])) < 1]
+        pick = (exact or cands or [None])[0]
+        if pick is not None:
+            claimed.add(pick["index"])
+        pairs.append(pick)
+    return pairs
+
 def _expansion_reports_html(capex_list, regimes):
     """Per Tom: each expansion row should link to a report of its own -
     the expansion's cost and every individual home game's gate revenue
-    since that expansion took effect. Pairs each capex entry (sorted by
-    date) with the arena capacity "regime" it opened (regimes[0] is the
-    baseline capacity that predates any tracked expansion, so it's
-    excluded here) - regimes already group match_revenue by capacity
-    window in build_arena_investment_summary, so this just renders that
-    per-game breakdown instead of only the aggregate shown elsewhere."""
-    if not capex_list or len(regimes) < 2:
+    from the day its seats opened until the next expansion's seats opened
+    (or now). Every capex entry gets a block, so every Report link in the
+    capex table has a target."""
+    if not capex_list:
         return ""
     capex_sorted = sorted(capex_list, key=lambda c: c["date"])
-    following_regimes = regimes[1:]
+    openings = _arena_seat_openings(regimes)
+    pairs = _pair_expansions_with_openings(capex_sorted, openings)
+    open_starts = sorted(o["start"] for o in openings)
     blocks = []
-    for i, (c, regime) in enumerate(zip(capex_sorted, following_regimes)):
-        matches = sorted(regime["matches"], key=lambda m: m["date"], reverse=True)
+    for i, (c, op) in enumerate(zip(capex_sorted, pairs)):
+        head = (f'<details class="note" style="margin-bottom:10px;" id="{_expansion_report_id(i)}">'
+                f'<summary>{esc(c["label"])} &middot; {esc(local_date(c["date"]))} &middot; {money_html(c["amount"])}</summary>')
+        if op is None:
+            blocks.append(head + '<div class="block-note" style="margin:8px 0;">No new seats have opened in the tracked '
+                          'arena snapshots since this payment yet (construction takes a day per 500 seats, up to 30 days).'
+                          '</div></details>')
+            continue
+        nxt = next((s for s in open_starts if s[:10] > op["start"][:10]), None)
+        matches = [m for r in regimes for m in r["matches"]
+                   if m["date"][:10] >= op["start"][:10] and (nxt is None or m["date"][:10] < nxt[:10])]
+        matches.sort(key=lambda m: m["date"], reverse=True)
+        total = sum(m["amount"] for m in matches)
+        count = len(matches)
         match_rows = "".join(
             f'<tr><td>{esc(local_date(m["date"]))}</td><td class="num">{money_html(m["amount"])}</td></tr>' for m in matches
-        ) or '<tr><td colspan="2" class="sub">no home games recorded since this expansion yet</td></tr>'
-        window = f'{esc(local_date(c["date"]))} &rarr; {esc(local_date(regime["end"])) if regime["end"] else "now"}'
-        avg_note = f' &middot; avg {money_html(regime["avg"])}/game' if regime.get("avg") is not None else ''
+        ) or '<tr><td colspan="2" class="sub">no home games recorded since this expansion opened yet</td></tr>'
+        added = ", ".join(f'+{n:,} {t}' for t, n in op["added"].items() if n > 0)
+        window = f'{esc(local_date(op["start"]))} &rarr; {esc(local_date(nxt)) if nxt else "now"}'
+        avg_note = f' &middot; avg {money_html(total / count)}/game' if count else ''
         blocks.append(
-            f'<details class="note" style="margin-bottom:10px;" id="{_expansion_report_id(i)}">'
-            f'<summary>{esc(c["label"])} &middot; {esc(local_date(c["date"]))} &middot; {money_html(c["amount"])}</summary>'
-            '<div class="block-note" style="margin:8px 0;">'
-            f'Window {window} &middot; {regime["count"]} home game{"" if regime["count"] == 1 else "s"} &middot; '
-            f'total gate revenue <b style="color:var(--ink)">{money_html(regime["total"])}</b>{avg_note}</div>'
+            head + '<div class="block-note" style="margin:8px 0;">'
+            f'Seats opened {esc(local_date(op["start"]))} ({esc(added)}) &middot; '
+            f'Window {window} &middot; {count} home game{"" if count == 1 else "s"} &middot; '
+            f'total gate revenue <b style="color:var(--ink)">{money_html(total)}</b>{avg_note}</div>'
             '<div class="tbl-scroll" style="box-shadow:none;"><table style="min-width:0;">'
             '<thead><tr><th class="sortable" data-col="0">Home date</th><th class="num sortable" data-col="1">Gate revenue</th></tr></thead>'
             f'<tbody>{match_rows}</tbody></table></div>'
             '</details>'
         )
-    if not blocks:
-        return ""
     return (
         '<div class="card" style="margin-top:16px;">'
         '<div class="eyebrow" style="margin-bottom:10px;">Expansion reports</div>'
@@ -2045,8 +2089,7 @@ def auto_investments_html(data):
         table = '<p class="block-note">No player purchases captured in the ledger yet.</p>'
 
     # Report ids are assigned by date-ascending order (matching how
-    # _expansion_reports_html pairs each capex entry with the arena regime
-    # it opened), independent of whatever order the table itself displays.
+    # _expansion_reports_html numbers its blocks), independent of whatever order the table itself displays.
     capex_ascending = sorted(inv["capex"], key=lambda c: c["date"])
     capex_report_index = {id(c): i for i, c in enumerate(capex_ascending)}
 
