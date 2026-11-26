@@ -3389,6 +3389,22 @@ LEAGUE_TOP_N = 15
 # Per-game leaderboards only rank players who played at least this share of
 # their team's league games so far, so a 1-game cameo can't top a table.
 LEAGUE_MIN_GAMES_SHARE = 0.5
+# Per Tom (2026-11-26): every table only considers players whose current
+# salary is in the top 25% of all players on league rosters (salary at or
+# above the 75th percentile). Players no longer on a league roster have no
+# current salary, so they drop out too.
+LEAGUE_SALARY_PERCENTILE = 75
+
+def _percentile(vals, pct):
+    """Linear-interpolated percentile (same method as numpy's default)."""
+    vals = sorted(vals)
+    if not vals:
+        return None
+    k = (len(vals) - 1) * pct / 100
+    lo = int(k)
+    hi = min(lo + 1, len(vals) - 1)
+    return vals[lo] + (vals[hi] - vals[lo]) * (k - lo)
+
 # Shooting % leaderboards also need a minimum volume per game played.
 LEAGUE_MIN_ATTEMPTS_PER_GAME = {"fg_pct": 3.0, "tp_pct": 1.0, "ft_pct": 1.0}
 BOX_PERF_KEYS = ("fgm", "fga", "tpm", "tpa", "ftm", "fta", "oreb", "reb", "ast", "to", "stl", "blk", "pf", "pts")
@@ -3508,6 +3524,11 @@ def fetch_league_top_players(session, conn, division_rows, our_team_id):
             a["last_date"], a["team_id"] = match_date or "", team_id
             if name: a["name"] = name
 
+    salary_cutoff = _percentile([r["salary"] for r in roster_players.values() if r.get("salary") is not None],
+                                LEAGUE_SALARY_PERCENTILE)
+    for r in roster_players.values():
+        r["top_salary"] = salary_cutoff is not None and r.get("salary") is not None and r["salary"] >= salary_cutoff
+
     stat_players = []
     for pid, a in agg.items():
         g = a["games"]
@@ -3517,7 +3538,7 @@ def fetch_league_top_players(session, conn, division_rows, our_team_id):
         stat_players.append({
             "id": pid, "name": r.get("name") or a["name"] or pid, "team_id": a["team_id"],
             "team": team_names.get(a["team_id"], ""), "is_us": a["team_id"] == our_team_id,
-            "position": pos, "games": g,
+            "position": pos, "games": g, "salary": r.get("salary"), "top_salary": bool(r.get("top_salary")),
             "qualified": team_games_played > 0 and g >= LEAGUE_MIN_GAMES_SHARE * team_games_played,
             "mpg": a["min"] / g, "ppg": a["pts"] / g, "rpg": a["reb"] / g, "orpg": a["oreb"] / g,
             "apg": a["ast"] / g, "spg": a["stl"] / g, "bpg": a["blk"] / g, "topg": a["to"] / g,
@@ -3531,7 +3552,7 @@ def fetch_league_top_players(session, conn, division_rows, our_team_id):
     for r in roster_players.values():
         r["team"] = team_names.get(r["team_id"], "")
     return {"players": stat_players, "roster": list(roster_players.values()),
-            "games_counted": len(season_ids),
+            "games_counted": len(season_ids), "salary_cutoff": salary_cutoff,
             "boxscores_fetched_this_run": fetched_now,
             "has_performance": any(p["ppg"] or p["rpg"] for p in stat_players)}
 
@@ -3569,10 +3590,10 @@ def _ltp_our_best_note(ranked, top_n, label_fn):
     for i, p in enumerate(ranked, start=1):
         if p["is_us"]:
             return f'<p class="block-note" style="margin-top:6px;">Our best: {esc(p["name"])} &middot; #{i} &middot; {label_fn(p)}</p>'
-    return '<p class="block-note" style="margin-top:6px;">None of our players qualify for this table yet.</p>'
+    return '<p class="block-note" style="margin-top:6px;">None of our players qualify for this table (top-25% salary plus the games/attempts minimums).</p>'
 
 def _ltp_stat_table(players, key, val_key, header, fmt):
-    pool = [p for p in players if p["qualified"] and p.get(val_key) is not None]
+    pool = [p for p in players if p["qualified"] and p.get("top_salary") and p.get(val_key) is not None]
     if key in LEAGUE_MIN_ATTEMPTS_PER_GAME:
         att_key = LEAGUE_SHOT_COLS[key][1]
         pool = [p for p in pool if p[att_key] >= LEAGUE_MIN_ATTEMPTS_PER_GAME[key]]
@@ -3607,7 +3628,7 @@ def _ltp_roster_value(p, val_key):
     return potential_label(int(p["potential"]))
 
 def _ltp_roster_table(roster, val_key):
-    ranked = sorted((p for p in roster if p.get(val_key) is not None),
+    ranked = sorted((p for p in roster if p.get("top_salary") and p.get(val_key) is not None),
                     key=lambda p: (-p[val_key], -(p.get("dmi") or 0), p["name"]))
     if not ranked:
         return '<p class="block-note">No roster data this run.</p>'
@@ -3658,8 +3679,13 @@ def auto_league_top_players_html(data):
     for key, title, html, tip in sections:
         body += (f'<section class="block" id="ltp-{key}"><div class="block-head"><h2>{esc(title)}'
                  f'{info_tip(tip) if tip else ""}</h2></div>{html}</section>')
+    cutoff = ltp.get("salary_cutoff")
+    n_top = sum(1 for p in roster if p.get("top_salary"))
+    cutoff_txt = (f'<b>Only players in the top 25% of league salaries are considered</b>: {money_html(cutoff)}/week or more, '
+                  f'{n_top} of {len(roster)} players on league rosters today. ' if cutoff is not None
+                  else '<b>Salary data unavailable this run, so no players pass the top-25% salary filter.</b> ')
     head = (f'<p class="block-note" style="margin:8px 0 4px;">Jump to: {nav}</p>'
-            f'<p class="block-note">Game stats: {len(players)} players across this season\'s league regular-season and playoff games. '
+            f'<p class="block-note">{cutoff_txt}Game stats come from this season\'s league regular-season and playoff games. '
             f'Per-game tables only rank players who played in at least {LEAGUE_MIN_GAMES_SHARE:.0%} of their team\'s league games. '
             'Our players are highlighted; if none make a top 15, our best is listed under the table.</p>')
     return head + body
