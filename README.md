@@ -403,7 +403,7 @@ report further down the page:
 
 ## League Top Players tab
 
-Every player on this tab is in the top 25% of league salaries: current salary at or above the 75th percentile of all players on league rosters (linear interpolation). That minimum salary is shown at the top.
+Every player on this tab is in the top 20% of league salaries: current salary at or above the 80th percentile of all players on league rosters (linear interpolation). That minimum salary is shown at the top.
 
 - **Top-salary players yet to play**: every such player with no counted game for their current team this season, highest salary first, no top-15 cut.
 - **Top 15**: one toggle switching between Points, Rebounds, Assists, Steals, Blocks, Efficiency, FG%, 3P%, FT%, Minutes (per game), Salary and DMI. Sortable, our players highlighted (our best listed under any table we don't make). Only players with at least one counted game who are still on the roster of the team they played for.

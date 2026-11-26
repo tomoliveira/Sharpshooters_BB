@@ -3391,10 +3391,10 @@ LEAGUE_TOP_N = 15
 # they played for (the team of their most recent counted game). No minimum
 # share of team games.
 # Per Tom (2026-11-26): every table only considers players whose current
-# salary is in the top 25% of all players on league rosters (salary at or
-# above the 75th percentile). Players no longer on a league roster have no
+# salary is in the top 20% of all players on league rosters (salary at or
+# above the 80th percentile). Players no longer on a league roster have no
 # current salary, so they drop out too.
-LEAGUE_SALARY_PERCENTILE = 75
+LEAGUE_SALARY_PERCENTILE = 80  # top 20% (Tom, 2026-11-26; was 75)
 
 def _percentile(vals, pct):
     """Linear-interpolated percentile (same method as numpy's default)."""
@@ -3592,7 +3592,7 @@ def _ltp_our_best_note(ranked, top_n, label_fn):
     for i, p in enumerate(ranked, start=1):
         if p["is_us"]:
             return f'<p class="block-note" style="margin-top:6px;">Our best: {esc(p["name"])} &middot; #{i} &middot; {label_fn(p)}</p>'
-    return '<p class="block-note" style="margin-top:6px;">None of our players qualify for this table (top-25% salary, at least one game for their current team, plus the shooting-attempt minimums).</p>'
+    return '<p class="block-note" style="margin-top:6px;">None of our players qualify for this table (top-20% salary, at least one game for their current team, plus the shooting-attempt minimums).</p>'
 
 def _ltp_stat_table(players, key, val_key, header, fmt):
     pool = [p for p in players if p["qualified"] and p.get("top_salary") and p.get(val_key) is not None]
@@ -3651,13 +3651,13 @@ def _ltp_roster_table(roster, val_key):
     return f'<div class="tbl-scroll"><table><thead><tr>{heads}</tr></thead><tbody>{rows}</tbody></table></div>{note}'
 
 def _ltp_not_played_table(roster):
-    """Per Tom (2026-11-26): top-25%-salary players on a league roster who
+    """Per Tom (2026-11-26): top-20%-salary players on a league roster who
     haven't played a counted league game for their current team yet - shown
     first on the tab, all of them (no top-15 cut), highest salary first."""
     waiting = sorted((p for p in roster if p.get("top_salary") and not p.get("played")),
                      key=lambda p: (-(p.get("salary") or 0), p["name"]))
     if not waiting:
-        return '<p class="block-note">Every top-25% salary player has already played for their current team.</p>'
+        return '<p class="block-note">Every top-20% salary player has already played for their current team.</p>'
     cols = [("salary", "Salary"), ("dmi", "DMI")]
     heads = ('<th class="sortable" data-col="0">Player</th><th class="sortable" data-col="1">Team</th>'
              '<th class="sortable" data-col="2">Pos</th><th class="num sortable" data-col="3">Age</th>'
@@ -3679,7 +3679,7 @@ def auto_league_top_players_html(data):
     """Per Tom (2026-11-26): minimum salary shown at the top, then the
     yet-to-play table, then one toggle (pill nav, CSS radios like the
     league arena benchmark) switching between the ranked top-15 tables.
-    Every player on the tab is in the top 25% of league salaries."""
+    Every player on the tab is in the top 20% of league salaries."""
     ltp = data.get("league_top_players")
     if not ltp:
         return '<p class="block-note">League player data not available this run.</p>'
@@ -3688,7 +3688,7 @@ def auto_league_top_players_html(data):
     head = ('<div class="eyebrow" style="margin:8px 0 2px;">Minimum salary considered</div>'
             f'<div style="font-size:26px;font-weight:600;margin-bottom:6px;">{money_html(cutoff) + "/week" if cutoff is not None else "n/a"}</div>')
 
-    not_played_tip = ('<span class="tag tag-official">Official API</span> Top-25% salary players on a league roster today who '
+    not_played_tip = ('<span class="tag tag-official">Official API</span> Top-20% salary players on a league roster today who '
                       'have not played a league regular-season or playoff game for their current team this season.')
     not_played = (f'<section class="block" id="ltp-not-played"><div class="block-head"><h2>Top-salary players yet to play'
                   f'{info_tip(not_played_tip)}</h2></div>{_ltp_not_played_table(roster)}</section>')
