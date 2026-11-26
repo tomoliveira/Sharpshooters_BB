@@ -3652,12 +3652,35 @@ def _ltp_roster_table(roster, val_key):
     note = _ltp_our_best_note(ranked, LEAGUE_TOP_N, lambda p: _ltp_roster_value(p, val_key))
     return f'<div class="tbl-scroll"><table><thead><tr>{heads}</tr></thead><tbody>{rows}</tbody></table></div>{note}'
 
+def _ltp_not_played_table(roster):
+    """Per Tom (2026-11-26): top-25%-salary players on a league roster who
+    haven't played a counted league game for their current team yet - shown
+    first on the tab, all of them (no top-15 cut), highest salary first."""
+    waiting = sorted((p for p in roster if p.get("top_salary") and not p.get("played")),
+                     key=lambda p: (-(p.get("salary") or 0), p["name"]))
+    if not waiting:
+        return '<p class="block-note">Every top-25% salary player has already played for their current team.</p>'
+    cols = [("salary", "Salary"), ("dmi", "DMI"), ("potential", "Potential")]
+    heads = ('<th class="sortable" data-col="0">Player</th><th class="sortable" data-col="1">Team</th>'
+             '<th class="sortable" data-col="2">Pos</th><th class="num sortable" data-col="3">Age</th>'
+             + "".join(f'<th class="num sortable" data-col="{4 + i}">{h}</th>' for i, (_, h) in enumerate(cols)))
+    rows = ""
+    for p in waiting:
+        age = f'{p["age"]:.0f}' if p.get("age") is not None else ""
+        vals = "".join(f'<td class="num">{_ltp_roster_value(p, k) if p.get(k) is not None else ""}</td>' for k, _ in cols)
+        rows += (f'<tr{_ltp_row_attrs(p["is_us"])}><td>{esc(p["name"])}{_ltp_you(p["is_us"])}</td><td>{esc(p["team"])}</td>'
+                 f'<td>{esc(p.get("position") or "")}</td><td class="num">{age}</td>{vals}</tr>')
+    return f'<div class="tbl-scroll"><table><thead><tr>{heads}</tr></thead><tbody>{rows}</tbody></table></div>'
+
 def auto_league_top_players_html(data):
     ltp = data.get("league_top_players")
     if not ltp:
         return '<p class="block-note">League player data not available this run.</p>'
     players, roster = ltp.get("players") or [], ltp.get("roster") or []
-    sections = []
+    sections = [("not-played", "Top-salary players yet to play", _ltp_not_played_table(roster),
+                 '<span class="tag tag-official">Official API</span> Players on a league roster today whose salary is in the '
+                 'top 25% but who have not played a league regular-season or playoff game for their current team this '
+                 'season (new signings, injured or benched players). All of them are listed, highest salary first.')]
     if players and not ltp.get("has_performance"):
         sections.append(('stats-missing', 'Game stats', '<p class="block-note">The boxscores fetched this run had no player '
                          'performance lines, so the game-stat tables are empty.</p>', None))
@@ -3689,7 +3712,8 @@ def auto_league_top_players_html(data):
                   else '<b>Salary data unavailable this run, so no players pass the top-25% salary filter.</b> ')
     head = (f'<p class="block-note" style="margin:8px 0 4px;">Jump to: {nav}</p>'
             f'<p class="block-note">{cutoff_txt}Game stats come from this season\'s league regular-season and playoff games. '
-            'Every table only lists players who have played at least one of those games and are still on the team they played for. '
+            'The ranked tables only list players who have played at least one of those games and are still on the team they played for; '
+            'top-salary players who have not played for their current team yet are listed first, in their own table. '
             'Our players are highlighted; if none make a top 15, our best is listed under the table.</p>')
     return head + body
 
