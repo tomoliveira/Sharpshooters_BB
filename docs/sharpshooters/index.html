@@ -304,6 +304,12 @@
   #la-w-last:checked ~ .la-wnav label[for="la-w-last"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 
   /* ---- League Top Players: stat toggle (same pill nav as .la-nav) ---- */
+  .ltp-per { display: none; }
+  #ltp-m-per:checked ~ .ltp-panes .ltp-raw { display: none; }
+  #ltp-m-per:checked ~ .ltp-panes .ltp-per { display: block; }
+  .ltp-mnav { margin-bottom: 8px; }
+  #ltp-m-raw:checked ~ .ltp-mnav label[for="ltp-m-raw"],
+  #ltp-m-per:checked ~ .ltp-mnav label[for="ltp-m-per"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
   .ltp-pane { display: none; }
   #ltp-t-ppg:checked ~ .ltp-panes .ltp-p-ppg,
   #ltp-t-rpg:checked ~ .ltp-panes .ltp-p-rpg,

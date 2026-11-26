@@ -3611,10 +3611,7 @@ def _ltp_our_best_note(ranked, top_n, label_fn):
     return '<p class="block-note" style="margin-top:6px;">None of our players qualify for this table (top-20% salary, at least one game for their current team, plus the shooting-attempt minimums).</p>'
 
 def _ltp_stat_table(players, key, val_key, header, fmt):
-    pool = [p for p in players if p["qualified"] and p.get("top_salary") and p.get(val_key) is not None]
-    if key in LEAGUE_MIN_ATTEMPTS_PER_GAME:
-        att_key = LEAGUE_SHOT_COLS[key][1]
-        pool = [p for p in pool if p[att_key] >= LEAGUE_MIN_ATTEMPTS_PER_GAME[key]]
+    pool = _ltp_stat_pool(players, key, val_key)
     ranked = sorted(pool, key=lambda p: (-p[val_key], -p["games"], p["name"]))
     if not ranked:
         return '<p class="block-note">No qualified players yet.</p>'
@@ -3639,6 +3636,45 @@ def _ltp_stat_table(players, key, val_key, header, fmt):
         rows += f'<tr{_ltp_row_attrs(p["is_us"])}>{cells}</tr>'
     note = _ltp_our_best_note(ranked, LEAGUE_TOP_N, lambda p: f'{fmt.format(p[val_key])} {esc(header)}')
     return (f'<div class="tbl-scroll"><table><thead><tr>{"".join(heads)}</tr></thead><tbody>{rows}</tbody></table></div>{note}')
+
+# Per Tom (2026-11-26): a toggle that switches every Top-15 tab to
+# <stat> per salary, re-ranked by that ratio. Expressed per $1,000/week of
+# salary so the numbers are readable. Not offered for shooting % (a
+# percentage per dollar means nothing) or for Salary itself.
+LEAGUE_PER_SALARY_UNIT = 1000
+LEAGUE_NO_PER_SALARY = {"fg_pct", "tp_pct", "ft_pct", "salary"}
+
+def _ltp_per_salary_table(rows, val_key, header, fmt_ratio, fmt_raw, raw_label=None):
+    """rows: dicts with name/team/position/is_us/salary and val_key (and
+    optionally games). Ranked by val_key / (salary / $1k)."""
+    pool = [p for p in rows if p.get(val_key) is not None and p.get("salary")]
+    for p in pool:
+        p["_per_k"] = p[val_key] / (p["salary"] / LEAGUE_PER_SALARY_UNIT)
+    ranked = sorted(pool, key=lambda p: (-p["_per_k"], p["name"]))
+    if not ranked:
+        return '<p class="block-note">No qualified players yet.</p>'
+    has_gp = "games" in ranked[0]
+    heads = ['#', 'Player', 'Team', 'Pos'] + (['GP'] if has_gp else []) + ['Salary', f'{header} per $1k', raw_label or header]
+    num_cols = {0} | set(range(4, len(heads)))
+    th = "".join(f'<th class="{"num " if i in num_cols else ""}sortable" data-col="{i}">{esc(h)}</th>' for i, h in enumerate(heads))
+    body = ""
+    for i, p in enumerate(ranked[:LEAGUE_TOP_N], start=1):
+        body += (f'<tr{_ltp_row_attrs(p["is_us"])}><td class="num">{i}</td><td>{esc(p["name"])}{_ltp_you(p["is_us"])}</td>'
+                 f'<td>{esc(p["team"])}</td><td>{esc(p.get("position") or "")}</td>'
+                 + (f'<td class="num">{p["games"]}</td>' if has_gp else '')
+                 + f'<td class="num">{money_html(p["salary"])}</td><td class="num"><b>{fmt_ratio.format(p["_per_k"])}</b></td>'
+                 f'<td class="num">{fmt_raw.format(p[val_key])}</td></tr>')
+    note = _ltp_our_best_note(ranked, LEAGUE_TOP_N, lambda p: f'{fmt_ratio.format(p["_per_k"])} {esc(header)} per $1k')
+    for p in pool:
+        p.pop("_per_k", None)
+    return f'<div class="tbl-scroll"><table><thead><tr>{th}</tr></thead><tbody>{body}</tbody></table></div>{note}'
+
+def _ltp_stat_pool(players, key, val_key):
+    pool = [p for p in players if p["qualified"] and p.get("top_salary") and p.get(val_key) is not None]
+    if key in LEAGUE_MIN_ATTEMPTS_PER_GAME:
+        att_key = LEAGUE_SHOT_COLS[key][1]
+        pool = [p for p in pool if p[att_key] >= LEAGUE_MIN_ATTEMPTS_PER_GAME[key]]
+    return pool
 
 def _ltp_roster_value(p, val_key):
     if val_key == "salary": return money_html(p["salary"])
@@ -3687,7 +3723,8 @@ def _ltp_not_played_table(roster):
     return f'<div class="tbl-scroll"><table><thead><tr>{heads}</tr></thead><tbody>{rows}</tbody></table></div>'
 
 # Toggle pane labels for the ranked tables (short, for the pill nav).
-LEAGUE_TOGGLE_LABELS = {"ppg": "Points", "rpg": "Rebounds", "apg": "Assists", "spg": "Steals", "bpg": "Blocks",
+LEAGUE_TOGGLE_LABELS = {  # Salary is shown first (Tom, 2026-11-26)
+                        "ppg": "Points", "rpg": "Rebounds", "apg": "Assists", "spg": "Steals", "bpg": "Blocks",
                         "eff": "Efficiency", "fg_pct": "FG%", "tp_pct": "3P%", "ft_pct": "FT%", "mpg": "Minutes",
                         "salary": "Salary", "dmi": "DMI"}
 
@@ -3719,20 +3756,42 @@ def auto_league_top_players_html(data):
             if key == "eff":
                 note = ('<p class="block-note" style="margin:0 0 8px;">Points + rebounds + assists + steals + blocks '
                         '&minus; missed field goals &minus; missed free throws &minus; turnovers, per game.</p>')
-            panes.append((key, note + _ltp_stat_table(players, key, val_key, header, fmt)))
+            raw = note + _ltp_stat_table(players, key, val_key, header, fmt)
+            if key in LEAGUE_NO_PER_SALARY:
+                per = (note + '<p class="block-note" style="margin:0 0 8px;">A shooting percentage per dollar of salary isn\'t meaningful, '
+                       'so this tab shows the plain table in both modes.</p>' + _ltp_stat_table(players, key, val_key, header, fmt))
+            else:
+                per = note + _ltp_per_salary_table(_ltp_stat_pool(players, key, val_key), val_key, header, "{:.2f}", fmt)
+            panes.append((key, raw, per))
+    roster_eligible = [p for p in roster if p.get("top_salary") and p.get("played")]
     for key, title, val_key in LEAGUE_ROSTER_SECTIONS:
-        panes.append((key, _ltp_roster_table(roster, val_key)))
+        raw = _ltp_roster_table(roster, val_key)
+        if key in LEAGUE_NO_PER_SALARY:
+            per = ('<p class="block-note" style="margin:0 0 8px;">Salary per salary is always 1, so this tab shows the plain '
+                   'salary table in both modes.</p>' + raw)
+        else:
+            per = _ltp_per_salary_table(roster_eligible, val_key, "DMI", "{:,.0f}", "{:,.0f}")
+        panes.append((key, raw, per))
+    # Salary first, then the game stats, then DMI.
+    order = {"salary": 0, "dmi": 2}
+    panes.sort(key=lambda t: order.get(t[0], 1))
     stats_note = ''
     if not players:
         stats_note = '<p class="block-note">No finished league games this season yet.</p>'
     elif not ltp.get("has_performance"):
         stats_note = '<p class="block-note">The boxscores had no player performance lines, so only Salary and DMI are shown.</p>'
     radios = "".join(f'<input type="radio" name="ltp-stat" id="ltp-t-{k}" class="la-radio"{" checked" if i == 0 else ""}>'
-                     for i, (k, _) in enumerate(panes))
-    nav = "".join(f'<label for="ltp-t-{k}">{LEAGUE_TOGGLE_LABELS[k]}</label>' for k, _ in panes)
-    body = "".join(f'<div class="ltp-pane ltp-p-{k}">{h}</div>' for k, h in panes)
+                     for i, (k, _, _) in enumerate(panes))
+    nav = "".join(f'<label for="ltp-t-{k}">{LEAGUE_TOGGLE_LABELS[k]}</label>' for k, _, _ in panes)
+    body = "".join(f'<div class="ltp-pane ltp-p-{k}"><div class="ltp-raw">{r}</div><div class="ltp-per">{q}</div></div>'
+                   for k, r, q in panes)
+    mode_radios = ('<input type="radio" name="ltp-mode" id="ltp-m-raw" class="la-radio" checked>'
+                   '<input type="radio" name="ltp-mode" id="ltp-m-per" class="la-radio">')
+    mode_nav = ('<div class="la-nav ltp-mnav"><label for="ltp-m-raw">Raw numbers</label>'
+                f'<label for="ltp-m-per">Per ${LEAGUE_PER_SALARY_UNIT:,} of salary</label></div>')
     ranked = (f'<section class="block" id="ltp-ranked"><div class="block-head"><h2>Top {LEAGUE_TOP_N}</h2></div>{stats_note}'
-              f'<div class="ltp-tabs">{radios}<div class="la-nav ltp-nav">{nav}</div><div class="ltp-panes">{body}</div></div></section>')
+              f'<div class="ltp-tabs">{mode_radios}{radios}{mode_nav}<div class="la-nav ltp-nav">{nav}</div>'
+              f'<div class="ltp-panes">{body}</div></div></section>')
     return head + not_played + ranked
 
 

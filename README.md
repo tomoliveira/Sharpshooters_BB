@@ -406,7 +406,7 @@ report further down the page:
 Every player on this tab is in the top 20% of league salaries: current salary at or above the 80th percentile of all players on league rosters (linear interpolation). That minimum salary is shown at the top.
 
 - **Top-salary players yet to play**: every such player with no counted game for their current team this season, highest salary first, no top-15 cut.
-- **Top 15**: one toggle switching between Points, Rebounds, Assists, Steals, Blocks, Efficiency, FG%, 3P%, FT%, Minutes (per game), Salary and DMI. Sortable, our players highlighted (our best listed under any table we don't make). Only players with at least one counted game who are still on the roster of the team they played for.
+- **Top 15**: one toggle switching between Salary (first), Points, Rebounds, Assists, Steals, Blocks, Efficiency, FG%, 3P%, FT%, Minutes (per game) and DMI. A second toggle, **Raw numbers / Per $1,000 of salary**, switches every tab to the stat divided by weekly salary in $1k and re-ranks by it (not offered for shooting % or Salary itself, which show the plain table in both modes). Sortable, our players highlighted (our best listed under any table we don't make). Only players with at least one counted game who are still on the roster of the team they played for.
 - **Game stats** come from `boxscore.aspx` player lines for finished league regular-season and playoff games this season (the `league` match family), each boxscore fetched once and cached in `league_player_games`. Shooting % also needs a minimum of attempts per game (3 FGA, 1 3PA, 1 FTA).
 - **Efficiency**: PTS + REB + AST + STL + BLK - missed FG - missed FT - TO, per game.
 - **Salary, DMI**: each league team's current `roster.aspx`.
