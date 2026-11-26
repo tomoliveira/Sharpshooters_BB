@@ -3479,7 +3479,7 @@ def fetch_league_top_players(session, conn, division_rows, our_team_id):
     conn.commit()
 
     team_names = {t["id"]: t.get("name") for t in division_rows if t.get("id")}
-    # Current rosters: salary, DMI, age, position, potential for every
+    # Current rosters: salary, DMI, age and position for every
     # player in the league (roster.aspx returns these for other teams too).
     roster_players = {}
     for tid in team_names:
@@ -3498,7 +3498,7 @@ def fetch_league_top_players(session, conn, division_rows, our_team_id):
                 "id": pid, "team_id": tid, "is_us": tid == our_team_id,
                 "name": f'{p.findtext("firstName") or ""} {p.findtext("lastName") or ""}'.strip(),
                 "position": p.findtext("bestPosition"), "age": num("age"), "salary": num("salary"),
-                "dmi": num("dmi"), "potential": num("skills/potential"),
+                "dmi": num("dmi"),
             }
 
     # Aggregate only this season's matchids - the cache keeps older seasons'
@@ -3575,7 +3575,6 @@ LEAGUE_STAT_SECTIONS = [
 LEAGUE_ROSTER_SECTIONS = [
     ("salary", "Highest salary", "salary"),
     ("dmi", "Highest DMI", "dmi"),
-    ("potential", "Highest potential", "potential"),
 ]
 LEAGUE_CONTEXT_COLS = [("mpg", "MPG"), ("ppg", "PPG"), ("rpg", "RPG"), ("apg", "APG"), ("eff", "EFF")]
 LEAGUE_SHOT_COLS = {"fg_pct": ("fgm_pg", "fga_pg", "FGM-FGA"), "tp_pct": ("tpm_pg", "tpa_pg", "3PM-3PA"),
@@ -3627,15 +3626,14 @@ def _ltp_stat_table(players, key, val_key, header, fmt):
 
 def _ltp_roster_value(p, val_key):
     if val_key == "salary": return money_html(p["salary"])
-    if val_key == "dmi": return f'{p["dmi"]:,.0f}'
-    return potential_label(int(p["potential"]))
+    return f'{p["dmi"]:,.0f}'
 
 def _ltp_roster_table(roster, val_key):
     ranked = sorted((p for p in roster if p.get("top_salary") and p.get("played") and p.get(val_key) is not None),
                     key=lambda p: (-p[val_key], -(p.get("dmi") or 0), p["name"]))
     if not ranked:
         return '<p class="block-note">No roster data this run.</p>'
-    cols = [("salary", "Salary"), ("dmi", "DMI"), ("potential", "Potential")]
+    cols = [("salary", "Salary"), ("dmi", "DMI")]
     heads = ('<th class="num sortable" data-col="0">#</th><th class="sortable" data-col="1">Player</th>'
              '<th class="sortable" data-col="2">Team</th><th class="sortable" data-col="3">Pos</th>'
              '<th class="num sortable" data-col="4">Age</th>'
@@ -3660,7 +3658,7 @@ def _ltp_not_played_table(roster):
                      key=lambda p: (-(p.get("salary") or 0), p["name"]))
     if not waiting:
         return '<p class="block-note">Every top-25% salary player has already played for their current team.</p>'
-    cols = [("salary", "Salary"), ("dmi", "DMI"), ("potential", "Potential")]
+    cols = [("salary", "Salary"), ("dmi", "DMI")]
     heads = ('<th class="sortable" data-col="0">Player</th><th class="sortable" data-col="1">Team</th>'
              '<th class="sortable" data-col="2">Pos</th><th class="num sortable" data-col="3">Age</th>'
              + "".join(f'<th class="num sortable" data-col="{4 + i}">{h}</th>' for i, (_, h) in enumerate(cols)))
@@ -3672,50 +3670,54 @@ def _ltp_not_played_table(roster):
                  f'<td>{esc(p.get("position") or "")}</td><td class="num">{age}</td>{vals}</tr>')
     return f'<div class="tbl-scroll"><table><thead><tr>{heads}</tr></thead><tbody>{rows}</tbody></table></div>'
 
+# Toggle pane labels for the ranked tables (short, for the pill nav).
+LEAGUE_TOGGLE_LABELS = {"ppg": "Points", "rpg": "Rebounds", "apg": "Assists", "spg": "Steals", "bpg": "Blocks",
+                        "eff": "Efficiency", "fg_pct": "FG%", "tp_pct": "3P%", "ft_pct": "FT%", "mpg": "Minutes",
+                        "salary": "Salary", "dmi": "DMI"}
+
 def auto_league_top_players_html(data):
+    """Per Tom (2026-11-26): minimum salary shown at the top, then the
+    yet-to-play table, then one toggle (pill nav, CSS radios like the
+    league arena benchmark) switching between the ranked top-15 tables.
+    Every player on the tab is in the top 25% of league salaries."""
     ltp = data.get("league_top_players")
     if not ltp:
         return '<p class="block-note">League player data not available this run.</p>'
     players, roster = ltp.get("players") or [], ltp.get("roster") or []
-    sections = [("not-played", "Top-salary players yet to play", _ltp_not_played_table(roster),
-                 '<span class="tag tag-official">Official API</span> Players on a league roster today whose salary is in the '
-                 'top 25% but who have not played a league regular-season or playoff game for their current team this '
-                 'season (new signings, injured or benched players). All of them are listed, highest salary first.')]
-    if players and not ltp.get("has_performance"):
-        sections.append(('stats-missing', 'Game stats', '<p class="block-note">The boxscores fetched this run had no player '
-                         'performance lines, so the game-stat tables are empty.</p>', None))
-    elif players:
+    cutoff = ltp.get("salary_cutoff")
+    head = ('<div class="eyebrow" style="margin:8px 0 2px;">Minimum salary considered</div>'
+            f'<div style="font-size:26px;font-weight:600;margin-bottom:6px;">{money_html(cutoff) + "/week" if cutoff is not None else "n/a"}</div>')
+
+    not_played_tip = ('<span class="tag tag-official">Official API</span> Top-25% salary players on a league roster today who '
+                      'have not played a league regular-season or playoff game for their current team this season.')
+    not_played = (f'<section class="block" id="ltp-not-played"><div class="block-head"><h2>Top-salary players yet to play'
+                  f'{info_tip(not_played_tip)}</h2></div>{_ltp_not_played_table(roster)}</section>')
+
+    panes = []  # (key, html)
+    if players and ltp.get("has_performance"):
         for key, title, val_key, header, fmt in LEAGUE_STAT_SECTIONS:
-            tip = None
+            note = ""
             if key in LEAGUE_MIN_ATTEMPTS_PER_GAME:
                 att = LEAGUE_SHOT_COLS[key][2].split("-")[1]
-                tip = f'Minimum {LEAGUE_MIN_ATTEMPTS_PER_GAME[key]:g} {att} per game played.'
+                note = f'<p class="block-note" style="margin:0 0 8px;">Minimum {LEAGUE_MIN_ATTEMPTS_PER_GAME[key]:g} {att} per game played.</p>'
             if key == "eff":
-                tip = ('<span class="tag tag-calc">Calculated</span> Points + rebounds + assists + steals + blocks '
-                       '&minus; missed field goals &minus; missed free throws &minus; turnovers, per game.')
-            sections.append((key, title, _ltp_stat_table(players, key, val_key, header, fmt), tip))
-    else:
-        sections.append(('stats-none', 'Game stats', '<p class="block-note">No finished league games this season yet.</p>', None))
+                note = ('<p class="block-note" style="margin:0 0 8px;">Points + rebounds + assists + steals + blocks '
+                        '&minus; missed field goals &minus; missed free throws &minus; turnovers, per game.</p>')
+            panes.append((key, note + _ltp_stat_table(players, key, val_key, header, fmt)))
     for key, title, val_key in LEAGUE_ROSTER_SECTIONS:
-        tip = ('<span class="tag tag-official">Official API</span> Current rosters from roster.aspx for every league team, '
-               'so players who left the league are not listed.')
-        sections.append((key, title, _ltp_roster_table(roster, val_key), tip))
-    nav = " &middot; ".join(f'<a href="#ltp-{k}" style="color:var(--accent);">{esc(t)}</a>' for k, t, _, _ in sections)
-    body = ""
-    for key, title, html, tip in sections:
-        body += (f'<section class="block" id="ltp-{key}"><div class="block-head"><h2>{esc(title)}'
-                 f'{info_tip(tip) if tip else ""}</h2></div>{html}</section>')
-    cutoff = ltp.get("salary_cutoff")
-    n_top = sum(1 for p in roster if p.get("top_salary"))
-    cutoff_txt = (f'<b>Only players in the top 25% of league salaries are considered</b>: {money_html(cutoff)}/week or more, '
-                  f'{n_top} of {len(roster)} players on league rosters today. ' if cutoff is not None
-                  else '<b>Salary data unavailable this run, so no players pass the top-25% salary filter.</b> ')
-    head = (f'<p class="block-note" style="margin:8px 0 4px;">Jump to: {nav}</p>'
-            f'<p class="block-note">{cutoff_txt}Game stats come from this season\'s league regular-season and playoff games. '
-            'The ranked tables only list players who have played at least one of those games and are still on the team they played for; '
-            'top-salary players who have not played for their current team yet are listed first, in their own table. '
-            'Our players are highlighted; if none make a top 15, our best is listed under the table.</p>')
-    return head + body
+        panes.append((key, _ltp_roster_table(roster, val_key)))
+    stats_note = ''
+    if not players:
+        stats_note = '<p class="block-note">No finished league games this season yet.</p>'
+    elif not ltp.get("has_performance"):
+        stats_note = '<p class="block-note">The boxscores had no player performance lines, so only Salary and DMI are shown.</p>'
+    radios = "".join(f'<input type="radio" name="ltp-stat" id="ltp-t-{k}" class="la-radio"{" checked" if i == 0 else ""}>'
+                     for i, (k, _) in enumerate(panes))
+    nav = "".join(f'<label for="ltp-t-{k}">{LEAGUE_TOGGLE_LABELS[k]}</label>' for k, _ in panes)
+    body = "".join(f'<div class="ltp-pane ltp-p-{k}">{h}</div>' for k, h in panes)
+    ranked = (f'<section class="block" id="ltp-ranked"><div class="block-head"><h2>Top {LEAGUE_TOP_N}</h2></div>{stats_note}'
+              f'<div class="ltp-tabs">{radios}<div class="la-nav ltp-nav">{nav}</div><div class="ltp-panes">{body}</div></div></section>')
+    return head + not_played + ranked
 
 
 def build_report(session, conn, team_key):

@@ -303,6 +303,33 @@
   #la-w-avg:checked ~ .la-wnav label[for="la-w-avg"],
   #la-w-last:checked ~ .la-wnav label[for="la-w-last"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 
+  /* ---- League Top Players: stat toggle (same pill nav as .la-nav) ---- */
+  .ltp-pane { display: none; }
+  #ltp-t-ppg:checked ~ .ltp-panes .ltp-p-ppg,
+  #ltp-t-rpg:checked ~ .ltp-panes .ltp-p-rpg,
+  #ltp-t-apg:checked ~ .ltp-panes .ltp-p-apg,
+  #ltp-t-spg:checked ~ .ltp-panes .ltp-p-spg,
+  #ltp-t-bpg:checked ~ .ltp-panes .ltp-p-bpg,
+  #ltp-t-eff:checked ~ .ltp-panes .ltp-p-eff,
+  #ltp-t-fg_pct:checked ~ .ltp-panes .ltp-p-fg_pct,
+  #ltp-t-tp_pct:checked ~ .ltp-panes .ltp-p-tp_pct,
+  #ltp-t-ft_pct:checked ~ .ltp-panes .ltp-p-ft_pct,
+  #ltp-t-mpg:checked ~ .ltp-panes .ltp-p-mpg,
+  #ltp-t-salary:checked ~ .ltp-panes .ltp-p-salary,
+  #ltp-t-dmi:checked ~ .ltp-panes .ltp-p-dmi { display: block; }
+  #ltp-t-ppg:checked ~ .ltp-nav label[for="ltp-t-ppg"],
+  #ltp-t-rpg:checked ~ .ltp-nav label[for="ltp-t-rpg"],
+  #ltp-t-apg:checked ~ .ltp-nav label[for="ltp-t-apg"],
+  #ltp-t-spg:checked ~ .ltp-nav label[for="ltp-t-spg"],
+  #ltp-t-bpg:checked ~ .ltp-nav label[for="ltp-t-bpg"],
+  #ltp-t-eff:checked ~ .ltp-nav label[for="ltp-t-eff"],
+  #ltp-t-fg_pct:checked ~ .ltp-nav label[for="ltp-t-fg_pct"],
+  #ltp-t-tp_pct:checked ~ .ltp-nav label[for="ltp-t-tp_pct"],
+  #ltp-t-ft_pct:checked ~ .ltp-nav label[for="ltp-t-ft_pct"],
+  #ltp-t-mpg:checked ~ .ltp-nav label[for="ltp-t-mpg"],
+  #ltp-t-salary:checked ~ .ltp-nav label[for="ltp-t-salary"],
+  #ltp-t-dmi:checked ~ .ltp-nav label[for="ltp-t-dmi"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+
   /* ---- bars ---- */
   .bar-row { display: grid; grid-template-columns: 160px 1fr 78px; align-items: center; gap: 12px; padding: 7px 0; }
   .bar-row .lbl { font-size: 13px; color: var(--ink-soft); }
@@ -677,7 +704,7 @@
   <div class="tab-panel" id="panel-leaguetop">
 
   <div class="block-head" style="margin-top:20px;">
-    <h2 style="font-size:19px;">League top players<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-official">Official API</span> The top 15 players in our league (both conferences) for each stat. Game stats are totalled from the boxscore of every finished league regular-season and playoff game this season - cup, private league, friendlies, B3 and BBM are left out. Salary, DMI and potential come from each team's current roster. Refreshed every day by the GitHub Actions job.</span></span></h2>
+    <h2 style="font-size:19px;">League top players<span class="info-tip" tabindex="0" role="note" aria-label="About this section">&#9432;<span class="tip-bubble"><span class="tag tag-official">Official API</span> The top 15 players in our league (both conferences) for each stat. Game stats are totalled from the boxscore of every finished league regular-season and playoff game this season - cup, private league, friendlies, B3 and BBM are left out. Salary and DMI come from each team's current roster. Every player on this tab is in the top 25% of league salaries. Refreshed every day by the GitHub Actions job.</span></span></h2>
     <span class="auto-badge">Auto-updated daily</span>
   </div>
   <!-- AUTO:LEAGUE_TOP_PLAYERS -->
