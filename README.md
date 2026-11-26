@@ -401,6 +401,14 @@ report further down the page:
   before any tracked expansion (the original capacity) has no capex entry
   to pair with, so it's excluded.
 
+## League Top Players tab
+
+One section per stat, each the top 15 players in our league (both conferences), sortable, with our own players highlighted (and our best listed under any table we don't make).
+
+- **Game stats** (PPG, RPG, APG, SPG, BPG, efficiency, FG%, 3P%, FT%, MPG): totalled from `boxscore.aspx` player lines for every finished league regular-season and playoff game this season (the `league` match family, same as power rankings). Each boxscore is fetched once and cached in `league_player_games`. Per-game tables rank only players who played in at least half of their team's league games; shooting % tables also need a minimum of attempts per game (3 FGA, 1 3PA, 1 FTA).
+- **Efficiency**: PTS + REB + AST + STL + BLK - missed FG - missed FT - TO, per game.
+- **Salary, DMI, potential**: each league team's current `roster.aspx`.
+
 ## What's live vs. manual
 
 Every section tagged **"Auto-updated daily"** on the report page is filled
