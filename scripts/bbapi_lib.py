@@ -3386,9 +3386,10 @@ def auto_next_game_html(data):
 # teamstats.aspx was not used: per third-party API notes it covers the
 # regular season only, and Tom asked for playoffs too.
 LEAGUE_TOP_N = 15
-# Per-game leaderboards only rank players who played at least this share of
-# their team's league games so far, so a 1-game cameo can't top a table.
-LEAGUE_MIN_GAMES_SHARE = 0.5
+# Per Tom (2026-11-26): every table only lists players who have played at
+# least one league game this season AND are still on the roster of the team
+# they played for (the team of their most recent counted game). No minimum
+# share of team games.
 # Per Tom (2026-11-26): every table only considers players whose current
 # salary is in the top 25% of all players on league rosters (salary at or
 # above the 75th percentile). Players no longer on a league roster have no
@@ -3534,12 +3535,14 @@ def fetch_league_top_players(session, conn, division_rows, our_team_id):
         g = a["games"]
         r = roster_players.get(pid, {})
         pos = r.get("position") or max(a["min_by_pos"], key=a["min_by_pos"].get)
-        team_games_played = team_games.get(a["team_id"], 0)
+        still_on_team = bool(r) and r.get("team_id") == a["team_id"]
+        if still_on_team:
+            r["played"] = True
         stat_players.append({
             "id": pid, "name": r.get("name") or a["name"] or pid, "team_id": a["team_id"],
             "team": team_names.get(a["team_id"], ""), "is_us": a["team_id"] == our_team_id,
             "position": pos, "games": g, "salary": r.get("salary"), "top_salary": bool(r.get("top_salary")),
-            "qualified": team_games_played > 0 and g >= LEAGUE_MIN_GAMES_SHARE * team_games_played,
+            "qualified": g >= 1 and still_on_team,
             "mpg": a["min"] / g, "ppg": a["pts"] / g, "rpg": a["reb"] / g, "orpg": a["oreb"] / g,
             "apg": a["ast"] / g, "spg": a["stl"] / g, "bpg": a["blk"] / g, "topg": a["to"] / g,
             "eff": _efficiency(a) / g,
@@ -3590,7 +3593,7 @@ def _ltp_our_best_note(ranked, top_n, label_fn):
     for i, p in enumerate(ranked, start=1):
         if p["is_us"]:
             return f'<p class="block-note" style="margin-top:6px;">Our best: {esc(p["name"])} &middot; #{i} &middot; {label_fn(p)}</p>'
-    return '<p class="block-note" style="margin-top:6px;">None of our players qualify for this table (top-25% salary plus the games/attempts minimums).</p>'
+    return '<p class="block-note" style="margin-top:6px;">None of our players qualify for this table (top-25% salary, at least one game for their current team, plus the shooting-attempt minimums).</p>'
 
 def _ltp_stat_table(players, key, val_key, header, fmt):
     pool = [p for p in players if p["qualified"] and p.get("top_salary") and p.get(val_key) is not None]
@@ -3628,7 +3631,7 @@ def _ltp_roster_value(p, val_key):
     return potential_label(int(p["potential"]))
 
 def _ltp_roster_table(roster, val_key):
-    ranked = sorted((p for p in roster if p.get("top_salary") and p.get(val_key) is not None),
+    ranked = sorted((p for p in roster if p.get("top_salary") and p.get("played") and p.get(val_key) is not None),
                     key=lambda p: (-p[val_key], -(p.get("dmi") or 0), p["name"]))
     if not ranked:
         return '<p class="block-note">No roster data this run.</p>'
@@ -3686,7 +3689,7 @@ def auto_league_top_players_html(data):
                   else '<b>Salary data unavailable this run, so no players pass the top-25% salary filter.</b> ')
     head = (f'<p class="block-note" style="margin:8px 0 4px;">Jump to: {nav}</p>'
             f'<p class="block-note">{cutoff_txt}Game stats come from this season\'s league regular-season and playoff games. '
-            f'Per-game tables only rank players who played in at least {LEAGUE_MIN_GAMES_SHARE:.0%} of their team\'s league games. '
+            'Every table only lists players who have played at least one of those games and are still on the team they played for. '
             'Our players are highlighted; if none make a top 15, our best is listed under the table.</p>')
     return head + body
 
