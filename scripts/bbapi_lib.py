@@ -596,6 +596,24 @@ def init_db(conn):
         match_type TEXT,
         attendance_json TEXT NOT NULL
     )""")
+    # League Top Players tab (see fetch_league_top_players). One row per
+    # (matchid, player) - a finished league game's player box score line,
+    # fetched once and reused forever after, same as match_ratings.
+    # league_boxscores_fetched marks a matchid as done even if its boxscore
+    # had no player lines, so it isn't re-requested every run.
+    conn.execute("""CREATE TABLE IF NOT EXISTS league_player_games (
+        matchid TEXT NOT NULL,
+        player_id TEXT NOT NULL,
+        team_id TEXT NOT NULL,
+        player_name TEXT,
+        match_date TEXT,
+        match_type TEXT,
+        stats_json TEXT NOT NULL,
+        PRIMARY KEY (matchid, player_id)
+    )""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS league_boxscores_fetched (
+        matchid TEXT PRIMARY KEY
+    )""")
     conn.commit()
 
 def load_opponent_roster(conn, team_id):
@@ -1103,7 +1121,7 @@ def render_text(data):
 AUTO_MARKERS = ["META", "OVERVIEW_STATS", "RECOMMENDATIONS", "INVESTMENTS", "ROSTER_SKILLS", "ROSTER_BY_POSITION",
                 "TRAINING_CARDS", "TRANSACTION_LEDGER", "FINANCE_WEEKLY", "SEASON_PROJECTION",
                 "ROSTER_CHANGES", "STAFF", "MINUTES_VS_MONEY", "ARENA_GLANCE", "ARENA_PRICE_BARS",
-                "LEAGUE_ARENAS", "NEXT_GAME"]
+                "LEAGUE_ARENAS", "NEXT_GAME", "LEAGUE_TOP_PLAYERS"]
 
 def esc(v):
     return html.escape(str(v)) if v is not None else ""
@@ -2300,7 +2318,8 @@ def build_fragments(data):
                   "STAFF": auto_staff_html, "MINUTES_VS_MONEY": auto_minutes_vs_money_html,
                   "ARENA_GLANCE": auto_arena_glance_html, "ARENA_PRICE_BARS": auto_arena_price_bars_html,
                   "LEAGUE_ARENAS": auto_league_arenas_html,
-                  "NEXT_GAME": auto_next_game_html}
+                  "NEXT_GAME": auto_next_game_html,
+                  "LEAGUE_TOP_PLAYERS": auto_league_top_players_html}
     return {name: generators[name](data) for name in AUTO_MARKERS}
 
 def most_recent_training_week_start(now_utc):
@@ -3354,6 +3373,351 @@ def auto_next_game_html(data):
     return head + ratings + form + roster_sec
 
 
+# ---------------------------------------------------------------------------
+# League Top Players tab
+# ---------------------------------------------------------------------------
+# Per Tom (2026-11-26): a "League Top Players" tab with one section per
+# metric, each the top 15 players in our league (both conferences), sortable,
+# our own players highlighted. Game stats count league regular season AND
+# playoffs (the "league" match family, same as power rankings - no cup,
+# friendlies, B3, BBM or private leagues), totalled from each finished
+# game's boxscore.aspx player lines. Refreshed with the daily snapshot; a
+# finished game's boxscore is fetched once and cached in league_player_games.
+# teamstats.aspx was not used: per third-party API notes it covers the
+# regular season only, and Tom asked for playoffs too.
+LEAGUE_TOP_N = 15
+# Per Tom (2026-11-26): every table only lists players who have played at
+# least one league game this season AND are still on the roster of the team
+# they played for (the team of their most recent counted game). No minimum
+# share of team games.
+# Per Tom (2026-11-26): every table only considers players whose current
+# salary is in the top 25% of all players on league rosters (salary at or
+# above the 75th percentile). Players no longer on a league roster have no
+# current salary, so they drop out too.
+LEAGUE_SALARY_PERCENTILE = 75
+
+def _percentile(vals, pct):
+    """Linear-interpolated percentile (same method as numpy's default)."""
+    vals = sorted(vals)
+    if not vals:
+        return None
+    k = (len(vals) - 1) * pct / 100
+    lo = int(k)
+    hi = min(lo + 1, len(vals) - 1)
+    return vals[lo] + (vals[hi] - vals[lo]) * (k - lo)
+
+# Shooting % leaderboards also need a minimum volume per game played.
+LEAGUE_MIN_ATTEMPTS_PER_GAME = {"fg_pct": 3.0, "tp_pct": 1.0, "ft_pct": 1.0}
+BOX_PERF_KEYS = ("fgm", "fga", "tpm", "tpa", "ftm", "fta", "oreb", "reb", "ast", "to", "stl", "blk", "pf", "pts")
+
+def _parse_boxscore_player_lines(box_root):
+    """Every player line in a boxscore: (team_id, player_id, name, stats).
+    stats holds total minutes, minutes by position and the <performance>
+    counting stats. A player with 0 minutes is kept (DNP) but does not count
+    as a game played later on."""
+    out = []
+    for team_el in (box_root.find(".//awayTeam"), box_root.find(".//homeTeam")):
+        if team_el is None or not team_el.get("id"):
+            continue
+        for p in team_el.findall(".//boxscore/player"):
+            pid = p.get("id")
+            if not pid:
+                continue
+            name = f'{p.findtext("firstName") or ""} {p.findtext("lastName") or ""}'.strip() or (p.findtext("name") or "").strip()
+            stats = {"min_by_pos": {}}
+            mins_el = p.find("minutes")
+            total_min = 0.0
+            for pos in ALL_POSITIONS:
+                try: v = float(mins_el.findtext(pos) or 0) if mins_el is not None else 0.0
+                except (TypeError, ValueError): v = 0.0
+                stats["min_by_pos"][pos] = v
+                total_min += v
+            stats["min"] = total_min
+            perf = p.find("performance")
+            for k in BOX_PERF_KEYS:
+                try: stats[k] = float(perf.findtext(k)) if perf is not None and perf.findtext(k) is not None else 0.0
+                except (TypeError, ValueError): stats[k] = 0.0
+            stats["has_performance"] = perf is not None
+            out.append((team_el.get("id"), pid, name, stats))
+    return out
+
+def _league_season_matches(session, division_rows):
+    """Finished league-family matches this season, deduped across every
+    league team's schedule.aspx, plus each team's games-played count."""
+    matches, team_games = {}, {}
+    for t in division_rows:
+        tid = t.get("id")
+        if not tid:
+            continue
+        finished = _fetch_finished_matches(session, tid)
+        team_games[tid] = len(finished)
+        for m in finished:
+            matches.setdefault(m["matchid"], {"date": m["start"][:10], "type": m["type"]})
+    return matches, team_games
+
+def _efficiency(s):
+    """Standard box-score efficiency: PTS + REB + AST + STL + BLK - missed FG - missed FT - TO."""
+    return (s["pts"] + s["reb"] + s["ast"] + s["stl"] + s["blk"]
+            - (s["fga"] - s["fgm"]) - (s["fta"] - s["ftm"]) - s["to"])
+
+def fetch_league_top_players(session, conn, division_rows, our_team_id):
+    matches, team_games = _league_season_matches(session, division_rows)
+    done = {r[0] for r in conn.execute("SELECT matchid FROM league_boxscores_fetched")}
+    fetched_now = 0
+    for matchid, info in matches.items():
+        if matchid in done:
+            continue
+        try:
+            box = fetch(session, "boxscore.aspx", {"matchid": matchid})
+        except (BBApiError, requests.RequestException):
+            continue
+        for team_id, pid, name, stats in _parse_boxscore_player_lines(box):
+            conn.execute("INSERT OR REPLACE INTO league_player_games (matchid, player_id, team_id, player_name, match_date, match_type, stats_json) "
+                         "VALUES (?, ?, ?, ?, ?, ?, ?)", (matchid, pid, team_id, name, info["date"], info["type"], json.dumps(stats)))
+        conn.execute("INSERT OR REPLACE INTO league_boxscores_fetched (matchid) VALUES (?)", (matchid,))
+        fetched_now += 1
+    conn.commit()
+
+    team_names = {t["id"]: t.get("name") for t in division_rows if t.get("id")}
+    # Current rosters: salary, DMI, age, position, potential for every
+    # player in the league (roster.aspx returns these for other teams too).
+    roster_players = {}
+    for tid in team_names:
+        try:
+            root = fetch(session, "roster.aspx", {"teamid": tid})
+        except (BBApiError, requests.RequestException):
+            continue
+        for p in root.findall(".//player"):
+            pid = p.get("id")
+            if not pid:
+                continue
+            def num(tag):
+                try: return float(p.findtext(tag))
+                except (TypeError, ValueError): return None
+            roster_players[pid] = {
+                "id": pid, "team_id": tid, "is_us": tid == our_team_id,
+                "name": f'{p.findtext("firstName") or ""} {p.findtext("lastName") or ""}'.strip(),
+                "position": p.findtext("bestPosition"), "age": num("age"), "salary": num("salary"),
+                "dmi": num("dmi"), "potential": num("skills/potential"),
+            }
+
+    # Aggregate only this season's matchids - the cache keeps older seasons'
+    # lines, but schedule.aspx only lists the current season.
+    season_ids = set(matches)
+    agg = {}
+    for matchid, pid, team_id, name, match_date, stats_json in conn.execute(
+            "SELECT matchid, player_id, team_id, player_name, match_date, stats_json FROM league_player_games"):
+        if matchid not in season_ids:
+            continue
+        s = json.loads(stats_json)
+        if s.get("min", 0) <= 0:
+            continue
+        a = agg.setdefault(pid, {"id": pid, "name": name, "team_id": team_id, "last_date": "", "games": 0,
+                                 "min": 0.0, "min_by_pos": {pos: 0.0 for pos in ALL_POSITIONS},
+                                 **{k: 0.0 for k in BOX_PERF_KEYS}})
+        a["games"] += 1
+        a["min"] += s.get("min", 0)
+        for pos in ALL_POSITIONS:
+            a["min_by_pos"][pos] += (s.get("min_by_pos") or {}).get(pos, 0)
+        for k in BOX_PERF_KEYS:
+            a[k] += s.get(k, 0)
+        if (match_date or "") >= a["last_date"]:
+            a["last_date"], a["team_id"] = match_date or "", team_id
+            if name: a["name"] = name
+
+    salary_cutoff = _percentile([r["salary"] for r in roster_players.values() if r.get("salary") is not None],
+                                LEAGUE_SALARY_PERCENTILE)
+    for r in roster_players.values():
+        r["top_salary"] = salary_cutoff is not None and r.get("salary") is not None and r["salary"] >= salary_cutoff
+
+    stat_players = []
+    for pid, a in agg.items():
+        g = a["games"]
+        r = roster_players.get(pid, {})
+        pos = r.get("position") or max(a["min_by_pos"], key=a["min_by_pos"].get)
+        still_on_team = bool(r) and r.get("team_id") == a["team_id"]
+        if still_on_team:
+            r["played"] = True
+        stat_players.append({
+            "id": pid, "name": r.get("name") or a["name"] or pid, "team_id": a["team_id"],
+            "team": team_names.get(a["team_id"], ""), "is_us": a["team_id"] == our_team_id,
+            "position": pos, "games": g, "salary": r.get("salary"), "top_salary": bool(r.get("top_salary")),
+            "qualified": g >= 1 and still_on_team,
+            "mpg": a["min"] / g, "ppg": a["pts"] / g, "rpg": a["reb"] / g, "orpg": a["oreb"] / g,
+            "apg": a["ast"] / g, "spg": a["stl"] / g, "bpg": a["blk"] / g, "topg": a["to"] / g,
+            "eff": _efficiency(a) / g,
+            "fgm_pg": a["fgm"] / g, "fga_pg": a["fga"] / g, "tpm_pg": a["tpm"] / g, "tpa_pg": a["tpa"] / g,
+            "ftm_pg": a["ftm"] / g, "fta_pg": a["fta"] / g,
+            "fg_pct": a["fgm"] / a["fga"] * 100 if a["fga"] else None,
+            "tp_pct": a["tpm"] / a["tpa"] * 100 if a["tpa"] else None,
+            "ft_pct": a["ftm"] / a["fta"] * 100 if a["fta"] else None,
+        })
+    for r in roster_players.values():
+        r["team"] = team_names.get(r["team_id"], "")
+    return {"players": stat_players, "roster": list(roster_players.values()),
+            "games_counted": len(season_ids), "salary_cutoff": salary_cutoff,
+            "boxscores_fetched_this_run": fetched_now,
+            "has_performance": any(p["ppg"] or p["rpg"] for p in stat_players)}
+
+# (key, section title, value key, value header, format, extra-filter)
+LEAGUE_STAT_SECTIONS = [
+    ("ppg", "Points per game", "ppg", "PPG", "{:.1f}"),
+    ("rpg", "Rebounds per game", "rpg", "RPG", "{:.1f}"),
+    ("apg", "Assists per game", "apg", "APG", "{:.1f}"),
+    ("spg", "Steals per game", "spg", "SPG", "{:.1f}"),
+    ("bpg", "Blocks per game", "bpg", "BPG", "{:.1f}"),
+    ("eff", "Efficiency per game", "eff", "EFF", "{:.1f}"),
+    ("fg_pct", "Field goal %", "fg_pct", "FG%", "{:.1f}%"),
+    ("tp_pct", "3-point %", "tp_pct", "3P%", "{:.1f}%"),
+    ("ft_pct", "Free throw %", "ft_pct", "FT%", "{:.1f}%"),
+    ("mpg", "Minutes per game", "mpg", "MPG", "{:.1f}"),
+]
+LEAGUE_ROSTER_SECTIONS = [
+    ("salary", "Highest salary", "salary"),
+    ("dmi", "Highest DMI", "dmi"),
+    ("potential", "Highest potential", "potential"),
+]
+LEAGUE_CONTEXT_COLS = [("mpg", "MPG"), ("ppg", "PPG"), ("rpg", "RPG"), ("apg", "APG"), ("eff", "EFF")]
+LEAGUE_SHOT_COLS = {"fg_pct": ("fgm_pg", "fga_pg", "FGM-FGA"), "tp_pct": ("tpm_pg", "tpa_pg", "3PM-3PA"),
+                    "ft_pct": ("ftm_pg", "fta_pg", "FTM-FTA")}
+
+def _ltp_row_attrs(is_us):
+    return ' class="us" style="background:var(--positive-soft);"' if is_us else ''
+
+def _ltp_you(is_us):
+    return ' <span class="tag tag-official" style="margin-left:4px;">Us</span>' if is_us else ''
+
+def _ltp_our_best_note(ranked, top_n, label_fn):
+    if any(p["is_us"] for p in ranked[:top_n]):
+        return ''
+    for i, p in enumerate(ranked, start=1):
+        if p["is_us"]:
+            return f'<p class="block-note" style="margin-top:6px;">Our best: {esc(p["name"])} &middot; #{i} &middot; {label_fn(p)}</p>'
+    return '<p class="block-note" style="margin-top:6px;">None of our players qualify for this table (top-25% salary, at least one game for their current team, plus the shooting-attempt minimums).</p>'
+
+def _ltp_stat_table(players, key, val_key, header, fmt):
+    pool = [p for p in players if p["qualified"] and p.get("top_salary") and p.get(val_key) is not None]
+    if key in LEAGUE_MIN_ATTEMPTS_PER_GAME:
+        att_key = LEAGUE_SHOT_COLS[key][1]
+        pool = [p for p in pool if p[att_key] >= LEAGUE_MIN_ATTEMPTS_PER_GAME[key]]
+    ranked = sorted(pool, key=lambda p: (-p[val_key], -p["games"], p["name"]))
+    if not ranked:
+        return '<p class="block-note">No qualified players yet.</p>'
+    ctx = [(k, h) for k, h in LEAGUE_CONTEXT_COLS if k != val_key]
+    shot = LEAGUE_SHOT_COLS.get(key)
+    heads = ['<th class="num sortable" data-col="0">#</th>', '<th class="sortable" data-col="1">Player</th>',
+             '<th class="sortable" data-col="2">Team</th>', '<th class="sortable" data-col="3">Pos</th>',
+             '<th class="num sortable" data-col="4">GP</th>', f'<th class="num sortable" data-col="5">{esc(header)}</th>']
+    col = 6
+    if shot:
+        heads.append(f'<th class="num sortable" data-col="{col}">{shot[2]} / g</th>'); col += 1
+    for _, h in ctx:
+        heads.append(f'<th class="num sortable" data-col="{col}">{h}</th>'); col += 1
+    rows = ""
+    for i, p in enumerate(ranked[:LEAGUE_TOP_N], start=1):
+        cells = (f'<td class="num">{i}</td><td>{esc(p["name"])}{_ltp_you(p["is_us"])}</td><td>{esc(p["team"])}</td>'
+                 f'<td>{esc(p["position"] or "")}</td><td class="num">{p["games"]}</td>'
+                 f'<td class="num"><b>{fmt.format(p[val_key])}</b></td>')
+        if shot:
+            cells += f'<td class="num">{p[shot[0]]:.1f}-{p[shot[1]]:.1f}</td>'
+        cells += "".join(f'<td class="num">{p[k]:.1f}</td>' for k, _ in ctx)
+        rows += f'<tr{_ltp_row_attrs(p["is_us"])}>{cells}</tr>'
+    note = _ltp_our_best_note(ranked, LEAGUE_TOP_N, lambda p: f'{fmt.format(p[val_key])} {esc(header)}')
+    return (f'<div class="tbl-scroll"><table><thead><tr>{"".join(heads)}</tr></thead><tbody>{rows}</tbody></table></div>{note}')
+
+def _ltp_roster_value(p, val_key):
+    if val_key == "salary": return money_html(p["salary"])
+    if val_key == "dmi": return f'{p["dmi"]:,.0f}'
+    return potential_label(int(p["potential"]))
+
+def _ltp_roster_table(roster, val_key):
+    ranked = sorted((p for p in roster if p.get("top_salary") and p.get("played") and p.get(val_key) is not None),
+                    key=lambda p: (-p[val_key], -(p.get("dmi") or 0), p["name"]))
+    if not ranked:
+        return '<p class="block-note">No roster data this run.</p>'
+    cols = [("salary", "Salary"), ("dmi", "DMI"), ("potential", "Potential")]
+    heads = ('<th class="num sortable" data-col="0">#</th><th class="sortable" data-col="1">Player</th>'
+             '<th class="sortable" data-col="2">Team</th><th class="sortable" data-col="3">Pos</th>'
+             '<th class="num sortable" data-col="4">Age</th>'
+             + "".join(f'<th class="num sortable" data-col="{5 + i}">{h}</th>' for i, (_, h) in enumerate(cols)))
+    rows = ""
+    for i, p in enumerate(ranked[:LEAGUE_TOP_N], start=1):
+        age = f'{p["age"]:.0f}' if p.get("age") is not None else ""
+        vals = ""
+        for k, _ in cols:
+            v = _ltp_roster_value(p, k) if p.get(k) is not None else ""
+            vals += f'<td class="num">{"<b>" + v + "</b>" if k == val_key else v}</td>'
+        rows += (f'<tr{_ltp_row_attrs(p["is_us"])}><td class="num">{i}</td><td>{esc(p["name"])}{_ltp_you(p["is_us"])}</td>'
+                 f'<td>{esc(p["team"])}</td><td>{esc(p.get("position") or "")}</td><td class="num">{age}</td>{vals}</tr>')
+    note = _ltp_our_best_note(ranked, LEAGUE_TOP_N, lambda p: _ltp_roster_value(p, val_key))
+    return f'<div class="tbl-scroll"><table><thead><tr>{heads}</tr></thead><tbody>{rows}</tbody></table></div>{note}'
+
+def _ltp_not_played_table(roster):
+    """Per Tom (2026-11-26): top-25%-salary players on a league roster who
+    haven't played a counted league game for their current team yet - shown
+    first on the tab, all of them (no top-15 cut), highest salary first."""
+    waiting = sorted((p for p in roster if p.get("top_salary") and not p.get("played")),
+                     key=lambda p: (-(p.get("salary") or 0), p["name"]))
+    if not waiting:
+        return '<p class="block-note">Every top-25% salary player has already played for their current team.</p>'
+    cols = [("salary", "Salary"), ("dmi", "DMI"), ("potential", "Potential")]
+    heads = ('<th class="sortable" data-col="0">Player</th><th class="sortable" data-col="1">Team</th>'
+             '<th class="sortable" data-col="2">Pos</th><th class="num sortable" data-col="3">Age</th>'
+             + "".join(f'<th class="num sortable" data-col="{4 + i}">{h}</th>' for i, (_, h) in enumerate(cols)))
+    rows = ""
+    for p in waiting:
+        age = f'{p["age"]:.0f}' if p.get("age") is not None else ""
+        vals = "".join(f'<td class="num">{_ltp_roster_value(p, k) if p.get(k) is not None else ""}</td>' for k, _ in cols)
+        rows += (f'<tr{_ltp_row_attrs(p["is_us"])}><td>{esc(p["name"])}{_ltp_you(p["is_us"])}</td><td>{esc(p["team"])}</td>'
+                 f'<td>{esc(p.get("position") or "")}</td><td class="num">{age}</td>{vals}</tr>')
+    return f'<div class="tbl-scroll"><table><thead><tr>{heads}</tr></thead><tbody>{rows}</tbody></table></div>'
+
+def auto_league_top_players_html(data):
+    ltp = data.get("league_top_players")
+    if not ltp:
+        return '<p class="block-note">League player data not available this run.</p>'
+    players, roster = ltp.get("players") or [], ltp.get("roster") or []
+    sections = [("not-played", "Top-salary players yet to play", _ltp_not_played_table(roster),
+                 '<span class="tag tag-official">Official API</span> Players on a league roster today whose salary is in the '
+                 'top 25% but who have not played a league regular-season or playoff game for their current team this '
+                 'season (new signings, injured or benched players). All of them are listed, highest salary first.')]
+    if players and not ltp.get("has_performance"):
+        sections.append(('stats-missing', 'Game stats', '<p class="block-note">The boxscores fetched this run had no player '
+                         'performance lines, so the game-stat tables are empty.</p>', None))
+    elif players:
+        for key, title, val_key, header, fmt in LEAGUE_STAT_SECTIONS:
+            tip = None
+            if key in LEAGUE_MIN_ATTEMPTS_PER_GAME:
+                att = LEAGUE_SHOT_COLS[key][2].split("-")[1]
+                tip = f'Minimum {LEAGUE_MIN_ATTEMPTS_PER_GAME[key]:g} {att} per game played.'
+            if key == "eff":
+                tip = ('<span class="tag tag-calc">Calculated</span> Points + rebounds + assists + steals + blocks '
+                       '&minus; missed field goals &minus; missed free throws &minus; turnovers, per game.')
+            sections.append((key, title, _ltp_stat_table(players, key, val_key, header, fmt), tip))
+    else:
+        sections.append(('stats-none', 'Game stats', '<p class="block-note">No finished league games this season yet.</p>', None))
+    for key, title, val_key in LEAGUE_ROSTER_SECTIONS:
+        tip = ('<span class="tag tag-official">Official API</span> Current rosters from roster.aspx for every league team, '
+               'so players who left the league are not listed.')
+        sections.append((key, title, _ltp_roster_table(roster, val_key), tip))
+    nav = " &middot; ".join(f'<a href="#ltp-{k}" style="color:var(--accent);">{esc(t)}</a>' for k, t, _, _ in sections)
+    body = ""
+    for key, title, html, tip in sections:
+        body += (f'<section class="block" id="ltp-{key}"><div class="block-head"><h2>{esc(title)}'
+                 f'{info_tip(tip) if tip else ""}</h2></div>{html}</section>')
+    cutoff = ltp.get("salary_cutoff")
+    n_top = sum(1 for p in roster if p.get("top_salary"))
+    cutoff_txt = (f'<b>Only players in the top 25% of league salaries are considered</b>: {money_html(cutoff)}/week or more, '
+                  f'{n_top} of {len(roster)} players on league rosters today. ' if cutoff is not None
+                  else '<b>Salary data unavailable this run, so no players pass the top-25% salary filter.</b> ')
+    head = (f'<p class="block-note" style="margin:8px 0 4px;">Jump to: {nav}</p>'
+            f'<p class="block-note">{cutoff_txt}Game stats come from this season\'s league regular-season and playoff games. '
+            'The ranked tables only list players who have played at least one of those games and are still on the team they played for; '
+            'top-salary players who have not played for their current team yet are listed first, in their own table. '
+            'Our players are highlighted; if none make a top 15, our best is listed under the table.</p>')
+    return head + body
+
+
 def build_report(session, conn, team_key):
     teaminfo = fetch(session, "teaminfo.aspx")
     roster = fetch(session, "roster.aspx")
@@ -3405,6 +3769,10 @@ def build_report(session, conn, team_key):
         data["big_hires"] = detect_big_hires(session, conn, data["division_rows"], data["now"][:10])
     except (BBApiError, requests.RequestException):
         data["big_hires"] = []
+    try:
+        data["league_top_players"] = fetch_league_top_players(session, conn, data["division_rows"], our_team_id)
+    except (BBApiError, requests.RequestException):
+        data["league_top_players"] = None
     try:
         data["next_game"] = fetch_next_game_analysis(session, conn, schedule, our_team_id, data["team"]["name"])
     except (BBApiError, requests.RequestException):
