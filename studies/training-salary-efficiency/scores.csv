@@ -1,0 +1,34 @@
+training,combo,players_trained,points_per_week,salary_added_per_week,points_per_100_dollars,trained
+Ball Handling,PG,1,1.0,2.92,34.25,Tapati Venkateswarlu
+Ball Handling,PG/SG,1,0.76,2.22,34.18,Tapati Venkateswarlu
+Ball Handling,PG/SG/SF,2,0.8,2.5,32.05,Tapati Venkateswarlu; Nizan Stucco
+Passing,PG,1,0.92,4.26,21.6,Tapati Venkateswarlu
+Passing,PG/SG,1,0.69,3.19,21.6,Tapati Venkateswarlu
+Passing,Team,10,2.3,10.78,21.33,Stefos Akrivopoulos; Lauro Mendonça; Élder Landim; Fiorindo Valença; Gunnar Støen; Robson de Castilho; Tapati Venkateswarlu; Danilo Luza; Piotr Wiszowata; Nizan Stucco
+Inside Defense,C,2,1.3,38.49,3.38,Lauro Mendonça; Piotr Wiszowata
+Shot Blocking,C,2,1.6,82.32,1.94,Lauro Mendonça; Piotr Wiszowata
+Pressure (Outside Def.),PG/SG/SF,2,0.56,32.42,1.73,Tapati Venkateswarlu; Nizan Stucco
+One on One,C/PF est.,8,9.36,589.81,1.59,Stefos Akrivopoulos; Lauro Mendonça; Élder Landim; Fiorindo Valença; Gunnar Støen; Robson de Castilho; Danilo Luza; Piotr Wiszowata
+One on One,SF/PF,7,9.1,596.93,1.52,Stefos Akrivopoulos; Élder Landim; Fiorindo Valença; Gunnar Støen; Robson de Castilho; Danilo Luza; Nizan Stucco
+Outside Shooting,Team,10,1.7,115.06,1.48,Stefos Akrivopoulos; Lauro Mendonça; Élder Landim; Fiorindo Valença; Gunnar Støen; Robson de Castilho; Tapati Venkateswarlu; Danilo Luza; Piotr Wiszowata; Nizan Stucco
+Pressure (Outside Def.),PG,1,0.7,48.57,1.44,Tapati Venkateswarlu
+Pressure (Outside Def.),PG/SG,1,0.54,38.76,1.39,Tapati Venkateswarlu
+One on One,Team,10,4.9,399.21,1.23,Stefos Akrivopoulos; Lauro Mendonça; Élder Landim; Fiorindo Valença; Gunnar Støen; Robson de Castilho; Tapati Venkateswarlu; Danilo Luza; Piotr Wiszowata; Nizan Stucco
+Outside Shooting,PG/SG,1,0.53,51.22,1.03,Tapati Venkateswarlu
+One on One,PG/SG,1,1.3,136.45,0.95,Tapati Venkateswarlu
+Outside Shooting,SG/SF,1,0.53,56.24,0.94,Nizan Stucco
+Shot Blocking,PF/C,8,4.88,526.94,0.93,Stefos Akrivopoulos; Lauro Mendonça; Élder Landim; Fiorindo Valença; Gunnar Støen; Robson de Castilho; Danilo Luza; Piotr Wiszowata
+Shot Blocking,SF/PF/C,9,2.88,319.94,0.9,Stefos Akrivopoulos; Lauro Mendonça; Élder Landim; Fiorindo Valença; Gunnar Støen; Robson de Castilho; Danilo Luza; Piotr Wiszowata; Nizan Stucco
+Jump Shot,Team,10,3.0,494.9,0.61,Stefos Akrivopoulos; Lauro Mendonça; Élder Landim; Fiorindo Valença; Gunnar Støen; Robson de Castilho; Tapati Venkateswarlu; Danilo Luza; Piotr Wiszowata; Nizan Stucco
+Jump Shot,C/PF est.,8,4.68,848.59,0.55,Stefos Akrivopoulos; Lauro Mendonça; Élder Landim; Fiorindo Valença; Gunnar Støen; Robson de Castilho; Danilo Luza; Piotr Wiszowata
+Inside Scoring,SF/PF/C,9,2.34,446.93,0.52,Stefos Akrivopoulos; Lauro Mendonça; Élder Landim; Fiorindo Valença; Gunnar Støen; Robson de Castilho; Danilo Luza; Piotr Wiszowata; Nizan Stucco
+Inside Defense,PF/C,8,4.0,781.02,0.51,Stefos Akrivopoulos; Lauro Mendonça; Élder Landim; Fiorindo Valença; Gunnar Støen; Robson de Castilho; Danilo Luza; Piotr Wiszowata
+Inside Defense,SF/PF/C,9,2.34,468.38,0.5,Stefos Akrivopoulos; Lauro Mendonça; Élder Landim; Fiorindo Valença; Gunnar Støen; Robson de Castilho; Danilo Luza; Piotr Wiszowata; Nizan Stucco
+Inside Scoring,PF/C,8,4.0,817.75,0.49,Stefos Akrivopoulos; Lauro Mendonça; Élder Landim; Fiorindo Valença; Gunnar Støen; Robson de Castilho; Danilo Luza; Piotr Wiszowata
+Jump Shot,SF/PF,7,4.55,957.28,0.48,Stefos Akrivopoulos; Élder Landim; Fiorindo Valença; Gunnar Støen; Robson de Castilho; Danilo Luza; Nizan Stucco
+Jump Shot,PG/SG,1,0.7,167.85,0.42,Tapati Venkateswarlu
+Inside Scoring,C,2,1.3,322.24,0.4,Lauro Mendonça; Piotr Wiszowata
+Jump Shot,SG/SF,1,0.7,184.3,0.38,Nizan Stucco
+Rebounding,PF/C,8,4.8,1316.14,0.36,Stefos Akrivopoulos; Lauro Mendonça; Élder Landim; Fiorindo Valença; Gunnar Støen; Robson de Castilho; Danilo Luza; Piotr Wiszowata
+Rebounding,Team,10,2.6,739.91,0.35,Stefos Akrivopoulos; Lauro Mendonça; Élder Landim; Fiorindo Valença; Gunnar Støen; Robson de Castilho; Tapati Venkateswarlu; Danilo Luza; Piotr Wiszowata; Nizan Stucco
+Outside Shooting,SG,0,0.0,0.0,,

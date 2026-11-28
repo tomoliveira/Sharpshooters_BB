@@ -8,6 +8,7 @@ While Division III is an easy climb, the promotion-era priority overrides the or
 
 1. **ISP first.** Inside Shot, Inside Defense and Rebounding are the priority group.
 2. **Shot Blocking deliberately lower** than the other three inside skills: it adds too much salary for the value it returns.
+   - **Under review (Tom, 2026-11-10):** this rule was a guess, not a verified finding. The price data we hold says the opposite: Shot Blocking is one of the cheapest skills to train. The open question is whether it costs more on centers since the season-73 formula. See [Training per salary dollar](training-salary-efficiency.md).
 3. Passing and Driving are important: the next tier.
 4. Shooting (Jump Shot) and Outside Defense come after that.
 5. Jump Range is generally not a priority.
@@ -29,6 +30,7 @@ For every position: **Stamina 6–8**, **Free Throw 7+**. Both have no salary ef
 
 - Team Training can't run alongside the 10 individual position-skill categories: only one training focus is active for the whole team at a time.
 - So reaching the Stamina and Free Throw targets means switching to Team Training from time to time. While it's active, individual skill development pauses for everyone.
+- **Official · Arena chapter.** One exception for Free Throw: a **Training Court** building lets players work on free throws during the season on top of normal training, though less than a full week of Free Throw training ([Team Infrastructure](https://www.buzzerbeater.com/community/rules.aspx?nav=Arena)). [Inference] We don't own one, so for now Team Training is still the only route. See [Training per salary dollar](training-salary-efficiency.md).
 
 ## Where the report uses this
 
