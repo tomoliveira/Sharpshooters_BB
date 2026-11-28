@@ -1,0 +1,241 @@
+{
+ "model": {
+  "n": 266,
+  "r2": 0.868,
+  "resid_sd_log": 0.362,
+  "coef": {
+   "intercept": 5.6968,
+   "Jump Shot": 0.0895,
+   "Jump Range": 0.075,
+   "Outside Def": 0.0458,
+   "Handling": -0.0016,
+   "Driving": 0.0134,
+   "Passing": 0.0289,
+   "Inside Shot": 0.0239,
+   "Inside Def": 0.0763,
+   "Rebounding": 0.1014,
+   "Shot Blocking": 0.0226
+  }
+ },
+ "roster_retrieved": "2026-11-09T20:40:46Z",
+ "current_payroll": 78740,
+ "projected_payroll": 109032,
+ "projected_band": [
+  75940,
+  156545
+ ],
+ "players": [
+  {
+   "name": "Stefos Akrivopoulos",
+   "age": 19,
+   "salary": 6983,
+   "projected": 17261
+  },
+  {
+   "name": "Sit Ki Poon",
+   "age": 28,
+   "salary": 11699,
+   "projected": 11576
+  },
+  {
+   "name": "Paschalis Dolianitis",
+   "age": 30,
+   "salary": 8789,
+   "projected": 10921
+  },
+  {
+   "name": "Che Xiaozhuo",
+   "age": 25,
+   "salary": 8309,
+   "projected": 10013
+  },
+  {
+   "name": "Gunnar Støen",
+   "age": 19,
+   "salary": 4282,
+   "projected": 9340
+  },
+  {
+   "name": "Piotr Wiszowata",
+   "age": 19,
+   "salary": 5976,
+   "projected": 8369
+  },
+  {
+   "name": "Tapati Venkateswarlu",
+   "age": 20,
+   "salary": 4281,
+   "projected": 7951
+  },
+  {
+   "name": "Robson de Castilho",
+   "age": 19,
+   "salary": 5785,
+   "projected": 6886
+  },
+  {
+   "name": "Nizan Stucco",
+   "age": 19,
+   "salary": 4700,
+   "projected": 6063
+  },
+  {
+   "name": "Fiorindo Valença",
+   "age": 19,
+   "salary": 2723,
+   "projected": 3674
+  },
+  {
+   "name": "Élder Landim",
+   "age": 18,
+   "salary": 2778,
+   "projected": 3591
+  },
+  {
+   "name": "Sandoval Mustafa",
+   "age": 40,
+   "salary": 2922,
+   "projected": 3476
+  },
+  {
+   "name": "Danilo Luza",
+   "age": 19,
+   "salary": 2575,
+   "projected": 2854
+  },
+  {
+   "name": "Lauro Mendonça",
+   "age": 18,
+   "salary": 2343,
+   "projected": 2852
+  },
+  {
+   "name": "Andrzej Przeor",
+   "age": 42,
+   "salary": 2162,
+   "projected": 1832
+  },
+  {
+   "name": "Alessandro Diaferia",
+   "age": 43,
+   "salary": 1403,
+   "projected": 1325
+  },
+  {
+   "name": "Matas Muknickas",
+   "age": 46,
+   "salary": 1030,
+   "projected": 1050
+  }
+ ],
+ "ledger": [
+  {
+   "payday": "2026-08-17",
+   "player_salaries": 47895.0,
+   "tv_money": 84021.0,
+   "salaries_over_tv": 0.57
+  },
+  {
+   "payday": "2026-08-31",
+   "player_salaries": 54233.0,
+   "tv_money": 84021.0,
+   "salaries_over_tv": 0.645
+  },
+  {
+   "payday": "2026-09-07",
+   "player_salaries": 55636.0,
+   "tv_money": 84021.0,
+   "salaries_over_tv": 0.662
+  },
+  {
+   "payday": "2026-09-14",
+   "player_salaries": 53241.0,
+   "tv_money": 84021.0,
+   "salaries_over_tv": 0.634
+  },
+  {
+   "payday": "2026-09-21",
+   "player_salaries": 57193.0,
+   "tv_money": 84021.0,
+   "salaries_over_tv": 0.681
+  },
+  {
+   "payday": "2026-09-28",
+   "player_salaries": 57193.0,
+   "tv_money": 84021.0,
+   "salaries_over_tv": 0.681
+  },
+  {
+   "payday": "2026-10-05",
+   "player_salaries": 57193.0,
+   "tv_money": 84021.0,
+   "salaries_over_tv": 0.681
+  },
+  {
+   "payday": "2026-10-12",
+   "player_salaries": 57193.0,
+   "tv_money": 84021.0,
+   "salaries_over_tv": 0.681
+  },
+  {
+   "payday": "2026-10-19",
+   "player_salaries": 57193.0,
+   "tv_money": 84021.0,
+   "salaries_over_tv": 0.681
+  },
+  {
+   "payday": "2026-10-26",
+   "player_salaries": 57193.0,
+   "tv_money": 84021.0,
+   "salaries_over_tv": 0.681
+  },
+  {
+   "payday": "2026-11-02",
+   "player_salaries": 57193.0,
+   "tv_money": 84021.0,
+   "salaries_over_tv": 0.681
+  },
+  {
+   "payday": "2026-11-09",
+   "player_salaries": 68457.0,
+   "tv_money": 84021.0,
+   "salaries_over_tv": 0.815
+  }
+ ],
+ "div2": {
+  "n": 59,
+  "min": 77898,
+  "p10": 275612,
+  "median": 388141,
+  "gap_to_p10": 166580,
+  "projected_percentile": 1.7
+ },
+ "capacity": {
+  "season_paydays_on_record": 12,
+  "season_totals": {
+   "arenaExpansion": -1408400,
+   "matchRevenue": 1448548,
+   "merchandise": 343372,
+   "newbieIncome": 280000,
+   "playerSalaries": -679813,
+   "revenueSharing": -125000,
+   "scouting": -120000,
+   "staffSalaries": -421438,
+   "transfer": -286520,
+   "tvMoney": 1008252,
+   "unknown": 44473
+  },
+  "season_breakeven_payroll": 188228,
+  "season_breakeven_after_revenue_sharing": 177811,
+  "run_rate_weeks": 8,
+  "run_rate": {
+   "tvMoney": 84021,
+   "merchandise": 31712,
+   "matchRevenue": 130285,
+   "staffSalaries": -38890,
+   "scouting": -10000
+  },
+  "run_rate_breakeven_payroll": 197128
+ },
+ "div3_projected_percentile": 40.8
+}
