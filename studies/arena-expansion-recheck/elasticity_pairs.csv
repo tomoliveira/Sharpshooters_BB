@@ -1,0 +1,5 @@
+games,tier,prices,attendance,arc_elasticity,reading
+2026-10-13 vs 2026-10-17,bleachers,14 -> 12,5545 -> 7000,-1.51,at least this elastic
+2026-10-13 vs 2026-10-17,lowerTier,45 -> 48,720 -> 632,-2.02,at least this elastic
+2026-10-13 vs 2026-10-17,courtside,130 -> 118,178 -> 204,-1.41,point estimate
+2026-09-15 vs 2026-09-26,bleachers,12 -> 14,5917 -> 4950,-1.16,point estimate

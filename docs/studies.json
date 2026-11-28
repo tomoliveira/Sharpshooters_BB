@@ -161,6 +161,14 @@
       "date": "2026-11-10",
       "path": "studies/ratings-impact.md",
       "summary": "Study plan: which skills, by position, drive match ratings and wins, per salary dollar. On hold until the new BuzzerBeater site is mapped."
+    },
+    {
+      "id": "arena-expansion-recheck",
+      "group": "research",
+      "title": "Arena expansions: payback recheck with real fill",
+      "date": "2026-11-10",
+      "path": "studies/arena-expansion-recheck.md",
+      "summary": "Seven expansions cost $1.41M. The six built ones pay back in ~1.9 seasons on real fill (58-100% of added seats), getting worse each time; the new $362k one has no unmet demand at current prices. Our games put price elasticity near -1.5, not -0.4."
     }
   ]
 }
